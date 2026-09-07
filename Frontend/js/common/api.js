@@ -23,7 +23,7 @@ async function predictRisk(payload) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: payload }),
-      signal: AbortSignal.timeout(5000), // 5초 안에 응답 없으면 실패로 처리
+      signal: AbortSignal.timeout(40000), // 40초 안에 응답 없으면 실패로 처리
     });
     if (!res.ok) throw new Error(`예측 요청 실패 (${res.status})`);
     const data = await res.json();
@@ -169,7 +169,7 @@ async function getSimilarity(payload) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: payload }),
-      signal: AbortSignal.timeout(20000), // 임베딩 호출이 껴서 넉넉히 20초
+      signal: AbortSignal.timeout(40000), // 임베딩 호출이 껴서 넉넉히 40초
     });
     if (!res.ok) throw new Error(`유사도 분석 요청 실패 (${res.status})`);
     return await res.json();

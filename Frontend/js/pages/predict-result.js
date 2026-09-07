@@ -151,9 +151,9 @@ function renderSimilarCases(cases) {
         <div>
           <div class="similar-case-list__title">${c.title}</div>
           <div class="similar-case-list__date">
-            <span class="badge" style="margin-right:4px; background:${color}22; color:${color};">${c.hazard_type}</span>
-            ${c.summary}
+            <span class="badge" style="background:${color}22; color:${color};">${c.hazard_type}</span>
           </div>
+          <div class="similar-case-list__summary text-clamp-1">${c.summary}</div>
         </div>
         <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
       </div>

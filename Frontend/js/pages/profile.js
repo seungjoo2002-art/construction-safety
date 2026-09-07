@@ -117,7 +117,7 @@ function renderAccessibilityToggles() {
   });
 }
 
-// ── 알림 설정 (설정값만 저장 — 실제 푸시 발송 기능은 없음, 화면에도 안내문구 있음)
+// ── 알림 설정 (notif_prefs.push가 true면 notifications-realtime.js가 실제 브라우저 알림을 띄움)
 function renderNotificationToggles() {
   const prefs = JSON.parse(
     localStorage.getItem("notif_prefs") || '{"push":true,"alert":true}'
@@ -131,7 +131,17 @@ function renderNotificationToggles() {
   Object.entries(map).forEach(([id, key]) => {
     const el = document.getElementById(id);
     el.checked = !!prefs[key];
-    el.addEventListener("change", () => {
+    el.addEventListener("change", async () => {
+      // ── "푸시 알림"을 켜는 순간에는 브라우저 알림 권한이 있어야 실제로 알림이 뜨므로 먼저 요청
+      if (key === "push" && el.checked) {
+        const permission = await requestNotificationPermission();
+        if (permission !== "granted") {
+          el.checked = false;
+          alert("브라우저 알림 권한이 필요해요");
+          return;
+        }
+      }
+
       prefs[key] = el.checked;
       localStorage.setItem("notif_prefs", JSON.stringify(prefs));
     });

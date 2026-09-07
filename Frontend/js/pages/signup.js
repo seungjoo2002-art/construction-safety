@@ -21,7 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const passwordInput = document.getElementById("signup-password");
   const passwordConfirmInput = document.getElementById("signup-password-confirm");
   const nameInput = document.getElementById("signup-name");
-  const nicknameInput = document.getElementById("signup-nickname");
   const birthdateInput = document.getElementById("signup-birthdate");
   const errorEl = document.getElementById("signup-error");
   const submitBtn = document.getElementById("signup-submit");
@@ -44,10 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const password = passwordInput.value;
     const passwordConfirm = passwordConfirmInput.value;
     const name = nameInput.value.trim();
-    const nickname = nicknameInput.value.trim();
     const birthdate = birthdateInput.value;
 
-    if (!username || !password || !passwordConfirm || !name || !nickname || !birthdate) {
+    if (!username || !password || !passwordConfirm || !name || !birthdate) {
       showError("모든 항목을 입력해주세요.");
       return;
     }
@@ -63,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    users.push({ username, password, name, nickname, birthdate });
+    users.push({ username, password, name, birthdate });
     saveRegisteredUsers(users);
 
     alert("회원가입이 완료되었습니다. 로그인해주세요.");

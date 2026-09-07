@@ -374,6 +374,12 @@
 .similar-case-list__date {
   font-size: 11px;
   color: var(--color-text-placeholder);
+  margin-top: 2px;
+}
+.similar-case-list__summary {
+  font-size: 11px;
+  color: var(--color-text-placeholder);
+  margin-top: 2px;
 }
 .similar-case-list__pct {
   margin-left: auto;
@@ -813,9 +819,18 @@
   margin-top: 2px;
 }
 .case-card__meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-placeholder);
   margin-top: var(--space-sm);
+}
+
+/* 텍스트 말줄임(라인 클램프) — 목록 카드에서 설명을 1줄 미리보기로만 표시 */
+.text-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .case-empty {
   text-align: center;

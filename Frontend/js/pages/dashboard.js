@@ -11,6 +11,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   renderHeaderWeatherMini();
+  renderGreetingName();
 
   const lastResult = getLastPredictResult();
   const lastInput = getLastPredictInput();
@@ -90,6 +91,17 @@ function renderSimilarEmpty(text) {
     "predict-input.html",
     "위험도 분석하러 가기"
   );
+}
+
+// ── 인사말: 로그인한 계정의 실제 이름으로 표시 (없으면 "관리자님" 유지)
+function renderGreetingName() {
+  const loggedInUsername = localStorage.getItem("logged_in_username");
+  const registeredUsers = JSON.parse(localStorage.getItem("registered_users") || "[]");
+  const account = registeredUsers.find((u) => u.username === loggedInUsername);
+
+  if (account && account.name) {
+    document.getElementById("greeting-name").textContent = `${account.name}님`;
+  }
 }
 
 // ── 헤더 날씨 미니위젯
@@ -215,9 +227,9 @@ function renderSimilarCases(cases, sim) {
         <div>
           <div class="similar-case-list__title">${c.title}</div>
           <div class="similar-case-list__date">
-            <span class="badge" style="margin-right:4px; background:${color}22; color:${color};">${c.hazard_type}</span>
-            ${c.summary}
+            <span class="badge" style="background:${color}22; color:${color};">${c.hazard_type}</span>
           </div>
+          <div class="similar-case-list__summary text-clamp-1">${c.summary}</div>
         </div>
         <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
       </div>
@@ -296,6 +308,6 @@ async function renderHourlyRiskTrend(basePayload) {
   } catch (err) {
     console.error("[dashboard.js] 시간별 위험도 추이 계산 실패:", err);
     document.getElementById("trend-loading-note")?.remove();
-    wrap.innerHTML = `<p style="text-align:center; padding-top:60px; font-size: var(--fs-sm); color: var(--color-text-secondary);">시간별 위험도를 계산하지 못했어요.</p>`;
+    wrap.innerHTML = `<p style="text-align:center; padding-top:60px; font-size: var(--fs-sm); color: var(--color-text-secondary);">⚠️ 백엔드 서버에 연결되지 않아 시간별 위험도를 계산할 수 없어요.<br>서버(uvicorn)가 켜져 있는지 확인해주세요.</p>`;
   }
 }

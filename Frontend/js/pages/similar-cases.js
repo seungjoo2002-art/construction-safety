@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
         <div class="case-card__title">${c.title}</div>
-        <div class="case-card__desc">${c.desc}</div>
+        <div class="case-card__desc text-clamp-1">${c.desc}</div>
         <div class="case-card__meta">${c.date} · 재해자 ${c.victims}</div>
       </a>
     `

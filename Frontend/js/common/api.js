@@ -6,38 +6,32 @@
 //    실제 출력 예시를 그대로 흉내냈습니다.
 // ============================================================
 
-const API_BASE_URL = "http://127.0.0.1:8000"; // 백엔드 팀원 app.py 기본 포트. 팀원이 다른 포트 쓰면 여기만 바꾸면 됨
+const API_BASE_URL = "https://construction-safety-backend.onrender.com"; // 백엔드 팀원 app.py 기본 포트. 팀원이 다른 포트 쓰면 여기만 바꾸면 됨
 
 /**
  * 위험도(심각도) + 사고유형 예측 요청.
  * payload: predict-input.js에서 조립한 RAW_INPUT_COLS 형태의 객체
  * @returns { severity, accident_type }
  *
- * 동작: 먼저 실제 백엔드(app.py)로 시도하고, 서버가 꺼져있거나 응답이 없으면
- *       자동으로 목업 데이터로 대체합니다 (백엔드 팀원이 서버를 아직 안 켰어도
- *       프론트 작업이 막히지 않도록 하기 위함). 서버가 켜지면 별도 코드 수정 없이
- *       자동으로 실제 응답을 쓰게 됩니다.
+ * 동작: 실제 백엔드(app.py)로 요청하고, 실패하면 목업으로 조용히 대체하지 않고
+ *       에러를 그대로 다시 던집니다(rethrow). 호출하는 쪽에서 실패를 명확히 처리해야 합니다.
  */
 async function predictRisk(payload) {
+  console.log("[api.js] /api/predict 호출 시작: " + API_BASE_URL);
   try {
     const res = await fetch(`${API_BASE_URL}/api/predict`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: payload }),
-      signal: AbortSignal.timeout(5000), // 5초 안에 응답 없으면 포기하고 목업으로
+      signal: AbortSignal.timeout(5000), // 5초 안에 응답 없으면 실패로 처리
     });
     if (!res.ok) throw new Error(`예측 요청 실패 (${res.status})`);
-    return await res.json();
+    const data = await res.json();
+    console.log("[api.js] /api/predict 성공");
+    return data;
   } catch (err) {
-    console.warn(
-      `[api.js] 실제 백엔드(${API_BASE_URL}) 연결 실패 → 목업 데이터로 대체합니다.`,
-      err
-    );
-    await new Promise((resolve) => setTimeout(resolve, 800)); // 실제 네트워크처럼 지연 흉내
-    return {
-      severity: mockSeverityResult(),
-      accident_type: mockAccidentTypeResult(),
-    };
+    console.error(`[api.js] 실제 백엔드(${API_BASE_URL}) 연결 실패`, err);
+    throw err;
   }
 }
 

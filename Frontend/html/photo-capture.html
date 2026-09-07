@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>현장 촬영 | AI 건설현장 안전관리 시스템</title>
+
+<script src="../js/common/accessibility.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="camera-frame">
+
+  <div class="camera-topbar">
+    <a href="dashboard.html" class="camera-icon-btn" aria-label="뒤로가기">&#8249;</a>
+    <span class="camera-badge" id="ai-badge">AI 위험감지 ON</span>
+    <span class="camera-icon-btn" id="flash-btn" aria-label="플래시">⚡</span>
+  </div>
+
+  <div class="camera-viewport" id="camera-viewport">
+    <video id="camera-video" autoplay playsinline muted></video>
+
+    <div class="camera-frame-corners" id="frame-corners">
+      <span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span>
+    </div>
+    <div class="camera-hint" id="camera-hint">📸 위험요소가 잘 보이도록 촬영해주세요</div>
+  </div>
+
+  <div class="camera-controls">
+    <button type="button" class="camera-side-btn" id="gallery-btn" aria-label="갤러리에서 선택">🖼</button>
+    <button type="button" class="camera-shutter" id="shutter-btn" aria-label="촬영">📷</button>
+    <button type="button" class="camera-side-btn" id="switch-btn" aria-label="카메라 전환">🔄</button>
+  </div>
+
+  <input type="file" accept="image/*" id="gallery-input" style="display:none;">
+  <input type="file" accept="image/*" capture="environment" id="camera-fallback-input" style="display:none;">
+
+</div>
+
+<canvas id="capture-canvas" style="display:none;"></canvas>
+
+<script src="../js/pages/photo-capture.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

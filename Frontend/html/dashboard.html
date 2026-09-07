@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>대시보드 | AI 건설현장 안전관리 시스템</title>
+
+<script src="../js/common/accessibility.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="app-frame" data-has-nav="true">
+
+  <header class="app-header">
+    <!-- 예전 햄버거 메뉴 자리 → 날씨 미니위젯으로 대체 -->
+    <a href="weather-hourly.html" class="header-weather-mini" id="header-weather-mini">
+      <span class="header-weather-mini__icon" id="hwm-icon">🌡</span>
+      <span id="hwm-temp">--°C</span>
+    </a>
+
+    <div class="app-header__center">
+      <img src="../../pictures/logo.png" alt="" class="app-header__logo-icon">
+      <div>
+        <div class="app-header__title">AI 건설현장</div>
+        <div class="app-header__subtitle">안전관리 시스템</div>
+      </div>
+    </div>
+
+    <div class="app-header__actions">
+      <a href="notifications.html" class="app-header__icon-btn" aria-label="알림">
+        🔔<span class="dot"></span>
+      </a>
+      <a href="profile.html" class="app-header__icon-btn" aria-label="내 정보">👤</a>
+    </div>
+  </header>
+
+  <div class="app-content">
+
+    <!-- 인사말 -->
+    <section class="card greeting-card">
+      <p class="greeting-card__title">관리자님, 오늘도 안전한 하루 되세요! 🙋</p>
+      <p class="greeting-card__desc">AI 엔진이 현장 데이터를 분석하여 실시간 안전 정보를 제공합니다.</p>
+    </section>
+
+    <!-- 현장촬영 진입 배너 -->
+    <a href="photo-capture.html" class="card chatbot-banner" style="background: linear-gradient(135deg, #1B3FB8, #2F5FE0); margin-bottom: var(--space-md);">
+      <span>📷 현장 촬영으로 위험요소 확인</span>
+      <span class="chatbot-banner__chevron">›</span>
+    </a>
+
+    <!-- 통계 2x2 -->
+    <div id="stat-grid-wrapper">
+      <div class="stat-grid">
+        <div class="card stat-card">
+          <div class="gauge">
+            <svg viewBox="0 0 100 100">
+              <circle class="gauge__track" cx="50" cy="50" r="42"></circle>
+              <circle class="gauge__value" id="gauge-total-circle" cx="50" cy="50" r="42"></circle>
+            </svg>
+            <div class="gauge__center">
+              <div class="gauge__number" id="gauge-total-number">--</div>
+              <div class="gauge__label" id="gauge-total-label">위험</div>
+            </div>
+          </div>
+          <div class="stat-card__title">종합 위험도</div>
+          <div class="stat-card__delta" id="delta-total">최근 분석 기준</div>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-card__title">평균 대비 위험도</div>
+          <div class="stat-card__value" id="value-lift">--배</div>
+          <div class="progress-bar"><div class="progress-bar__fill" id="bar-prob"></div></div>
+          <div class="stat-card__delta" id="delta-prob">평균 사고 대비</div>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-card__title">예측 심각도</div>
+          <div class="stat-card__value stat-card__value--caution" id="value-severity-class">--</div>
+          <div class="progress-bar"><div class="progress-bar__fill progress-bar__fill--caution" id="bar-fatal"></div></div>
+          <div class="stat-card__delta" id="delta-fatal">경+중등도 / 중상 / 치명</div>
+        </div>
+
+        <div class="card stat-card stat-card--danger">
+          <div class="stat-card__label">예측 사고 유형 TOP1</div>
+          <div class="stat-card__value--danger" id="value-top-type">--</div>
+          <div class="stat-card__value-sub" id="value-top-type-pct">--%</div>
+          <div class="stat-card__delta" id="delta-top-type">최근 분석 기준</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 파이차트 -->
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">예측 사고 유형 분류</h2>
+      <div id="pie-section-body">
+        <div class="chart-canvas-wrap chart-canvas-wrap--pie">
+          <canvas id="type-pie-chart"></canvas>
+        </div>
+        <div class="legend-list" id="type-pie-legend"></div>
+      </div>
+    </section>
+
+    <!-- 유사사례 TOP3 -->
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <div class="card-section-header">
+        <h2 class="card-section-title" style="margin-bottom:0;">유사사례 TOP3 <span class="mock-tag" id="similar-cases-mock-tag" style="display:none;">MOCK</span></h2>
+        <a href="similar-cases.html" class="card-section-link">전체 →</a>
+      </div>
+      <div id="similar-case-list"></div>
+    </section>
+
+    <!-- 위험도 변화 추이 -->
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">오늘 시간별 위험도 추이</h2>
+      <div id="trend-section-body">
+        <div class="chart-canvas-wrap chart-canvas-wrap--line">
+          <canvas id="trend-line-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI 챗봇 배너 -->
+    <a href="chatbot.html" class="card chatbot-banner">
+      <span>🤖 AI 챗봇 상담</span>
+      <span class="chatbot-banner__chevron">›</span>
+    </a>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="bottom-nav__item is-active">대시보드</a>
+    <a href="predict-input.html" class="bottom-nav__item">위험도 분석</a>
+    <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
+    <a href="similar-cases.html" class="bottom-nav__item">사례 검색</a>
+    <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
+    <a href="notifications.html" class="bottom-nav__item">알림</a>
+  </nav>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="../js/common/session-store.js"></script>
+<script src="../js/common/constants.js"></script>
+<script src="../js/common/common.js"></script>
+<script src="../js/common/weather.js"></script>
+<script src="../js/common/api.js"></script>
+<script src="../js/pages/dashboard.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

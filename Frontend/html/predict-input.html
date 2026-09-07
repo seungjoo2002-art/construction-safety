@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>위험도 분석 | AI 건설현장 안전관리 시스템</title>
+
+<script src="../js/common/accessibility.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="app-frame" data-has-nav="true">
+
+  <header class="app-header app-header--back">
+    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <div class="app-header__title">위험도 분석</div>
+  </header>
+
+  <div class="app-content">
+
+    <!-- ── 현장 정보 미입력 시 경고 (site-setup을 안 거쳤을 경우) -->
+    <section class="card" id="site-setup-warning" style="display:none; margin-bottom: var(--space-md); background: var(--color-caution-bg);">
+      <p style="font-size: var(--fs-sm); color: #92610A;">
+        ⚠️ 현장 정보가 없어요. <a href="site-setup.html" style="text-decoration: underline; font-weight:700;">현장 정보 입력</a>을 먼저 완료해주세요.
+      </p>
+    </section>
+
+    <!-- ── 공사 정보 -->
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">🛠 공사 정보</h2>
+
+      <div class="form-group">
+        <label class="form-group__label">작업 대상물</label>
+        <p class="form-group__desc">현재 작업에서 주로 다루는 대상을 선택해주세요</p>
+        <div class="button-select" data-cols="3" id="field-work-object"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-group__label" for="field-work-type">작업 종류</label>
+        <p class="form-group__desc">진행 중인 작업의 종류를 선택해주세요</p>
+        <div class="select-field">
+          <select id="field-work-type" required>
+            <option value="" disabled selected>선택하세요</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-group__label" for="field-work-category">공종 - 중분류</label>
+        <p class="form-group__desc">검색해서 목록 중 하나를 선택해주세요</p>
+        <div id="field-work-category"></div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-group__label" for="field-work-process">작업프로세스</label>
+        <p class="form-group__desc">검색해서 목록 중 하나를 선택해주세요</p>
+        <div id="field-work-process"></div>
+      </div>
+    </section>
+
+    <!-- ── 공정 진행률 (자동계산, 읽기전용) -->
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">📈 공정 진행률</h2>
+      <div id="progress-info">
+        <p style="font-size: var(--fs-sm); color: var(--color-text-secondary);">계산 중...</p>
+      </div>
+    </section>
+
+    <!-- ── 기상 정보 (자동 조회) -->
+    <section class="card weather-card" style="margin-bottom: var(--space-md);">
+      <div class="weather-card__header">
+        <span class="weather-card__title">🌦 기상 정보</span>
+        <span class="weather-card__badge">자동 입력됨</span>
+      </div>
+
+      <div id="weather-state" class="weather-card__state">위치 확인 중...</div>
+
+      <div id="weather-body" style="display:none;">
+        <div class="weather-current" id="weather-current"></div>
+        <p class="weather-note">
+          현재 기준(OpenWeatherMap)입니다. 최근 3일치 기상 데이터(기온_D1~D3 등)는
+          무료 API 한계로 자동 입력되지 않으며, 예측 시 결측으로 처리됩니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── 제출 -->
+    <button type="button" class="btn btn-primary btn-block" id="submit-btn" disabled>
+      모든 항목을 입력해주세요
+    </button>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="bottom-nav__item">대시보드</a>
+    <a href="predict-input.html" class="bottom-nav__item is-active">위험도 분석</a>
+    <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
+    <a href="similar-cases.html" class="bottom-nav__item">사례 검색</a>
+    <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
+    <a href="notifications.html" class="bottom-nav__item">알림</a>
+  </nav>
+
+</div>
+
+<script src="../js/common/constants.js"></script>
+<script src="../js/common/common.js"></script>
+<script src="../js/common/session-store.js"></script>
+<script src="../js/common/weather.js"></script>
+<script src="../js/pages/predict-input.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

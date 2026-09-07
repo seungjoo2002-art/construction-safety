@@ -1,0 +1,175 @@
+/* ============================================================
+   layout.css — 모든 페이지가 공유하는 "앱 틀"
+   폰 프레임 / 상단 헤더 2종 / 하단 탭바
+   ============================================================ */
+
+/* ── 데스크탑 브라우저에서 봤을 때 폰처럼 보이게 하는 바깥 배경 */
+body {
+  background: var(--color-bg-outer);
+  min-height: 100vh;
+}
+
+/* ── 폰 프레임: 모든 페이지의 최상위 컨테이너
+   각 HTML의 <body> 안에 <div class="app-frame">...</div> 로 감싸서 사용 */
+.app-frame {
+  max-width: var(--frame-max-width);
+  min-height: 100vh;
+  margin: 0 auto;
+  background: var(--color-bg-page);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-elevated);
+}
+
+/* 실제 모바일 기기에서는 그림자/최대폭 제한이 필요 없으므로 풀블리드 처리 */
+@media (max-width: 430px) {
+  .app-frame { box-shadow: none; }
+}
+
+/* ── 콘텐츠 영역: 헤더/탭바 높이만큼 상하 여백 확보 + 스크롤 */
+.app-content {
+  flex: 1;
+  padding: var(--space-md);
+  padding-bottom: calc(var(--bottom-nav-height) + var(--space-md));
+  overflow-y: auto;
+}
+
+/* 탭바가 없는 페이지(로그인, 결과 상세 등)는 body에 data-has-nav="false" */
+.app-frame[data-has-nav="false"] .app-content {
+  padding-bottom: var(--space-md);
+}
+
+/* ============================================================
+   헤더 타입 A — 로고형 (대시보드처럼 타이틀+아이콘들이 있는 헤더)
+   ============================================================ */
+.app-header {
+  height: var(--header-height);
+  min-height: var(--header-height);
+  background: linear-gradient(135deg, var(--color-primary-darker), var(--color-primary));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-md);
+}
+.app-header__title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+.app-header__subtitle {
+  font-size: var(--fs-xs);
+  opacity: 0.85;
+}
+.app-header__center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-header__logo-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+.header-weather-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.header-weather-mini__icon { font-size: 16px; }
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.app-header__icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.app-header__icon-btn .dot {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
+/* ============================================================
+   헤더 타입 B — 뒤로가기형 (입력폼/상세/결과 페이지)
+   ============================================================ */
+.app-header--back {
+  background: #fff;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  justify-content: flex-start;
+  gap: var(--space-sm);
+}
+.app-header--back .back-btn {
+  font-size: 22px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-header--back .app-header__title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.app-header--back .app-header__actions {
+  margin-left: auto;
+}
+.app-header--back .app-header__icon-btn {
+  background: none;
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================
+   하단 탭바 — 5개 고정 (대시보드/위험도분석/사례검색/AI챗봇/알림)
+   ============================================================ */
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  background: #fff;
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: center;
+  z-index: 10;
+}
+.bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--color-text-placeholder);
+  position: relative;
+}
+.bottom-nav__item.is-active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.bottom-nav__item .badge-dot {
+  position: absolute;
+  top: -2px; right: 22%;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}

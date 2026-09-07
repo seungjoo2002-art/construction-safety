@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR코드 생성기</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  body {
+    font-family: -apple-system, "Malgun Gothic", sans-serif;
+    max-width: 480px;
+    margin: 60px auto;
+    padding: 0 20px;
+    text-align: center;
+  }
+  h1 { font-size: 20px; }
+  input {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+  }
+  button {
+    height: 44px;
+    padding: 0 20px;
+    background: #2F5FE0;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #qr-result { margin-top: 24px; }
+  #qr-result img { border: 1px solid #eee; border-radius: 8px; }
+  .hint { font-size: 12px; color: #888; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>📱 QR코드 생성기</h1>
+<p class="hint">Live Server의 "Network" 주소(192.168로 시작)를 붙여넣으세요</p>
+
+<input type="text" id="url-input" placeholder="http://192.168.0.XX:5500/Frontend/html/dashboard.html">
+<button onclick="generate()">QR코드 만들기</button>
+
+<div id="qr-result"></div>
+
+<script>
+function generate() {
+  const url = document.getElementById("url-input").value.trim();
+  if (!url) { alert("주소를 입력해주세요"); return; }
+
+  // 외부 JS 라이브러리 없이, 이미지 생성 API를 바로 <img>로 불러옴
+  // (브라우저 확장/추적방지 기능에 막힐 일이 없어 훨씬 안정적)
+  const apiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(url);
+
+  document.getElementById("qr-result").innerHTML =
+    `<img src="${apiUrl}" alt="QR코드" width="260" height="260">`;
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 모델/데이터 파일 (용량 크고 GitHub Pages에서 필요 없음)
+Backend/artifacts/
+Backend/assets/
+
+# 압축 풀 때 딸려온 쓰레기 폴더
+__MACOSX/
+.DS_Store
+
+# 혹시 모를 환경변수 파일 (API 키 등이 들어갈 수 있는 파일 — 안전장치)
+.env
+*.env

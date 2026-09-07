@@ -1,0 +1,80 @@
+/* ============================================================
+   variables.css — 디자인 토큰
+   값을 바꾸면 앱 전체 룩앤필이 한 번에 바뀝니다.
+   ============================================================ */
+:root {
+  /* ── 브랜드 컬러 (스크린샷 헤더/버튼 기준) */
+  --color-primary: #2F5FE0;
+  --color-primary-dark: #1B3FB8;
+  --color-primary-darker: #0F2A8A;
+  --color-primary-light: #EAF0FF;
+
+  /* ── 위험도 등급 컬러 (게이지/배지 공통) */
+  --color-safe: #4CAF50;      /* 안전 */
+  --color-caution: #FF9800;   /* 주의 */
+  --color-danger: #E53935;    /* 위험 */
+  --color-danger-bg: #FDEBEA;
+  --color-caution-bg: #FFF4E0;
+  --color-safe-bg: #E9F7EA;
+
+  /* ── 중립 컬러 */
+  --color-bg-outer: #0B1B3C;      /* 폰 프레임 바깥 배경 (데스크탑에서 보일 때) */
+  --color-bg-page: #F5F6F9;       /* 페이지 기본 배경 */
+  --color-card: #FFFFFF;
+  --color-text-primary: #1A1D29;
+  --color-text-secondary: #6B7280;
+  --color-text-placeholder: #A0A4AE;
+  --color-border: #E5E7EB;
+
+  /* ── 타이포 (한글 UI는 Pretendard 추천 — CDN 또는 자체 호스팅) */
+  --font-base: "Pretendard", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-base: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-3xl: 36px;
+
+  /* ── spacing / radius */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* ── 레이아웃 */
+  --frame-max-width: 430px;
+  --header-height: 56px;
+  --bottom-nav-height: 64px;
+
+  --shadow-card: 0 2px 10px rgba(20, 30, 60, 0.06);
+  --shadow-elevated: 0 8px 24px rgba(20, 30, 60, 0.12);
+}
+
+/* ============================================================
+   접근성 설정 (profile.html에서 토글, accessibility.js가 페이지 로드 시 적용)
+   ============================================================ */
+html.a11y-large-font {
+  --fs-xs: 14px;
+  --fs-sm: 16px;
+  --fs-base: 17px;
+  --fs-lg: 20px;
+  --fs-xl: 25px;
+  --fs-2xl: 31px;
+  --fs-3xl: 40px;
+}
+
+html.a11y-high-contrast {
+  --color-text-primary: #000000;
+  --color-text-secondary: #202020;
+  --color-text-placeholder: #4A4A4A;
+  --color-border: #3A3A3A;
+  --color-primary: #0B3FCF;
+  --color-primary-dark: #062A96;
+}

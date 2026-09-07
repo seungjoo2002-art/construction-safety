@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>위험도 분석 중 | AI 건설현장 안전관리 시스템</title>
+
+<script src="../js/common/accessibility.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="app-frame" data-has-nav="false">
+
+  <header class="app-header app-header--back">
+    <a href="predict-input.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <div class="app-header__title">위험도 분석 중</div>
+  </header>
+
+  <div class="app-content">
+
+    <div class="loading-hero">
+      <div class="loading-spinner">
+        <div class="loading-spinner__ring"></div>
+        <img src="../../pictures/logo.png" alt="" class="loading-spinner__logo">
+      </div>
+      <p class="loading-hero__title">AI가 현장 데이터를 분석하고 있습니다</p>
+      <p class="loading-hero__desc">잠시만 기다려주세요.</p>
+    </div>
+
+    <div class="step-list">
+      <div class="step-item" id="step-1">
+        <span class="step-item__icon">1</span>
+        <div>
+          <div class="step-item__title">현장 데이터 수집</div>
+          <div class="step-item__desc">공종, 작업 유형, 작업 대상물 등</div>
+        </div>
+        <span class="step-item__check">✓</span>
+      </div>
+      <div class="step-item" id="step-2">
+        <span class="step-item__icon">2</span>
+        <div>
+          <div class="step-item__title">기상 정보 분석</div>
+          <div class="step-item__desc">온도, 습도, 풍속, 강수량 등</div>
+        </div>
+        <span class="step-item__check">✓</span>
+      </div>
+      <div class="step-item" id="step-3">
+        <span class="step-item__icon">3</span>
+        <div>
+          <div class="step-item__title">AI 위험도 산출</div>
+          <div class="step-item__desc" id="step-3-desc">종합 위험도 산출 중...</div>
+        </div>
+        <span class="step-item__check">✓</span>
+      </div>
+    </div>
+
+    <div class="loading-progress">
+      <div class="loading-progress__fill" id="loading-progress-fill"></div>
+    </div>
+    <p class="loading-note">
+      <span class="loading-note__icon">i</span>
+      분석 시간은 약 10-20초 정도 소요됩니다.
+    </p>
+
+  </div>
+
+</div>
+
+<script src="../js/common/session-store.js"></script>
+<script src="../js/common/api.js"></script>
+<script src="../js/pages/predict-loading.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

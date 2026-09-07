@@ -1,0 +1,479 @@
+/* ============================================================
+   components.css — 재사용 부품
+   버튼 / 인풋 / 체크박스 / 구분선 / 카드 / 배지 (계속 추가될 예정)
+   ============================================================ */
+
+/* ── 버튼 */
+.btn {
+  height: 52px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  transition: opacity 0.15s ease, transform 0.05s ease;
+}
+.btn:active { transform: scale(0.98); }
+.btn-block { width: 100%; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(47, 95, 224, 0.28);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.btn-outline {
+  background: #fff;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+/* ── 인풋 필드 (아이콘 포함) */
+.input-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 52px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.input-field:focus-within {
+  border-color: var(--color-primary);
+}
+.input-field input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+}
+.input-field input::placeholder {
+  color: var(--color-text-placeholder);
+}
+.input-field .icon {
+  flex-shrink: 0;
+  color: var(--color-text-placeholder);
+  display: flex;
+}
+.input-field .icon-toggle {
+  flex-shrink: 0;
+  color: var(--color-text-placeholder);
+  display: flex;
+  cursor: pointer;
+}
+
+/* ── 체크박스 + 라벨 */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+.link-muted {
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+}
+
+/* ── 구분선 ("또는") */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--color-text-placeholder);
+  font-size: var(--fs-xs);
+  margin: var(--space-md) 0;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* ── 카드 (대시보드 등 다음 화면에서 계속 사용) */
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── 배지 (위험등급 표기 — 다음 화면에서 사용) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.badge--danger { background: var(--color-danger-bg); color: var(--color-danger); }
+.badge--caution { background: var(--color-caution-bg); color: var(--color-caution); }
+.badge--safe { background: var(--color-safe-bg); color: var(--color-safe); }
+
+/* ── 폼 그룹 (라벨 + 설명 + 컨트롤) — site-setup, predict-input 등 입력 화면 공통 */
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+.form-group__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.form-group__label .field-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.form-group__desc {
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-sm) 42px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+/* ── 네이티브 select를 input-field 룩앤필에 맞춘 드롭다운 */
+.select-field {
+  position: relative;
+}
+.select-field select {
+  width: 100%;
+  height: 52px;
+  padding: 0 40px 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  color: var(--color-text-primary);
+}
+.select-field select:invalid,
+.select-field select.is-placeholder {
+  color: var(--color-text-placeholder);
+}
+.select-field::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--color-text-placeholder);
+  border-bottom: 2px solid var(--color-text-placeholder);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.select-field select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* ── 버튼 선택형 (2~4개 옵션에서 사용, 라디오 버튼 대체) */
+.button-select {
+  display: grid;
+  gap: var(--space-sm);
+}
+.button-select[data-cols="1"] { grid-template-columns: 1fr; }
+.button-select[data-cols="2"] { grid-template-columns: repeat(2, 1fr); }
+.button-select[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+.button-select[data-cols="4"] { grid-template-columns: repeat(2, 1fr); }
+
+/* 옵션 라벨이 길 때(예: "대상현장(1/2종)")는 가로로 눕힌 리스트형으로 */
+.button-select[data-cols="1"] .button-select__option {
+  flex-direction: row;
+  justify-content: flex-start;
+  height: 48px;
+  padding-left: var(--space-md);
+  gap: var(--space-sm);
+}
+.button-select[data-cols="1"] .button-select__option::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  flex-shrink: 0;
+}
+.button-select[data-cols="1"] .button-select__option.is-selected::before {
+  border-color: var(--color-primary);
+  border-width: 5px;
+}
+
+.button-select__option {
+  min-height: 56px;
+  height: auto;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 10px 8px;
+}
+.button-select__option.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* 라벨 아래 작은 회색 설명 문구가 있는 버전 (예: 작업 대상물) */
+.button-select__option--desc {
+  gap: 3px;
+}
+.button-select__option-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: inherit;
+}
+.button-select__option-desc {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--color-text-placeholder);
+  line-height: 1.3;
+}
+.button-select__option--desc.is-selected .button-select__option-desc {
+  color: var(--color-primary);
+  opacity: 0.75;
+}
+
+/* ── 스테퍼 (상단 진행 점) */
+.stepper-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: var(--space-md);
+}
+.stepper-dots__dot {
+  width: 24px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255,255,255,0.3);
+}
+.stepper-dots__dot.is-active {
+  background: #fff;
+}
+.stepper-dots__dot.is-done {
+  background: rgba(255,255,255,0.7);
+}
+
+/* ── 하단 고정 위저드 푸터 (다음/이전 버튼) */
+.wizard-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: #fff;
+  border-top: 1px solid var(--color-border);
+}
+.wizard-footer .btn-outline {
+  flex: 0 0 96px;
+}
+.wizard-footer .btn-primary {
+  flex: 1;
+}
+
+/* ── 검색형 드롭다운 (search-select) — 옵션이 많은 필드용 (공종/작업프로세스 등) */
+.search-select {
+  position: relative;
+}
+.search-select__input {
+  width: 100%;
+  height: 52px;
+  padding: 0 40px 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  outline: none;
+}
+.search-select__input:focus {
+  border-color: var(--color-primary);
+}
+.search-select.is-filled .search-select__input {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  font-weight: 700;
+}
+.search-select__clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-placeholder);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+.search-select__dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  z-index: 20;
+}
+.search-select__option {
+  padding: 12px var(--space-md);
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+.search-select__option:last-child { border-bottom: none; }
+.search-select__option:hover,
+.search-select__option:active {
+  background: var(--color-primary-light);
+}
+.search-select__empty {
+  padding: var(--space-md);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--color-text-placeholder);
+}
+
+/* ── 읽기전용 정보 표시 (자동계산된 공정률 등) */
+.readonly-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.readonly-stat__label {
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+.readonly-stat__value {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  color: var(--color-primary);
+}
+.readonly-stat__bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+  margin-top: var(--space-sm);
+}
+.readonly-stat__bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+/* ── 토글 스위치 (설정 화면 등에서 사용) */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+.toggle-switch__track {
+  position: absolute;
+  inset: 0;
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+  transition: background 0.2s ease;
+  pointer-events: none;
+}
+.toggle-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+.toggle-switch input:checked ~ .toggle-switch__track { background: var(--color-primary); }
+.toggle-switch input:checked ~ .toggle-switch__thumb { transform: translateX(18px); }
+
+/* ── 설정 행 (라벨+설명 + 오른쪽 컨트롤) */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row__title { font-weight: 700; font-size: var(--fs-sm); }
+.settings-row__desc { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+
+/* ── 설정 링크 행 (안전인증관리/앱평가/고객지원 등 — 화살표만 있는 메뉴) */
+.settings-link-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+.settings-link-row__icon { font-size: 16px; }
+.settings-link-row__title { flex: 1; font-weight: 600; font-size: var(--fs-sm); }
+.settings-link-row__chevron { color: var(--color-text-placeholder); font-size: 18px; }
+
+/* ── 빨간 아웃라인 버튼 (로그아웃 등 위험 액션) */
+.btn-danger-outline {
+  background: #fff;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger-bg);
+  border-color: #F5C6C5;
+}

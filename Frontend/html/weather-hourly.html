@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>오늘 시간별 날씨 | AI 건설현장 안전관리 시스템</title>
+
+<script src="../js/common/accessibility.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="app-frame" data-has-nav="false">
+
+  <header class="app-header app-header--back">
+    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <div class="app-header__title">오늘 시간별 날씨</div>
+  </header>
+
+  <div class="app-content">
+
+    <div id="weather-state" class="weather-card__state">날씨 불러오는 중...</div>
+
+    <div id="weather-body" style="display:none;">
+
+      <!-- 현재 날씨 크게 -->
+      <div class="weather-hero">
+        <div class="weather-hero__icon" id="hero-icon"></div>
+        <div class="weather-hero__temp" id="hero-temp"></div>
+        <div class="weather-hero__desc" id="hero-desc"></div>
+      </div>
+
+      <div class="weather-current" id="hero-stats"></div>
+
+      <!-- 시간별 리스트 -->
+      <section class="card" style="margin-top: var(--space-md);">
+        <h2 style="font-weight:700; margin-bottom: var(--space-sm);">시간대별 예보</h2>
+        <div class="hourly-list" id="hourly-list"></div>
+        <p class="weather-note">
+          3시간 간격 예보(OpenWeatherMap)이며, 오늘 남은 시간대만 표시됩니다.
+        </p>
+      </section>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script src="../js/common/weather.js"></script>
+<script src="../js/pages/weather-hourly.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

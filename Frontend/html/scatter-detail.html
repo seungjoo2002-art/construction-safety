@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>유사도 산점도 분석 | AI 건설현장 안전관리 시스템</title>
+
+<script src="../js/common/accessibility.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="app-frame" data-has-nav="false">
+
+  <header class="app-header app-header--back">
+    <a href="javascript:history.back()" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <div>
+      <div class="app-header__title" style="color:var(--color-text-primary);">유사도 산점도 분석 <span class="mock-tag" id="header-mock-tag" style="display:none;">MOCK</span></div>
+    </div>
+  </header>
+
+  <div class="app-content">
+    <p style="font-size: var(--fs-xs); color: var(--color-text-secondary); margin-top:-8px; margin-bottom: var(--space-md);">
+      9개 복합 변수 기반 2D 유사도 공간 투영
+    </p>
+
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">유사 사례 2D 투영 산점도</h2>
+      <img id="scatter-full-image" style="width: 100%; height: auto; display: block; border-radius: 8px; margin-top: var(--space-sm);" alt="유사도 산점도 차트" />
+    </section>
+
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">유사 사고 사례</h2>
+      <div id="similar-case-list"></div>
+    </section>
+
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title">재발 방지 대책</h2>
+      <div id="prevention-list"></div>
+    </section>
+
+  </div>
+
+</div>
+
+<script src="../js/common/constants.js"></script>
+<script src="../js/pages/scatter-detail.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

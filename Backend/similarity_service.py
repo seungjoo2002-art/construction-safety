@@ -8,6 +8,14 @@ from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.manifold import MDS
 from scipy.spatial import ConvexHull
+
+# ── FastAPI(uvicorn)는 요청마다 워커 스레드에서 처리하는데, matplotlib 기본 백엔드(TkAgg 등)는
+#    메인 스레드가 아닌 곳에서 GUI를 만들면 "Tcl_AsyncDelete: async handler deleted by the
+#    wrong thread" 같은 치명적 오류로 서버 프로세스 전체가 죽습니다. 화면 없이 이미지만
+#    렌더링하는 비대화형(Agg) 백엔드로 고정해야 서버에서 안전하게 동작합니다.
+#    pyplot을 import하기 전에 반드시 지정해야 합니다.
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -322,6 +330,7 @@ class SimilarityWebService:
             row = self.df_db.iloc[idx]
             sim_percent = int((scores[idx] / self.total_w) * 100)
             cases_list.append({
+                "id": int(idx),  # app.py의 /api/cases/{id}와 같은 df_db.csv 행 인덱스 — 상세화면 링크용
                 "title": str(row.get('사고명') or f"{row.get('정형화된_재해종류', '')} 사고"),
                 "summary": str(row.get('사고경위', '개요 정보 없음')),
                 "hazard_type": str(row.get('정형화된_재해종류', '기타')),

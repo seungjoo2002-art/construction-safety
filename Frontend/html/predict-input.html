@@ -76,11 +76,11 @@
       </div>
     </section>
 
-    <!-- ── 기상 정보 (자동 조회) -->
+    <!-- ── 기상 정보 (기본: 자동 조회, 원하면 직접 입력으로 전환 가능) -->
     <section class="card weather-card" style="margin-bottom: var(--space-md);">
       <div class="weather-card__header">
         <span class="weather-card__title">🌦 기상 정보</span>
-        <span class="weather-card__badge">자동 입력됨</span>
+        <span class="weather-card__badge" id="weather-mode-badge">자동 입력됨</span>
       </div>
 
       <div id="weather-state" class="weather-card__state">위치 확인 중...</div>
@@ -91,6 +91,40 @@
           현재 기준(OpenWeatherMap)입니다. 최근 3일치 기상 데이터(기온_D1~D3 등)는
           무료 API 한계로 자동 입력되지 않으며, 예측 시 결측으로 처리됩니다.
         </p>
+      </div>
+
+      <button type="button" class="weather-card__retry" id="weather-mode-toggle" style="display:none;">
+        ✏️ 직접 입력할래요
+      </button>
+
+      <div id="weather-manual" style="display:none;">
+        <div class="form-group">
+          <label class="form-group__label" for="manual-temp">기온(°C)</label>
+          <div class="input-field">
+            <input type="number" step="0.1" id="manual-temp" placeholder="예: 18">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-group__label" for="manual-humidity">습도(%)</label>
+          <div class="input-field">
+            <input type="number" step="1" min="0" max="100" id="manual-humidity" placeholder="예: 55">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-group__label" for="manual-rain">강수량(mm)</label>
+          <div class="input-field">
+            <input type="number" step="0.1" min="0" id="manual-rain" placeholder="예: 0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-group__label" for="manual-wind">풍속(m/s)</label>
+          <div class="input-field">
+            <input type="number" step="0.1" min="0" id="manual-wind" placeholder="예: 2.5">
+          </div>
+        </div>
+        <button type="button" class="weather-card__retry" id="weather-mode-auto">
+          🔄 자동 조회로 되돌리기
+        </button>
       </div>
     </section>
 

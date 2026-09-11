@@ -6,7 +6,7 @@
 //    실제 출력 예시를 그대로 흉내냈습니다.
 // ============================================================
 
-const API_BASE_URL = "https://construction-safety-backend.onrender.com"; // 백엔드 팀원 app.py 기본 포트. 팀원이 다른 포트 쓰면 여기만 바꾸면 됨
+const API_BASE_URL = "http://127.0.0.1:8000"; // 로컬 백엔드(임시). 배포용 주소로 되돌리려면 "https://construction-safety-backend.onrender.com"로 바꾸면 됨
 
 /**
  * 위험도(심각도) + 사고유형 예측 요청.
@@ -116,10 +116,9 @@ function mockChatReply(message) {
 }
 
 // ============================================================
-// 현장 사진 분석 (컴퓨터비전 객체탐지)
-// ⚠️ 완전 목업입니다. 받은 백엔드 파일에는 이미지 분석 모델이 없습니다.
-//    나중에 팀원이 실제 CV 모델을 /api/analyze-photo로 서빙하게 되면
-//    아래 fetch 부분이 자동으로 그 응답을 쓰게 됩니다 (지금은 항상 실패 → 목업 폴백).
+// 현장 사진 분석 (컴퓨터비전 객체탐지 — Backend/safety_yolo_pkg의 YOLO 모델 연동)
+// 백엔드가 켜져 있고 사진 분석 서비스(ultralytics/torch)가 정상 초기화되어 있으면
+// 실제 탐지 결과를 받고, 서버가 꺼져있거나 초기화 실패(503) 시에만 목업으로 대체합니다.
 // ============================================================
 async function analyzePhoto(photoDataUrl) {
   try {
@@ -153,6 +152,7 @@ function mockPhotoAnalysisResult() {
       { icon: "📦", title: "자재 적치 불량", severity: "주의", desc: "자재 적치 규정 불량" },
       { icon: "🪜", title: "사다리 높이 불량", severity: "주의", desc: "사다리 높이와 각도 불량으로 전도 위험" },
     ],
+    _mock: true,
   };
 }
 
@@ -195,11 +195,11 @@ function mockSimilarityResult() {
     _mock: true,
     mds_chart_image: MOCK_MDS_CHART_IMAGE,
     similar_cases: [
-      { title: "강남 오피스텔 추락 사고", summary: "비계 위에서 작업 중 안전난간 미설치로 인한 추락", hazard_type: "추락", similarity_percent: 94 },
-      { title: "인천 물류창고 낙하 사고", summary: "상부 적재 자재 불량으로 낙하물 맞음", hazard_type: "낙하", similarity_percent: 87 },
-      { title: "부산 아파트 추락 사고", summary: "사다리 불안정으로 인한 작업자 추락", hazard_type: "추락", similarity_percent: 81 },
-      { title: "대전 상가 전도 사고", summary: "통로 자재 적치로 인한 전도", hazard_type: "전도", similarity_percent: 74 },
-      { title: "경기 공장 끼임 사고", summary: "회전기계 방호장치 미설치로 끼임", hazard_type: "끼임", similarity_percent: 68 },
+      { id: "gangnam-2024-03", title: "강남 오피스텔 추락 사고", summary: "비계 위에서 작업 중 안전난간 미설치로 인한 추락", hazard_type: "추락", similarity_percent: 94 },
+      { id: "incheon-2023-11", title: "인천 물류창고 낙하 사고", summary: "상부 적재 자재 불량으로 낙하물 맞음", hazard_type: "낙하", similarity_percent: 87 },
+      { id: "busan-2024-01", title: "부산 아파트 추락 사고", summary: "사다리 불안정으로 인한 작업자 추락", hazard_type: "추락", similarity_percent: 81 },
+      { id: "daejeon-2024-02", title: "대전 상가 전도 사고", summary: "통로 자재 적치로 인한 전도", hazard_type: "전도", similarity_percent: 74 },
+      { id: "gyeonggi-2023-12", title: "경기 공장 끼임 사고", summary: "회전기계 방호장치 미설치로 끼임", hazard_type: "끼임", similarity_percent: 68 },
     ],
     prevention_guidelines: [
       "▶ 추락위험 구역 안전난간 및 개구부 덮개 밀착 설치, 근로자 안전대 상시 체결 체계 감독",

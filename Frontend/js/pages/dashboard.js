@@ -222,7 +222,7 @@ function renderSimilarCases(cases, sim) {
     .map((c, i) => {
       const color = SIM_HAZARD_COLORS[c.hazard_type] || "#B0B7C3";
       return `
-      <div class="similar-case-list__item">
+      <a href="case-detail.html?id=${encodeURIComponent(c.id)}" class="similar-case-list__item">
         <span class="similar-case-list__rank">${i + 1}</span>
         <div>
           <div class="similar-case-list__title">${c.title}</div>
@@ -232,7 +232,7 @@ function renderSimilarCases(cases, sim) {
           <div class="similar-case-list__summary text-clamp-1">${c.summary}</div>
         </div>
         <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
-      </div>
+      </a>
     `;
     })
     .join("");

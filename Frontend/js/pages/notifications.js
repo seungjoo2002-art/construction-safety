@@ -97,10 +97,12 @@ function buildNotificationItems(savedResults, savedPhotoResults) {
       desc: `현장의 종합 위험도가 '${latest.grade}' 수준입니다. 즉각적인 안전점검이 필요합니다.`,
       badge: "위험",
       time: latest.savedAt,
+      href: latest.id ? `predict-result.html?resultId=${encodeURIComponent(latest.id)}` : null,
     });
   }
 
-  savedResults.slice(0, 3).forEach((r) => {
+  // 지난 위험도 분석 결과들(전부) — 클릭하면 그때의 분석 결과 화면을 그대로 다시 볼 수 있음
+  savedResults.forEach((r) => {
     items.push({
       type: "safe",
       icon: "✅",
@@ -108,6 +110,7 @@ function buildNotificationItems(savedResults, savedPhotoResults) {
       desc: `요청하신 위험도 분석이 완료되었습니다. 종합 위험도 ${r.score}점(${r.grade}).`,
       badge: "완료",
       time: r.savedAt,
+      href: r.id ? `predict-result.html?resultId=${encodeURIComponent(r.id)}` : null,
     });
   });
 
@@ -147,9 +150,11 @@ function buildNotificationItems(savedResults, savedPhotoResults) {
 function renderList(items) {
   const listEl = document.getElementById("notif-list");
   listEl.innerHTML = items
-    .map(
-      (n) => `
-      <div class="notif-item notif-item--${n.type}">
+    .map((n) => {
+      const tag = n.href ? "a" : "div";
+      const hrefAttr = n.href ? ` href="${n.href}"` : "";
+      return `
+      <${tag}${hrefAttr} class="notif-item notif-item--${n.type}">
         <span class="notif-item__icon">${n.icon}</span>
         <div class="notif-item__body">
           <div class="notif-item__title-row">
@@ -159,9 +164,9 @@ function renderList(items) {
           <div class="notif-item__desc">${n.desc}</div>
           <div class="notif-item__time">${formatTime(n.time)}</div>
         </div>
-      </div>
-    `
-    )
+      </${tag}>
+    `;
+    })
     .join("");
 }
 

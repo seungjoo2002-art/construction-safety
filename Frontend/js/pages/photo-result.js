@@ -14,6 +14,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const result = JSON.parse(resultRaw);
 
+  const mockTagEl = document.getElementById("photo-mock-tag");
+  if (mockTagEl) mockTagEl.style.display = result._mock ? "inline-block" : "none";
+
   renderImageWithBoxes(photoDataUrl, result.boxes);
   renderScore(result);
   renderHazardList(result.hazards);

@@ -1,23 +1,47 @@
 // ============================================================
 // predict-result.js — 분석 결과 화면
-// constants.js 보다 나중에 로드되어야 합니다.
-// predict-loading.html에서 저장한 sessionStorage 값을 읽어 렌더링합니다.
+// constants.js, session-store.js 보다 나중에 로드되어야 합니다.
+// URL에 ?resultId=...가 있으면 알림 화면 등에서 다시 열어본 지난 분석 이력을
+// 보여주고, 없으면 predict-loading.html에서 저장한 sessionStorage 값(방금 막
+// 끝난 분석)을 읽어 렌더링합니다.
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-  const resultRaw = sessionStorage.getItem("predict_result");
-  const inputRaw = sessionStorage.getItem("predict_result_input");
-  const simRaw = sessionStorage.getItem("similarity_result");
+  const resultId = new URLSearchParams(window.location.search).get("resultId");
 
-  if (!resultRaw) {
-    // 결과 없이 이 화면에 바로 들어온 경우 → 입력 화면으로 되돌림
-    window.location.href = "predict-input.html";
-    return;
+  let result, input, sim;
+
+  if (resultId) {
+    const record = getSavedResultById(resultId);
+    if (!record) {
+      // 이력을 못 찾은 경우(삭제됨 등) → 입력 화면으로 되돌림
+      window.location.href = "predict-input.html";
+      return;
+    }
+    result = record.result;
+    input = record.input || {};
+    sim = record.sim || null;
+  } else {
+    const resultRaw = sessionStorage.getItem("predict_result");
+    const inputRaw = sessionStorage.getItem("predict_result_input");
+    const simRaw = sessionStorage.getItem("similarity_result");
+
+    if (!resultRaw) {
+      // 결과 없이 이 화면에 바로 들어온 경우 → 입력 화면으로 되돌림
+      window.location.href = "predict-input.html";
+      return;
+    }
+
+    result = JSON.parse(resultRaw); // { severity, accident_type }
+    input = inputRaw ? JSON.parse(inputRaw) : {};
+    sim = simRaw ? JSON.parse(simRaw) : null; // { similar_cases, mds_chart_image, prevention_guidelines, _mock?, is_approximate? }
   }
 
-  const result = JSON.parse(resultRaw); // { severity, accident_type }
-  const input = inputRaw ? JSON.parse(inputRaw) : {};
-  const sim = simRaw ? JSON.parse(simRaw) : null; // { similar_cases, mds_chart_image, prevention_guidelines, _mock?, is_approximate? }
+  // ── 디버깅용: 이 결과 화면에 쓰인 입력 변수/결과값을 콘솔에 그대로 표시
+  console.log("[predict-result.js] 위험도 분석 입력 변수:", input);
+  console.table(input);
+  console.log("[predict-result.js] 위험도 분석 결과 (severity + accident_type):", result);
+  console.log("[predict-result.js] 유사도 분석 결과 (similar_cases + mds_chart_image + prevention_guidelines):", sim);
 
   renderScore(result.severity);
   renderTypeRankList(result.accident_type);
@@ -146,7 +170,7 @@ function renderSimilarCases(cases) {
     .map((c, i) => {
       const color = SIM_HAZARD_COLORS[c.hazard_type] || "#B0B7C3";
       return `
-      <div class="similar-case-list__item">
+      <a href="case-detail.html?id=${encodeURIComponent(c.id)}" class="similar-case-list__item">
         <span class="similar-case-list__rank">${i + 1}</span>
         <div>
           <div class="similar-case-list__title">${c.title}</div>
@@ -156,7 +180,7 @@ function renderSimilarCases(cases) {
           <div class="similar-case-list__summary text-clamp-1">${c.summary}</div>
         </div>
         <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
-      </div>
+      </a>
     `;
     })
     .join("");

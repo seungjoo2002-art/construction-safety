@@ -40,10 +40,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
+import base64
+import io
 import os
 import sys
 import requests
 import pandas as pd
+from PIL import Image, ImageOps
 
 import config as CFG
 
@@ -58,6 +61,35 @@ except Exception:
 from predict_severity import SeverityPredictor
 from predict_accident_type import AccidentTypePredictor
 from similarity_service import SimilarityWebService
+
+from pathlib import Path
+
+# ── assets 폴더의 큰 임베딩 파일 3개는 git에 올리지 않으므로(Backend/.gitignore),
+#    서버가 켜질 때 없으면 Hugging Face에서 자동으로 받아옵니다. 이 함수는
+#    아래 모델/유사도 서비스 로드보다 먼저 실행되어야 합니다.
+ASSETS_DIR = Path(__file__).parent / "assets"
+HF_BASE_URL = "https://huggingface.co/datasets/joojoojo/construction-safety-embeddings/resolve/main"
+LARGE_ASSET_FILES = ["db_v_con.npy", "db_v_fac.npy", "db_v_wrk.npy"]
+
+
+def ensure_large_assets():
+    ASSETS_DIR.mkdir(exist_ok=True)
+    for fname in LARGE_ASSET_FILES:
+        local_path = ASSETS_DIR / fname
+        if local_path.exists():
+            print(f"[app.py] {fname} 이미 존재 (다운로드 생략)")
+            continue
+        print(f"[app.py] {fname} 다운로드 중... (최초 1회, 파일이 커서 시간이 걸릴 수 있음)")
+        url = f"{HF_BASE_URL}/{fname}"
+        r = requests.get(url, stream=True, timeout=180)
+        r.raise_for_status()
+        with open(local_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                f.write(chunk)
+        print(f"[app.py] {fname} 다운로드 완료")
+
+
+ensure_large_assets()
 
 app = FastAPI(title="AI 건설현장 안전관리 - 예측 API")
 
@@ -90,6 +122,31 @@ try:
         print("[app.py] ⚠️ OPENAI_API_KEY가 없어 유사도 서비스가 근사(키워드 매칭) 모드로 동작합니다.")
 except Exception as e:
     print(f"[app.py] ⚠️ 유사도 서비스 초기화 실패: {e}")
+
+# ── 사진 분석 서비스 (safety_yolo_pkg/hazard.py — YOLO 객체탐지 + 룰 기반 위험 판정)
+#    ultralytics/torch가 설치되어 있지 않거나 모델 로드에 실패해도 서버 전체가
+#    죽지 않도록 감싸고, 실패 시 /api/analyze-photo가 503을 반환합니다
+#    (프론트 api.js는 그때 자동으로 목업 데이터로 대체합니다).
+sys.path.insert(0, str(Path(__file__).parent / "safety_yolo_pkg"))
+hazard_service = None
+try:
+    from hazard import Hazard
+
+    hazard_service = Hazard()
+    print(f"[app.py] 사진 분석(YOLO) 서비스 초기화 완료 (클래스 {len(hazard_service.names)}개)")
+except Exception as e:
+    print(f"[app.py] ⚠️ 사진 분석(YOLO) 서비스 초기화 실패: {e}")
+
+# rules.json의 각 위험 판정(ref)이 "어떤 탐지 객체(cid) 때문에" 걸렸는지 역으로 찾기 위한 맵.
+# combo_rules는 need 쪽만(=실제로 탐지된 원인) 표시하고, absent 쪽은 애초에 안 찍히므로 제외.
+_hazard_ref_cids: Dict[str, set] = {}
+if hazard_service is not None:
+    for _r in hazard_service.danger:
+        _hazard_ref_cids[_r["ref"]] = {_r["cid"]}
+    for _r in hazard_service.combo:
+        _hazard_ref_cids[_r["ref"]] = set(_r["need"])
+    for _r in hazard_service.cooccur:
+        _hazard_ref_cids[_r["ref"]] = set(_r["a"]) | set(_r["b"])
 
 
 class PredictIn(BaseModel):
@@ -318,6 +375,101 @@ def similarity(body: SimilarityIn):
 def health():
     """서버가 살아있는지 + 모델이 정상 로드됐는지 확인용."""
     return {"status": "ok"}
+
+
+# ============================================================
+# 사진 분석 (safety_yolo_pkg/hazard.py 연동 — YOLO 객체탐지 + 룰 기반 위험 판정)
+# ============================================================
+# safety_yolo_pkg는 { verdict, risks[], objects[], image_size, elapsed_ms } 형태로 응답하는데,
+# 프론트(photo-result.js)는 이미 { score, grade, grade_label, boxes[], hazards[] } 형태를 기대하고
+# 있으므로(원래 목업 형태), 여기서 서버 쪽에서 변환해 프론트 코드는 건드리지 않습니다.
+_PHOTO_GRADE_BY_VERDICT = {
+    "위험": ("HIGH", "즉각 조치 필요"),
+    "주의": ("MEDIUM", "주의 관찰 필요"),
+    "정상": ("LOW", "안전 상태 양호"),
+}
+_PHOTO_ICON_BY_LEVEL = {"위험": "🚨", "주의": "⚠️"}
+
+
+def _photo_score(verdict: str, risks: List[Dict[str, Any]]) -> int:
+    """모델은 숫자 점수를 안 주고 verdict/risks만 주므로, 프론트의 0~100 점수 UI에 맞춰 근사 환산."""
+    danger_count = sum(1 for r in risks if r.get("level") == "위험")
+    caution_count = sum(1 for r in risks if r.get("level") == "주의")
+    if verdict == "위험":
+        return min(97, 70 + danger_count * 6 + caution_count * 2)
+    if verdict == "주의":
+        return min(69, 40 + caution_count * 6)
+    return 8
+
+
+def _photo_transform(raw: Dict[str, Any]) -> Dict[str, Any]:
+    verdict = raw["verdict"]
+    risks = raw["risks"]
+    objects = raw["objects"]
+    img_w, img_h = raw["image_size"]
+
+    grade, grade_label = _PHOTO_GRADE_BY_VERDICT.get(verdict, ("LOW", "안전 상태 양호"))
+
+    # 이번 판정에 실제로 관여한 cid만 모아서, 박스 색을 danger/safe로 구분
+    highlight_cids: set = set()
+    for r in risks:
+        highlight_cids |= _hazard_ref_cids.get(r.get("ref"), set())
+
+    boxes = []
+    for o in objects:
+        x1, y1, x2, y2 = o["box"]
+        label = o["name"].split("_", 1)[1] if "_" in o["name"] else o["name"]
+        boxes.append({
+            "label": label,
+            "pct": round(o["conf"] * 100),
+            "top": round(y1 / img_h * 100, 1) if img_h else 0,
+            "left": round(x1 / img_w * 100, 1) if img_w else 0,
+            "width": round((x2 - x1) / img_w * 100, 1) if img_w else 0,
+            "height": round((y2 - y1) / img_h * 100, 1) if img_h else 0,
+            "color": "danger" if o["cid"] in highlight_cids else "safe",
+        })
+
+    hazards = [
+        {
+            "icon": _PHOTO_ICON_BY_LEVEL.get(r.get("level"), "⚠️"),
+            "title": r["message"],
+            "severity": r["level"],
+            "desc": f"근거 코드 {r['ref']}",
+        }
+        for r in risks
+    ]
+
+    return {
+        "score": _photo_score(verdict, risks),
+        "grade": grade,
+        "grade_label": grade_label,
+        "boxes": boxes,
+        "hazards": hazards,
+    }
+
+
+class PhotoAnalyzeIn(BaseModel):
+    image: str  # "data:image/jpeg;base64,...." 형태의 dataURL (프론트 canvas.toDataURL / FileReader 결과)
+
+
+@app.post("/api/analyze-photo")
+def analyze_photo(body: PhotoAnalyzeIn):
+    """현장 사진 한 장 → YOLO 탐지 + 룰 기반 위험 판정. 프론트가 기대하는 형태로 변환해서 반환."""
+    if hazard_service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="사진 분석 서비스가 초기화되지 않았어요. 서버에 ultralytics/torch가 설치되어 있는지 확인해주세요.",
+        )
+    try:
+        b64 = body.image.split(",", 1)[1] if "," in body.image else body.image
+        img = Image.open(io.BytesIO(base64.b64decode(b64)))
+        img = ImageOps.exif_transpose(img)  # 폰 사진은 EXIF로 회전돼 있는 경우가 많음
+        raw = hazard_service.analyze(img.convert("RGB"))
+        return _photo_transform(raw)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"사진 분석 중 오류: {e}")
 
 
 # ============================================================

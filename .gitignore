@@ -3,8 +3,9 @@ __pycache__/
 *.pyc
 
 # 모델/데이터 파일 (용량 크고 GitHub Pages에서 필요 없음)
-Backend/artifacts/
-Backend/assets/
+Backend/assets/db_v_con.npy
+Backend/assets/db_v_fac.npy
+Backend/assets/db_v_wrk.npy
 
 # 압축 풀 때 딸려온 쓰레기 폴더
 __MACOSX/

@@ -22,7 +22,7 @@
 <div class="app-frame" data-has-nav="true">
 
   <header class="app-header app-header--back">
-    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <a href="javascript:history.back()" class="back-btn" aria-label="뒤로가기">&#8249;</a>
     <div class="app-header__title">분석 결과</div>
     <div class="app-header__actions">
       <span class="app-header__icon-btn" id="bookmark-btn" aria-label="저장">🔖</span>
@@ -119,6 +119,7 @@
 </div>
 
 <script src="../js/common/constants.js"></script>
+<script src="../js/common/session-store.js"></script>
 <script src="../js/pages/predict-result.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

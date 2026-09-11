@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let weatherFields = null; // 백엔드로 보낼 날씨 필드 (숫자만)
   let weatherDescription = null; // 분석정보 카드 표시용 (백엔드로는 안 보냄)
   let progressInfo = null; // { percent, bucket }
+  let autoWeatherFields = null; // 자동조회 성공값 백업 (직접입력 → 자동 되돌리기용)
+  let weatherMode = "auto"; // "auto" | "manual"
 
   const submitBtn = document.getElementById("submit-btn");
 
@@ -140,15 +142,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     validateForm();
   }
 
-  // ── 기상 정보 조회
+  // ── 기상 정보 조회 (기본값: 자동. 실패하거나 원하는 경우 아래에서 직접 입력으로 전환 가능)
   async function loadWeather() {
     const stateEl = document.getElementById("weather-state");
     const bodyEl = document.getElementById("weather-body");
     const currentEl = document.getElementById("weather-current");
+    const toggleBtn = document.getElementById("weather-mode-toggle");
 
     try {
       const { current, hourlyList } = await getWeatherSnapshot();
       weatherFields = toBackendWeatherFields(current, hourlyList);
+      autoWeatherFields = { ...weatherFields };
       weatherDescription = current.description;
 
       currentEl.innerHTML = `
@@ -175,13 +179,88 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error(err);
       stateEl.textContent =
         err && err.code === 1
-          ? "위치 권한이 거부되어 날씨를 불러올 수 없어요. (결측으로 처리되어 분석은 진행 가능)"
-          : "날씨 정보를 불러오지 못했어요. (결측으로 처리되어 분석은 진행 가능)";
+          ? "위치 권한이 거부되어 날씨를 불러올 수 없어요. 아래에서 직접 입력해주세요."
+          : "날씨 정보를 불러오지 못했어요. 아래에서 직접 입력해주세요.";
       stateEl.classList.add("is-error");
     } finally {
+      toggleBtn.style.display = "block"; // 성공/실패 관계없이 직접 입력 전환은 항상 가능
       validateForm();
     }
   }
+
+  // ── 기상 정보: 자동 ↔ 직접 입력 전환
+  const weatherModeBadge = document.getElementById("weather-mode-badge");
+  const weatherManualEl = document.getElementById("weather-manual");
+  const weatherStateEl = document.getElementById("weather-state");
+  const weatherBodyEl = document.getElementById("weather-body");
+  const weatherToggleBtn = document.getElementById("weather-mode-toggle");
+  const manualInputs = {
+    "평균기온(°C)": document.getElementById("manual-temp"),
+    "기상상태 - 습도": document.getElementById("manual-humidity"),
+    "일강수량(mm)": document.getElementById("manual-rain"),
+    "평균 풍속(m/s)": document.getElementById("manual-wind"),
+  };
+
+  function enterManualWeatherMode() {
+    weatherMode = "manual";
+    weatherModeBadge.textContent = "직접 입력";
+    weatherStateEl.style.display = "none";
+    weatherBodyEl.style.display = "none";
+    weatherToggleBtn.style.display = "none";
+    weatherManualEl.style.display = "block";
+
+    // 자동 조회에 성공했던 값이 있으면 미리 채워줘서 그대로 쓰거나 일부만 고치기 편하게
+    const base = autoWeatherFields || {};
+    Object.entries(manualInputs).forEach(([field, input]) => {
+      if (base[field] !== undefined && base[field] !== null && input.value === "") {
+        input.value = base[field];
+      }
+    });
+
+    weatherFields = readManualWeatherFields();
+    weatherDescription = "사용자 직접 입력";
+    validateForm();
+  }
+
+  function enterAutoWeatherMode() {
+    weatherMode = "auto";
+    weatherManualEl.style.display = "none";
+    weatherModeBadge.textContent = "자동 입력됨";
+
+    if (autoWeatherFields) {
+      weatherFields = { ...autoWeatherFields };
+      weatherStateEl.style.display = "none";
+      weatherBodyEl.style.display = "block";
+      weatherToggleBtn.style.display = "block";
+    } else {
+      // 자동 조회를 아직 못 했거나 실패했던 경우 → 다시 시도
+      weatherFields = null;
+      weatherStateEl.textContent = "위치 확인 중...";
+      weatherStateEl.classList.remove("is-error");
+      weatherStateEl.style.display = "block";
+      weatherBodyEl.style.display = "none";
+      weatherToggleBtn.style.display = "none";
+      loadWeather();
+    }
+    validateForm();
+  }
+
+  /** 직접 입력 필드값 → 백엔드 필드 형태로 변환. 비워둔 값은 결측으로 처리(생략). */
+  function readManualWeatherFields() {
+    const fields = {};
+    Object.entries(manualInputs).forEach(([field, input]) => {
+      if (input.value !== "") fields[field] = Number(input.value);
+    });
+    return fields;
+  }
+
+  weatherToggleBtn.addEventListener("click", enterManualWeatherMode);
+  document.getElementById("weather-mode-auto").addEventListener("click", enterAutoWeatherMode);
+  Object.values(manualInputs).forEach((input) => {
+    input.addEventListener("input", () => {
+      weatherFields = readManualWeatherFields();
+    });
+  });
 
   // ── 필수 입력 검증 (날씨는 실패해도 진행 가능 — README상 결측 허용)
   function validateForm() {

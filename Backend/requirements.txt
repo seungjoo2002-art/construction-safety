@@ -26,6 +26,15 @@ matplotlib
 seaborn
 openpyxl
 
+# ============================================================
+# 사진 분석(/api/analyze-photo, safety_yolo_pkg) 구동에 필요한 패키지.
+# GPU 없어도 동작하지만 CPU는 한 장에 2~5초 걸릴 수 있습니다.
+# ============================================================
+ultralytics>=8.3
+torch
+torchvision
+pillow
+
 # 설치
 #   pip install -r requirements.txt
 #

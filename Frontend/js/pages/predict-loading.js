@@ -20,6 +20,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const payload = JSON.parse(payloadRaw);
 
+  // ── 디버깅용: 백엔드로 보내는 입력 변수를 콘솔에 그대로 표시
+  console.log("[predict-loading.js] 위험도 분석 입력 변수:", payload);
+  console.table(payload);
+
   const step1 = document.getElementById("step-1");
   const step2 = document.getElementById("step-2");
   const step3 = document.getElementById("step-3");
@@ -65,8 +69,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     markDone(step3);
     setProgress(100);
 
+    // ── 디버깅용: 백엔드에서 받은 결과값을 콘솔에 그대로 표시
+    console.log("[predict-loading.js] 위험도 분석 결과 (severity + accident_type):", result);
+    console.log("[predict-loading.js] 유사도 분석 결과 (similar_cases + mds_chart_image + prevention_guidelines):", simResult);
+
     saveLastPredictResult(result, payload); // 대시보드가 읽어갈 "최근 분석" 갱신
     saveLastSimilarity(simResult); // 대시보드/유사사례가 읽어갈 "최근 유사도 분석" 갱신
+    saveAnalysisRecord(result, payload, simResult); // 알림 화면에서 다시 열어볼 수 있도록 분석 이력에 자동 기록
 
     // ── 위험/매우위험 등급이면 실제 브라우저 알림으로 즉시 안내
     const grade = result.severity.fatal_risk.grade;

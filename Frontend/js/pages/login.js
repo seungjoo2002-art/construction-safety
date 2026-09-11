@@ -67,16 +67,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const account = users.find((u) => u.username === username);
 
     if (!account) {
-      showError("가입되지 않은 아이디입니다.");
-      submitBtn.disabled = false;
-      submitBtn.textContent = "로그인";
+      alert("가입되지 않은 아이디입니다. 회원가입을 먼저 진행해주세요.");
+      window.location.href = "signup.html";
       return;
     }
 
     if (account.password !== password) {
-      showError("비밀번호가 올바르지 않습니다.");
-      submitBtn.disabled = false;
-      submitBtn.textContent = "로그인";
+      alert("아이디 또는 비밀번호가 일치하지 않습니다. 처음부터 다시 입력해주세요.");
+      window.location.href = "signup.html";
       return;
     }
 

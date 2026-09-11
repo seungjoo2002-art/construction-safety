@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+assets/db_v_con.npy
+assets/db_v_fac.npy
+assets/db_v_wrk.npy
+.env
+*.env

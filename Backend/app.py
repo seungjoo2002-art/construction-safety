@@ -64,33 +64,6 @@ from similarity_service import SimilarityWebService
 
 from pathlib import Path
 
-# ── assets 폴더의 큰 임베딩 파일 3개는 git에 올리지 않으므로(Backend/.gitignore),
-#    서버가 켜질 때 없으면 Hugging Face에서 자동으로 받아옵니다. 이 함수는
-#    아래 모델/유사도 서비스 로드보다 먼저 실행되어야 합니다.
-ASSETS_DIR = Path(__file__).parent / "assets"
-HF_BASE_URL = "https://huggingface.co/datasets/joojoojo/construction-safety-embeddings/resolve/main"
-LARGE_ASSET_FILES = ["db_v_con.npy", "db_v_fac.npy", "db_v_wrk.npy"]
-
-
-def ensure_large_assets():
-    ASSETS_DIR.mkdir(exist_ok=True)
-    for fname in LARGE_ASSET_FILES:
-        local_path = ASSETS_DIR / fname
-        if local_path.exists():
-            print(f"[app.py] {fname} 이미 존재 (다운로드 생략)")
-            continue
-        print(f"[app.py] {fname} 다운로드 중... (최초 1회, 파일이 커서 시간이 걸릴 수 있음)")
-        url = f"{HF_BASE_URL}/{fname}"
-        r = requests.get(url, stream=True, timeout=180)
-        r.raise_for_status()
-        with open(local_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
-                f.write(chunk)
-        print(f"[app.py] {fname} 다운로드 완료")
-
-
-ensure_large_assets()
-
 app = FastAPI(title="AI 건설현장 안전관리 - 예측 API")
 
 # ── CORS: 프론트가 다른 포트(예: Live Server의 127.0.0.1:5500)에서 호출하므로

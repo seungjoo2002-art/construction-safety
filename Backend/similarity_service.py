@@ -47,9 +47,9 @@ class SimilarityWebService:
         else:
             self.df_sif = pd.DataFrame()
 
-        self.db_v_fac = np.load(os.path.join(self.base_path, 'db_v_fac.npy'))
-        self.db_v_con = np.load(os.path.join(self.base_path, 'db_v_con.npy'))
-        self.db_v_wrk = np.load(os.path.join(self.base_path, 'db_v_wrk.npy'))
+        self.db_v_fac = np.load(os.path.join(self.base_path, 'db_v_fac.npy'), mmap_mode='r')
+        self.db_v_con = np.load(os.path.join(self.base_path, 'db_v_con.npy'), mmap_mode='r')
+        self.db_v_wrk = np.load(os.path.join(self.base_path, 'db_v_wrk.npy'), mmap_mode='r')
         self.db_n_num_scaled = np.load(os.path.join(self.base_path, 'db_n_num_scaled.npy'))
 
         self.df_db['정형화된_재해종류'] = self.df_db['인적사고'].apply(self._map_incident_to_sif)

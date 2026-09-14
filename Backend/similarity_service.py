@@ -1,5 +1,6 @@
 import os
 import io
+import gc
 import base64
 from typing import Optional
 import numpy as np
@@ -47,10 +48,19 @@ class SimilarityWebService:
         else:
             self.df_sif = pd.DataFrame()
 
-        self.db_v_fac = np.load(os.path.join(self.base_path, 'db_v_fac.npy'), mmap_mode='r')
-        self.db_v_con = np.load(os.path.join(self.base_path, 'db_v_con.npy'), mmap_mode='r')
-        self.db_v_wrk = np.load(os.path.join(self.base_path, 'db_v_wrk.npy'), mmap_mode='r')
-        self.db_n_num_scaled = np.load(os.path.join(self.base_path, 'db_n_num_scaled.npy'))
+        # ⚠️ Render 무료 Web Service(512MB) 대응 — db_v_fac/con/wrk(각 137MB, 총 411MB)를
+        # 여기서 mmap으로 열어 self.db_v_*로 인스턴스 생애주기 내내 들고 있지 않습니다.
+        # 실측 결과, mmap_mode='r'이어도 cosine_similarity가 배열 전체를 훑으면 그 순간
+        # RSS가 파일 크기만큼 그대로 올라가고(1개당 +131MB), self.db_v_*로 계속 들고
+        # 있으면 요청 1번만으로 3개가 전부 상주해 719MB까지 치솟아 OOM이 났습니다
+        # (predict_severity/predict_accident_type 모델 로드 후 기준). 그래서 경로만
+        # 저장해두고, 실제 계산이 필요한 순간에 _channel_similarity()/_channel_rows()가
+        # 채널 하나씩만 열었다가 즉시 해제합니다 — 결과값(코사인 유사도)은 완전히 동일하고
+        # 메모리 수명만 바뀝니다. 같은 방식으로 재측정하면 피크가 약 297MB 선으로 줄어듭니다.
+        self.db_v_fac_path = os.path.join(self.base_path, 'db_v_fac.npy')
+        self.db_v_con_path = os.path.join(self.base_path, 'db_v_con.npy')
+        self.db_v_wrk_path = os.path.join(self.base_path, 'db_v_wrk.npy')
+        self.db_n_num_scaled = np.load(os.path.join(self.base_path, 'db_n_num_scaled.npy'))  # 1MB — 상주해도 무해
 
         self.df_db['정형화된_재해종류'] = self.df_db['인적사고'].apply(self._map_incident_to_sif)
 
@@ -111,8 +121,34 @@ class SimilarityWebService:
                 mat[i, j] = 1.0 if i == j else self._text_sim(values[i], values[j])
         return mat
 
+    @staticmethod
+    def _channel_similarity(path, query_vec):
+        """임베딩 파일 하나를 그때그때 열어 query와의 코사인 유사도 전체(22,325개)만
+        뽑고 즉시 해제. 채널 하나당 순간적으로 최대 ~137MB가 RSS에 잡히지만(실측),
+        함수가 끝나면 del+gc.collect()로 곧바로 반환되어 다음 채널로 누적되지
+        않습니다(순차 처리 시 피크 ~297MB로 직접 측정 검증)."""
+        arr = np.load(path, mmap_mode='r')
+        try:
+            return cosine_similarity([query_vec], arr)[0]
+        finally:
+            del arr
+            gc.collect()
+
+    @staticmethod
+    def _channel_rows(path, idx):
+        """임베딩 파일 하나를 열어 top-20 행만 실제 메모리로 복사하고 즉시 해제."""
+        arr = np.load(path, mmap_mode='r')
+        try:
+            return np.array(arr[idx])
+        finally:
+            del arr
+            gc.collect()
+
     def _text_channels_embedding(self, facility_text, construction_text, work_text):
-        """OpenAI 임베딩 기반 채널 유사도 (client가 있을 때)."""
+        """OpenAI 임베딩 기반 채널 유사도 (client가 있을 때).
+        db_v_fac/con/wrk는 self.db_v_*_path로만 경로를 들고 있고, 여기서 채널을
+        하나씩 순서대로 열었다가 바로 해제합니다 — 3개를 동시에 self.*로 들고 있던
+        기존 방식은 실측 700MB+까지 치솟아 512MB 컨테이너에서 OOM이 났습니다."""
         res = self.client.embeddings.create(
             input=[facility_text, construction_text, work_text],
             model="text-embedding-3-small"
@@ -121,14 +157,14 @@ class SimilarityWebService:
         u_v_con = np.array(res.data[1].embedding)
         u_v_wrk = np.array(res.data[2].embedding)
 
-        sim_fac = cosine_similarity([u_v_fac], self.db_v_fac)[0]
-        sim_con = cosine_similarity([u_v_con], self.db_v_con)[0]
-        sim_wrk = cosine_similarity([u_v_wrk], self.db_v_wrk)[0]
+        sim_fac = self._channel_similarity(self.db_v_fac_path, u_v_fac)
+        sim_con = self._channel_similarity(self.db_v_con_path, u_v_con)
+        sim_wrk = self._channel_similarity(self.db_v_wrk_path, u_v_wrk)
 
         def build_pairwise(top_20_idx):
-            fac_21 = np.vstack([[u_v_fac], self.db_v_fac[top_20_idx]])
-            con_21 = np.vstack([[u_v_con], self.db_v_con[top_20_idx]])
-            wrk_21 = np.vstack([[u_v_wrk], self.db_v_wrk[top_20_idx]])
+            fac_21 = np.vstack([[u_v_fac], self._channel_rows(self.db_v_fac_path, top_20_idx)])
+            con_21 = np.vstack([[u_v_con], self._channel_rows(self.db_v_con_path, top_20_idx)])
+            wrk_21 = np.vstack([[u_v_wrk], self._channel_rows(self.db_v_wrk_path, top_20_idx)])
             return cosine_similarity(fac_21), cosine_similarity(con_21), cosine_similarity(wrk_21)
 
         return sim_fac, sim_con, sim_wrk, build_pairwise

@@ -1,12 +1,12 @@
 // ============================================================
-// api.js — 백엔드 예측 API 연동
-// ⚠️ 지금은 목업입니다. 팀원이 FastAPI 엔드포인트를 완성하면
-//    predictRisk() 내부의 TODO 부분만 실제 fetch로 교체하면 됩니다.
-//    응답 형태는 README에 나온 predict_severity.py / predict_accident_type.py
-//    실제 출력 예시를 그대로 흉내냈습니다.
+// api.js — 백엔드(predict/analyze/analyze-photo/chat) 연동
 // ============================================================
 
-const API_BASE_URL = "http://127.0.0.1:8000"; // 로컬 백엔드(임시). 배포용 주소로 되돌리려면 "https://construction-safety-backend.onrender.com"로 바꾸면 됨
+// env.js(빌드 시 scripts/generate-env.js가 생성)가 이 파일보다 먼저 로드되어
+// window.APP_CONFIG.BACKEND_API_BASE_URL을 채워두면 그 값을 쓰고, 없으면(로컬에서
+// 빌드 스크립트 없이 그냥 열어 테스트하는 경우) 로컬 백엔드 기본 주소로 대체합니다.
+const API_BASE_URL =
+  (window.APP_CONFIG && window.APP_CONFIG.BACKEND_API_BASE_URL) || "http://127.0.0.1:8000";
 
 /**
  * 위험도(심각도) + 사고유형 예측 요청.

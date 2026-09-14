@@ -27,7 +27,10 @@
 
 `similarity_service.py`(`/api/analyze`)는 `assets/df_db.csv`를 독자적으로 계속
 사용합니다 — 사고 사례 검색 기능과는 별개의 코드 경로라 이번 마이그레이션 대상이
-아닙니다. 이 4개 엔드포인트/백엔드 코드는 전혀 수정하지 않았습니다.
+아닙니다. **이 4개 엔드포인트의 입출력/동작은 전혀 바뀌지 않았습니다** — 단,
+Render 무료 Web Service(512MB)에서 실제로 돌아가도록 `similarity_service.py`와
+`app.py`의 **메모리 수명 관리**만 고쳤습니다(2번 섹션 참고). 결과값은 기존과
+100% 동일합니다.
 
 ---
 
@@ -48,10 +51,11 @@ Render 대시보드에서 **New → Static Site**로 이 저장소를 연결하�
 
 | 이름 | 필수 | 기본값 | 설명 |
 |---|---|---|---|
-| `HF_DATASET_ID` | ✅ | (없음) | 2번에서 만든 Hugging Face 데이터셋 repo id. 예: `your-username/construction-incidents` |
+| `HF_DATASET_ID` | ✅ | (없음) | 3번에서 만든 Hugging Face 데이터셋 repo id. 예: `your-username/construction-incidents` |
 | `HF_DATASET_CONFIG` | – | `default` | 데이터셋 config 이름 (CSV 하나만 올리면 보통 `default`) |
 | `HF_DATASET_SPLIT` | – | `train` | 데이터셋 split 이름 |
 | `HF_API_BASE` | – | `https://datasets-server.huggingface.co` | 변경할 일 거의 없음 |
+| `BACKEND_API_BASE_URL` | ✅ | `http://127.0.0.1:8000` | 아래 2번에서 배포한 Backend Web Service의 실제 URL. 예: `https://ai-safety-backend.onrender.com` (predict/analyze/analyze-photo/chat이 이 값을 씀) |
 
 `HF_DATASET_ID`를 비워두면 빌드는 성공하지만, 사례 검색 화면에 "Hugging Face
 데이터셋이 아직 설정되지 않았어요" 상태가 표시됩니다(에러로 죽지 않음).
@@ -73,7 +77,104 @@ Command로 실행되어 `Frontend/js/common/env.js`를 직접 생성합니다. �
 
 ---
 
-## 2. Hugging Face 데이터셋 준비 (필수, 1회)
+## 2. Render Web Service 설정 (백엔드 — `Backend/app.py`)
+
+| 항목 | 값 |
+|---|---|
+| Root Directory | `Backend` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn app:app --host 0.0.0.0 --port $PORT` |
+| Health Check Path | `/health` |
+
+`PORT`는 Render가 서비스마다 자동으로 주입하는 환경변수라 직접 등록할 필요는
+없습니다(Start Command에서 `$PORT`로 그대로 참조하면 됩니다). `requirements.txt`는
+`Backend/requirements.txt`에 있고, Root Directory를 `Backend`로 잡으면 Build
+Command에서 상대경로 `requirements.txt`만으로 정확히 그 파일을 가리킵니다.
+
+### 환경변수 (Web Service → Environment 탭)
+
+| 이름 | 필수 | 비밀값? | 설명 |
+|---|---|---|---|
+| `OPENAI_API_KEY` | 선택 | ✅ 비밀 | 있으면 `/api/analyze`가 임베딩 기반 정밀 유사도 사용. 없으면 카테고리 근사 유사도로 자동 대체(에러 아님) |
+| `GEMINI_API_KEY` | 선택 | ✅ 비밀 | 없으면 `/api/chat`이 "설정 안 됨" 안내만 반환(서버는 안 죽음) |
+| `HF_TOKEN` | 선택 | ✅ 비밀 | 임베딩 자산(`db_v_*.npy`) 데이터셋을 비공개(gated)로 바꾼 경우에만 필요 |
+| `ALLOWED_ORIGINS` | 권장 | 공개 정보 | 프런트 Static Site 실제 URL. 쉼표로 여러 개 가능. 예: `https://ai-safety-frontend.onrender.com`. 비워두면 전체 허용(`*`)으로 동작(로컬 개발엔 편하지만 운영에선 좁히는 걸 권장) |
+
+### 512MB 메모리 제한 대응 — 직접 측정하고 고친 내용
+
+**결론부터: 기존 코드는 512MB에서 OOM이 확정적으로 났을 것이고(측정치: 요청 1회 처리 중
+peak **719MB**, idle 기동 시점도 이미 **~508MB** 추정), 두 군데를 고쳐서 idle
+기동 **~286MB**, 요청 처리 중 peak **약 450~470MB**(512MB 대비 약 45~60MB/9~12%
+여유)로 낮췄습니다.** `mmap_mode='r'`이 "그냥 안전하다"고 가정하지 않고, 실제
+`Backend/assets/db_v_*.npy`(각 137MB, 총 411MB)와 실제 joblib 모델을 그대로
+로드해 `psutil`로 RSS를 직접 측정하며 검증했습니다.
+
+**문제 1 — 임베딩 3개를 서비스 생애주기 내내 들고 있었음.**
+`similarity_service.py`가 `__init__`에서 `db_v_fac/con/wrk.npy`를 `mmap_mode='r'`로
+열어 `self.db_v_*`로 계속 들고 있었습니다. mmap은 여는 순간엔 가볍지만(+1MB),
+**`cosine_similarity(query, self.db_v_fac)`처럼 배열 전체를 훑는 연산을 하면 그
+순간 파일 크기만큼 그대로 RSS에 반영됨을 실측으로 확인**했습니다(파일당 +131MB,
+mmap 여부와 무관). 3개를 전부 인스턴스 속성으로 들고 있었기 때문에, 유사도 분석
+요청 1번만 처리해도 3개가 전부 상주해 719MB까지 쌓였습니다.
+
+→ **고친 내용**: `self.db_v_fac/con/wrk`를 없애고 **경로만** 저장한 뒤,
+`_channel_similarity()`/`_channel_rows()`가 채널 하나씩만 그때그때 열었다가
+`del` + `gc.collect()`로 바로 해제하도록 `similarity_service.py`를 수정했습니다
+(`_text_channels_embedding()`). 계산 결과(코사인 유사도 값)는 완전히 동일하고,
+메모리에 머무는 시간만 바뀝니다. 재측정 결과 peak가 **719MB → 약 450~470MB**로
+떨어졌습니다.
+
+**문제 2 — 사진 분석(YOLO/torch)이 서버 기동 시점에 항상 로드되고 있었음.**
+`app.py`가 모듈 임포트 시점에 `hazard_service = Hazard()`를 즉시 실행했는데,
+`Hazard()` 생성자 안의 `from ultralytics import YOLO`가 torch를 끌어옵니다. 실측
+결과 **`Hazard()` 생성 하나만으로 +238MB**가 들었습니다. 위험도·사고유형 모델
+로드(+222MB)와 `similarity_service` 모듈 임포트(+48MB, matplotlib 등)까지 합치면
+**요청을 1건도 받기 전, 서버가 켜지는 순간부터 이미 약 508MB**로 추정되어 컨테이너
+기동 자체가 OOM으로 실패할 수 있습니다.
+
+→ **고친 내용**: 기존에 `/api/analyze`용으로 이미 쓰던 지연 초기화 패턴
+(`get_sim_service()`)을 그대로 사진 분석에도 적용해 `get_hazard_service()`를
+추가했습니다 — `/api/analyze-photo`가 처음 호출될 때만 torch/YOLO를 로드합니다.
+실제로 `app.py`를 통째로 import해서 측정한 결과, **idle 기동 RSS가 286.0MB**로
+줄었고(`/health`도 정상 응답, `sim_service`/`hazard_service` 둘 다 아직 `None`
+상태로 지연 유지됨을 확인), `/api/predict`처럼 이 둘을 안 쓰는 요청들에는 전혀
+영향이 없습니다.
+
+**남은 마진에 대한 솔직한 평가.** 약 45~60MB(9~12%) 여유는 "확실히 안전"이라고
+말하기엔 넉넉하지 않습니다. 이 수치는 uvicorn 1 워커·순차 요청 1건 기준이고,
+동시 요청이나 장시간 운영 중 메모리 단편화까지 고려하면 여유가 더 줄어들 수
+있습니다. 참고로 `OPENAI_API_KEY`를 설정하지 않은 폴백 모드(카테고리 근사 유사도)는
+임베딩 파일을 아예 건드리지 않아 idle 기동(286MB)에서 거의 늘지 않는, 훨씬 안전한
+경로입니다.
+
+**그래도 OOM이 계속 나면 — 다음 단계 (이번 범위 밖, 구현하지 않음)**
+- **최소 추가 변경**: `db_v_*.npy`를 float32 → float16으로 다운캐스트해서 재생성/재업로드
+  (채널당 파일 크기 137MB → 약 68.5MB, peak를 한 번 더 줄일 수 있음). 정밀도가 약간
+  낮아지지만 top-20 순위 매기기 용도라 영향은 작을 것으로 예상 — 실측/검증 필요.
+- **더 견고한 방법(권장)**: 임베딩 유사도 계산을 이 프로세스 밖으로 분리 — 예를 들어
+  Qdrant Cloud/Pinecone 같은 관리형 벡터 DB에 `db_v_fac/con/wrk`를 인덱싱해두고,
+  `/api/analyze`는 그 벡터 DB에 검색 API로 질의만 하도록 바꾸는 방식입니다. 이러면
+  Render Web Service 프로세스는 임베딩 파일을 아예 들고 있지 않아도 되어 메모리
+  마진이 훨씬 넉넉해집니다. 새 외부 서비스 계정/데이터 업로드가 필요해 이번
+  세션에서는 구현하지 않았고, 설계만 제시합니다.
+
+### CORS
+
+`ALLOWED_ORIGINS` 환경변수(쉼표 구분)로 허용 도메인을 좁힐 수 있게 `app.py`를
+고쳤습니다. 비워두면 기존처럼 전체 허용(`*`)으로 동작해 로컬 개발은 그대로
+편합니다 — 운영 배포에서는 프런트 Static Site URL로 좁히는 걸 권장합니다.
+
+### `/health`
+
+Render의 Health Check Path로 그대로 씁니다. 위험도·사고유형 모델은 서버 기동
+시점에 항상 로드되므로(실패하면 `/health` 자체가 응답 못 함) 별도 표시가 필요
+없고, 대신 `similarity_service_initialized`/`photo_analysis_initialized`(둘 다
+지연 초기화라 아직 `false`일 수 있음)를 가볍게 같이 보여주도록 확장했습니다 —
+이 값을 확인하려고 헬스체크가 무거운 초기화를 유발하지는 않습니다.
+
+---
+
+## 3. Hugging Face 데이터셋 준비 (필수, 1회)
 
 사례 검색이 동작하려면 **당신이 직접** 데이터셋을 Hugging Face에 올려야 합니다.
 이 저장소는 그 데이터셋을 만드는 스크립트만 제공하고, 실제 업로드는 하지 않습니다.
@@ -139,7 +240,7 @@ CSV 대신 직접 Parquet을 올리고 싶다면 `python prepare_hf_dataset.py -
 
 ---
 
-## 3. 검색/필터 API 사용 방식과 한계
+## 4. 검색/필터 API 사용 방식과 한계
 
 `Frontend/js/common/hf-dataset.js`가 다음 두 엔드포인트를 씁니다.
 
@@ -168,7 +269,7 @@ Workers/Vercel Functions 등)나 별도 검색 인덱스(Algolia, Meilisearch �
 
 ---
 
-## 4. PWA / 오프라인 동작
+## 5. PWA / 오프라인 동작
 
 - `Frontend/sw.js`는 앱 셸(HTML/CSS/JS/아이콘/manifest/오프라인 화면)만 precache
   합니다. Hugging Face URL이나 대용량 원본 파일은 **절대 precache하지 않습니다**
@@ -184,7 +285,7 @@ Workers/Vercel Functions 등)나 별도 검색 인덱스(Algolia, Meilisearch �
 
 ---
 
-## 5. 검증 결과 (이번 작업에서 직접 확인함)
+## 6. 검증 결과 (이번 작업에서 직접 확인함)
 
 1. **빌드**: `HF_DATASET_ID` 유무 양쪽 모두 `node scripts/generate-env.js`가
    오류 없이 끝나고, `env.js`가 올바르게 생성됨을 확인했습니다.
@@ -198,37 +299,68 @@ Workers/Vercel Functions 등)나 별도 검색 인덱스(Algolia, Meilisearch �
    - `GET /filter`: 컬럼명을 따옴표 없이 보내면 422 오류가 남을 실제로 확인해서
      `"컬럼명"` 형태로 코드를 수정했고, 수정 후 문법 오류는 사라짐을 확인했습니다
      (해당 테스트 데이터셋의 인덱스가 아직 준비 중이라 "index is loading" 500이
-     남았는데, 이건 3번에서 설명한 정상적인 일시 상태이며 코드가 자동으로 `/rows`
+     남았는데, 이건 4번에서 설명한 정상적인 일시 상태이며 코드가 자동으로 `/rows`
      폴백으로 처리합니다).
-4. Render 대시보드 실제 배포/HF 실데이터셋 업로드는 이 세션에서 수행할 수 없어
-   대시보드/HF 쪽 체크리스트는 아래 6번에 남겨둡니다.
+4. **백엔드 메모리 실측** (`Backend/assets/`의 실제 137MB×3 임베딩 파일 + 실제
+   joblib 모델로 `psutil` RSS를 직접 측정, 로컬 Windows 환경):
+   - 수정 전: idle 기동 baseline 약 326.5MB(예측 모델만 기준) → `hazard_service`
+     eager 로드까지 포함하면 약 508MB로 추정, `/api/analyze` 1회 처리 중 peak
+     **719.3MB** (512MB 초과 확정적).
+   - 수정 후: `import app` 실행 시 실제 RSS **286.0MB**(위험도·사고유형 모델
+     로드 완료, `hazard_service`/`sim_service`는 지연 상태), `/health` 200 정상
+     응답 확인. `/api/analyze` 1회 처리 중 peak **약 450~470MB**로 하락(채널별
+     +131MB 순간 피크는 여전하지만 채널 간 누적되지 않음을 `del`+`gc.collect()`
+     전후 RSS로 직접 확인).
+   - `python -m py_compile`/`ast.parse` 상당의 문법 검증과 `FastAPI TestClient`로
+     `/health` 실제 호출까지 확인했습니다. Render 컨테이너(Linux/cgroup) 자체에는
+     배포해보지 못했으므로, 실배포 후 로그의 실제 메모리 그래프로 한 번 더
+     확인하는 걸 권장합니다.
+5. Render 대시보드 실제 배포/HF 실데이터셋 업로드는 이 세션에서 수행할 수 없어
+   대시보드/HF 쪽 체크리스트는 아래 7번에 남겨둡니다.
 
 ---
 
-## 6. 체크리스트
+## 7. 체크리스트
 
 ### 이번에 변경된 파일
 
 - **신규**: `render.yaml`, `.env.example`, `scripts/generate-env.js`,
   `Frontend/index.html`, `Frontend/js/common/env.js`, `Frontend/js/common/hf-dataset.js`,
   `Backend/prepare_hf_dataset.py`
-- **수정**: `Backend/app.py`(사례 조회 3개 엔드포인트 제거), `Backend/.gitignore`,
-  `Frontend/js/common/api.js`(사례 조회를 HF 기반으로 교체),
-  `Frontend/js/pages/similar-cases.js`(이전/다음 페이지네이션 + 오류/설정필요 상태),
-  `Frontend/html/similar-cases.html`, `Frontend/html/case-detail.html`(스크립트 태그 추가),
-  `Frontend/css/pages.css`(페이지네이션 스타일), `Frontend/sw.js`(주석/캐시 목록 정리),
-  `.gitignore`
+- **수정**:
+  - `Backend/app.py` — 사례 조회 3개 엔드포인트 제거, `ALLOWED_ORIGINS` 환경변수로
+    CORS 도메인 제한 가능하게 변경, `/health` 응답 확장, `hazard_service`
+    (YOLO/torch) 지연 초기화로 전환(512MB 대응)
+  - `Backend/similarity_service.py` — `db_v_fac/con/wrk`를 인스턴스에 상주시키지
+    않고 채널 단위로 열었다 바로 해제하도록 변경(512MB 대응, 계산 결과는 동일)
+  - `Backend/.gitignore`
+  - `Frontend/js/common/api.js` — 사례 조회를 HF 기반으로 교체,
+    `API_BASE_URL`을 `BACKEND_API_BASE_URL` 환경변수로 설정 가능하게 변경
+  - `Frontend/js/pages/similar-cases.js`(이전/다음 페이지네이션 + 오류/설정필요 상태)
+  - `Frontend/html/similar-cases.html`, `Frontend/html/case-detail.html`,
+    `Frontend/html/dashboard.html`, `Frontend/html/predict-loading.html`,
+    `Frontend/html/photo-analyzing.html`(`env.js` 스크립트 태그 추가)
+  - `Frontend/css/pages.css`(페이지네이션 스타일), `Frontend/sw.js`(주석/캐시 목록 정리)
+  - `render.yaml`, `.env.example`, `scripts/generate-env.js`(`BACKEND_API_BASE_URL` 추가)
+  - `.gitignore`
 - **삭제**: `Backend/incidents_db.py`, `Backend/assets/incidents.db`(빌드 산출물)
 
 ### Render 대시보드에서 당신이 할 일
 
 - [ ] **Static Site** 새로 생성 — Build Command `node scripts/generate-env.js`,
       Publish Directory `Frontend` (또는 `render.yaml` 커밋 후 Blueprint로 생성)
-- [ ] Static Site Environment 탭에 `HF_DATASET_ID` 등록 (아래 HF 작업 완료 후)
-- [ ] 기존 Backend Web Service는 그대로 유지 (이번에 제거된 3개 엔드포인트를
-      실제로 호출하는 곳이 없는지 재배포 후 로그로 확인 권장)
-- [ ] Backend Web Service의 `OPENAI_API_KEY`/`GEMINI_API_KEY`/`HF_TOKEN`은
-      이번 변경과 무관 — 그대로 유지
+- [ ] Static Site Environment 탭에 `HF_DATASET_ID`(아래 HF 작업 완료 후),
+      `BACKEND_API_BASE_URL`(Backend Web Service 실제 URL) 등록
+- [ ] **Web Service**(Backend) 새로 생성 또는 기존 서비스 설정 갱신 — Root
+      Directory `Backend`, Build Command `pip install -r requirements.txt`,
+      Start Command `uvicorn app:app --host 0.0.0.0 --port $PORT`,
+      Health Check Path `/health`
+- [ ] Web Service Environment 탭에 `OPENAI_API_KEY`/`GEMINI_API_KEY`/`HF_TOKEN`
+      (기존 값 그대로 유지) + `ALLOWED_ORIGINS`(신규, 프런트 Static Site URL) 등록
+- [ ] 배포 후 인스턴스 메모리 사용량 그래프에서 idle/요청 처리 중 피크가
+      512MB 아래인지 실제로 확인 (README 6번의 로컬 실측치와 비교)
+- [ ] 이번에 제거된 3개 엔드포인트(`/api/cases*`, `/api/incidents`)를 실제로
+      호출하는 곳이 없는지 재배포 후 로그로 확인 권장
 
 ### Hugging Face에서 당신이 할 일
 

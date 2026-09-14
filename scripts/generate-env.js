@@ -9,7 +9,8 @@
 // 순수 Node 내장 모듈만 사용합니다 — npm install이 전혀 필요 없습니다.
 //
 // 이 스크립트가 하는 일 2가지:
-//   1) Frontend/js/common/env.js 생성 — HF 데이터셋 설정(공개 정보, 비밀값 아님)
+//   1) Frontend/js/common/env.js 생성 — HF 데이터셋 설정 + 백엔드(Render Web Service)
+//      URL (전부 공개 정보, 비밀값 아님 — API 키 등 비밀값은 여기 넣지 않는다)
 //   2) pictures/ → Frontend/pictures/ 복사 — Render Publish Directory가 Frontend
 //      하나뿐이라, Frontend 바깥의 저장소 루트 pictures/(아이콘)까지 함께 배포되게
 //      만들어준다. (로컬 저장소의 pictures/는 원래 위치 그대로 둔다 — 로컬에서
@@ -26,6 +27,7 @@ function generateEnvFile() {
   const datasetConfig = process.env.HF_DATASET_CONFIG || "default";
   const datasetSplit = process.env.HF_DATASET_SPLIT || "train";
   const apiBase = process.env.HF_API_BASE || "https://datasets-server.huggingface.co";
+  const backendApiBaseUrl = process.env.BACKEND_API_BASE_URL || "http://127.0.0.1:8000";
 
   const content = `// ============================================================
 // env.js — scripts/generate-env.js가 빌드 시 자동 생성한 파일입니다. 직접 수정하지 마세요.
@@ -36,13 +38,14 @@ window.APP_CONFIG = {
   HF_DATASET_CONFIG: ${JSON.stringify(datasetConfig)},
   HF_DATASET_SPLIT: ${JSON.stringify(datasetSplit)},
   HF_API_BASE: ${JSON.stringify(apiBase)},
+  BACKEND_API_BASE_URL: ${JSON.stringify(backendApiBaseUrl)},
 };
 `;
 
   const outPath = path.join(FRONTEND_DIR, "js", "common", "env.js");
   fs.writeFileSync(outPath, content, "utf-8");
   console.log(
-    `[generate-env.js] env.js 생성 완료 (HF_DATASET_ID=${datasetId ? "설정됨" : "⚠️ 미설정 — README의 데이터셋 준비 절차 확인 필요"})`
+    `[generate-env.js] env.js 생성 완료 (HF_DATASET_ID=${datasetId ? "설정됨" : "⚠️ 미설정"}, BACKEND_API_BASE_URL=${backendApiBaseUrl})`
   );
 }
 

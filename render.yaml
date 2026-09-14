@@ -21,3 +21,7 @@ services:
         value: default
       - key: HF_DATASET_SPLIT
         value: train
+      # 이 값도 공개 정보입니다 — 아래 Backend Web Service의 실제 배포 URL(Render가
+      # 자동으로 부여하는 https://<서비스명>.onrender.com 형태)을 그대로 넣으세요.
+      - key: BACKEND_API_BASE_URL
+        sync: false

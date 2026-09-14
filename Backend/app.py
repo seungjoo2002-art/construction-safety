@@ -64,12 +64,17 @@ from pathlib import Path
 
 app = FastAPI(title="AI 건설현장 안전관리 - 예측 API")
 
-# ── CORS: 프론트가 다른 포트(예: Live Server의 127.0.0.1:5500)에서 호출하므로
-#    이 설정이 없으면 브라우저가 요청을 막습니다 (개발자도구 콘솔에 CORS 에러로 뜸).
-#    지금은 전체 허용(*)이고, 실제 배포 시에는 프론트 도메인 하나로 좁히는 걸 권장합니다.
+# ── CORS: 프론트(Render Static Site)가 다른 도메인에서 호출하므로 이 설정이 없으면
+#    브라우저가 요청을 막습니다 (개발자도구 콘솔에 CORS 에러로 뜸).
+#    ALLOWED_ORIGINS 환경변수(쉼표로 구분, 예: "https://ai-safety-frontend.onrender.com")를
+#    등록하면 그 도메인만 허용합니다. 비워두면(로컬 개발 등) 전체 허용("*")으로 동작하므로,
+#    운영 배포에서는 반드시 설정하세요 — 값 자체는 공개 정보(프런트 URL)라 비밀값이 아닙니다.
+_allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "").strip()
+ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -107,29 +112,41 @@ def get_sim_service() -> Optional[SimilarityWebService]:
     return sim_service
 
 # ── 사진 분석 서비스 (safety_yolo_pkg/hazard.py — YOLO 객체탐지 + 룰 기반 위험 판정)
-#    ultralytics/torch가 설치되어 있지 않거나 모델 로드에 실패해도 서버 전체가
-#    죽지 않도록 감싸고, 실패 시 /api/analyze-photo가 503을 반환합니다
-#    (프론트 api.js는 그때 자동으로 목업 데이터로 대체합니다).
+#    ⚠️ Render 무료 Web Service(512MB) 대응 — Hazard()는 ultralytics/torch를 로드하는데
+#    실측 결과 그것만으로 +238MB가 듭니다. 위험도·사고유형 모델(+222MB)과 similarity_service
+#    import(+48MB, matplotlib 등)까지 서버 기동 시점에 전부 합쳐지면 요청 1건도 받기 전에
+#    이미 500MB 근처(측정: 약 508MB)라 컨테이너가 기동 자체에 실패(OOM)할 수 있습니다.
+#    그래서 sim_service와 동일한 지연 초기화 패턴으로 바꿨습니다 — /api/analyze-photo가
+#    처음 호출된 순간에만 로드하고, 그전까지는 서버 기동/health check/다른 엔드포인트에
+#    전혀 영향을 주지 않습니다. 로드 실패해도 서버 전체가 죽지 않도록 감싸고, 실패 시
+#    /api/analyze-photo가 503을 반환합니다(프론트 api.js는 그때 자동으로 목업으로 대체).
 sys.path.insert(0, str(Path(__file__).parent / "safety_yolo_pkg"))
 hazard_service = None
-try:
-    from hazard import Hazard
-
-    hazard_service = Hazard()
-    print(f"[app.py] 사진 분석(YOLO) 서비스 초기화 완료 (클래스 {len(hazard_service.names)}개)")
-except Exception as e:
-    print(f"[app.py] ⚠️ 사진 분석(YOLO) 서비스 초기화 실패: {e}")
-
-# rules.json의 각 위험 판정(ref)이 "어떤 탐지 객체(cid) 때문에" 걸렸는지 역으로 찾기 위한 맵.
-# combo_rules는 need 쪽만(=실제로 탐지된 원인) 표시하고, absent 쪽은 애초에 안 찍히므로 제외.
 _hazard_ref_cids: Dict[str, set] = {}
-if hazard_service is not None:
-    for _r in hazard_service.danger:
-        _hazard_ref_cids[_r["ref"]] = {_r["cid"]}
-    for _r in hazard_service.combo:
-        _hazard_ref_cids[_r["ref"]] = set(_r["need"])
-    for _r in hazard_service.cooccur:
-        _hazard_ref_cids[_r["ref"]] = set(_r["a"]) | set(_r["b"])
+
+
+def get_hazard_service():
+    """hazard_service를 처음 필요할 때 초기화해서 재사용(lazy loading)."""
+    global hazard_service
+    if hazard_service is None:
+        try:
+            from hazard import Hazard
+
+            hazard_service = Hazard()
+            print(f"[app.py] 사진 분석(YOLO) 서비스 초기화 완료 (클래스 {len(hazard_service.names)}개)")
+
+            # rules.json의 각 위험 판정(ref)이 "어떤 탐지 객체(cid) 때문에" 걸렸는지
+            # 역으로 찾기 위한 맵. combo_rules는 need 쪽만(=실제로 탐지된 원인) 표시하고,
+            # absent 쪽은 애초에 안 찍히므로 제외.
+            for _r in hazard_service.danger:
+                _hazard_ref_cids[_r["ref"]] = {_r["cid"]}
+            for _r in hazard_service.combo:
+                _hazard_ref_cids[_r["ref"]] = set(_r["need"])
+            for _r in hazard_service.cooccur:
+                _hazard_ref_cids[_r["ref"]] = set(_r["a"]) | set(_r["b"])
+        except Exception as e:
+            print(f"[app.py] ⚠️ 사진 분석(YOLO) 서비스 초기화 실패: {e}")
+    return hazard_service
 
 
 class PredictIn(BaseModel):
@@ -221,8 +238,17 @@ def similarity(body: SimilarityIn):
 
 @app.get("/health")
 def health():
-    """서버가 살아있는지 + 모델이 정상 로드됐는지 확인용."""
-    return {"status": "ok"}
+    """서버가 살아있는지 확인용 (Render Health Check Path로 사용).
+    위험도/사고유형 모델은 서버 기동 시점에 항상 로드되므로(실패하면 이 엔드포인트
+    자체가 응답할 수 없음) 별도로 표시하지 않습니다. sim_service/hazard_service는
+    지연 초기화라 아직 None일 수 있는데, 이 값을 확인하려고 여기서 무거운 초기화를
+    트리거하지는 않습니다 — 헬스체크마다 그게 실행되면 안 되므로 "이미 초기화된
+    적 있는지"만 가볍게 보여줍니다."""
+    return {
+        "status": "ok",
+        "similarity_service_initialized": sim_service is not None,
+        "photo_analysis_initialized": hazard_service is not None,
+    }
 
 
 # ============================================================
@@ -303,7 +329,8 @@ class PhotoAnalyzeIn(BaseModel):
 @app.post("/api/analyze-photo")
 def analyze_photo(body: PhotoAnalyzeIn):
     """현장 사진 한 장 → YOLO 탐지 + 룰 기반 위험 판정. 프론트가 기대하는 형태로 변환해서 반환."""
-    if hazard_service is None:
+    service = get_hazard_service()
+    if service is None:
         raise HTTPException(
             status_code=503,
             detail="사진 분석 서비스가 초기화되지 않았어요. 서버에 ultralytics/torch가 설치되어 있는지 확인해주세요.",
@@ -312,7 +339,7 @@ def analyze_photo(body: PhotoAnalyzeIn):
         b64 = body.image.split(",", 1)[1] if "," in body.image else body.image
         img = Image.open(io.BytesIO(base64.b64decode(b64)))
         img = ImageOps.exif_transpose(img)  # 폰 사진은 EXIF로 회전돼 있는 경우가 많음
-        raw = hazard_service.analyze(img.convert("RGB"))
+        raw = service.analyze(img.convert("RGB"))
         return _photo_transform(raw)
     except HTTPException:
         raise

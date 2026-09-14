@@ -7,4 +7,5 @@ window.APP_CONFIG = {
   HF_DATASET_CONFIG: "default",
   HF_DATASET_SPLIT: "train",
   HF_API_BASE: "https://datasets-server.huggingface.co",
+  BACKEND_API_BASE_URL: "http://127.0.0.1:8000",
 };

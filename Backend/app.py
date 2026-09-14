@@ -63,6 +63,16 @@ from download_assets import ensure_large_assets
 from pathlib import Path
 
 app = FastAPI(title="AI 건설현장 안전관리 - 예측 API")
+# ── FastAPI 문서(/docs, /redoc, /openapi.json)는 기본값 그대로 켜져 있습니다.
+#    docs_url/redoc_url을 None으로 끈 적이 없으므로 별도 보안상 이유로 막아둔 게
+#    아닙니다 — 위 uvicorn Start Command로 이 앱이 실제로 떠 있기만 하면 항상 열려있습니다.
+
+
+@app.get("/")
+def root():
+    """루트 경로. 배포가 정상인지 브라우저로 빠르게 확인하는 용도."""
+    return {"service": "AI 건설현장 안전관리 - 예측 API", "docs": "/docs", "health": "/health"}
+
 
 # ── CORS: 프론트(Render Static Site)가 다른 도메인에서 호출하므로 이 설정이 없으면
 #    브라우저가 요청을 막습니다 (개발자도구 콘솔에 CORS 에러로 뜸).
@@ -239,16 +249,10 @@ def similarity(body: SimilarityIn):
 @app.get("/health")
 def health():
     """서버가 살아있는지 확인용 (Render Health Check Path로 사용).
-    위험도/사고유형 모델은 서버 기동 시점에 항상 로드되므로(실패하면 이 엔드포인트
-    자체가 응답할 수 없음) 별도로 표시하지 않습니다. sim_service/hazard_service는
-    지연 초기화라 아직 None일 수 있는데, 이 값을 확인하려고 여기서 무거운 초기화를
-    트리거하지는 않습니다 — 헬스체크마다 그게 실행되면 안 되므로 "이미 초기화된
-    적 있는지"만 가볍게 보여줍니다."""
-    return {
-        "status": "ok",
-        "similarity_service_initialized": sim_service is not None,
-        "photo_analysis_initialized": hazard_service is not None,
-    }
+    Render/모니터링 도구가 정확히 이 형태를 기대할 수 있어 {"status": "ok"}만
+    반환합니다 — sim_service/hazard_service 초기화 여부 같은 추가 진단 정보는
+    필요하면 별도 엔드포인트로 분리하고, 여기서는 무겁게 만들지 않습니다."""
+    return {"status": "ok"}
 
 
 # ============================================================

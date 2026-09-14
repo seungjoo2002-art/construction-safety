@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>오프라인 | AI 건설현장 안전관리 시스템</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5FE0">
+<link rel="apple-touch-icon" href="../../pictures/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/pages.css">
+</head>
+<body>
+
+<div class="app-frame">
+  <div class="app-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:80vh; text-align:center; gap: var(--space-md);">
+    <div style="font-size: 48px;">📡</div>
+    <h1 style="font-size: var(--fs-lg); font-weight:700;">인터넷 연결이 없어요</h1>
+    <p style="color: var(--color-text-secondary); max-width: 320px;">
+      이 화면은 아직 한 번도 방문하지 않았거나 오프라인 상태에서는 불러올 수 없어요.
+      네트워크가 연결되면 자동으로 정상 이용할 수 있어요.
+    </p>
+    <p style="color: var(--color-text-placeholder); font-size: var(--fs-xs); max-width: 320px;">
+      이미 조회했던 사고 사례 검색 결과와 즐겨찾기는 오프라인에서도 각 화면에서 그대로 볼 수 있어요.
+    </p>
+    <a href="dashboard.html" class="btn btn-primary" style="margin-top: var(--space-sm);">대시보드로 이동</a>
+  </div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>

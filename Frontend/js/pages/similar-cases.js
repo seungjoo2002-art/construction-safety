@@ -72,9 +72,12 @@ document.addEventListener("DOMContentLoaded", () => {
     total = result.total;
     loadedCases = reset ? result.cases : loadedCases.concat(result.cases);
 
-    mockTagEl.style.display = result._mock ? "inline-block" : "none";
+    mockTagEl.style.display = result._mock || result._offline ? "inline-block" : "none";
+    mockTagEl.textContent = result._offline ? "저장된 최근 데이터" : "MOCK";
     dbNoteEl.textContent = result._mock
       ? "목업 데이터 표시 중 (백엔드 미연결)"
+      : result._offline
+      ? "네트워크 연결이 없어 마지막으로 저장된 검색 결과를 보여주고 있어요."
       : `국내 건설사고 DB · 총 ${total.toLocaleString()}건`;
 
     render();

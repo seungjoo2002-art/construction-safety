@@ -1,29 +1,185 @@
-const CACHE_NAME = "ai-safety-app-v1";
+// ============================================================
+// sw.js — PWA 캐시 정책
+// ============================================================
+// 캐시하는 것: 앱 화면(HTML/CSS/JS), 아이콘, manifest, 오프라인 안내 화면 (Cache First)
+// 캐시하되 갱신 우선: /api/ 검색류 GET 응답 (Network First, 실패 시 캐시 폴백)
+// 절대 캐시하지 않는 것: /api/ 중 쓰기·분석성 POST, 그리고 대용량 원본 데이터
+//   (huggingface.co 직접 URL, *.npy, *.csv, *.xlsx, incidents.db 등 — 이 앱은
+//   원래 그런 URL을 브라우저에서 직접 fetch하지 않지만, 혹시라도 추가되더라도
+//   서비스워커가 캐시에 담지 않도록 명시적으로 막아둔다)
+// ============================================================
 
-self.addEventListener("install", () => {
+const SHELL_CACHE = "ai-safety-shell-v3";
+const API_CACHE = "ai-safety-api-v1";
+const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
+
+const OFFLINE_URL = "html/offline.html";
+
+// 앱 셸 — 화면(HTML)·스타일·스크립트·아이콘·manifest만 포함한다.
+// 원본 데이터 파일(assets/*.npy, *.csv, *.xlsx, incidents.db)은 여기 절대 넣지 않는다.
+const PRECACHE_URLS = [
+  // HTML 화면
+  "html/case-detail.html",
+  "html/chatbot.html",
+  "html/dashboard.html",
+  "html/login.html",
+  "html/notifications.html",
+  "html/offline.html",
+  "html/photo-analyzing.html",
+  "html/photo-capture.html",
+  "html/photo-result.html",
+  "html/predict-input.html",
+  "html/predict-loading.html",
+  "html/predict-result.html",
+  "html/profile.html",
+  "html/Qr-generator.html",
+  "html/scatter-detail.html",
+  "html/signup.html",
+  "html/similar-cases.html",
+  "html/site-setup.html",
+  "html/weather-hourly.html",
+  "html/manifest.json",
+  // CSS
+  "css/components.css",
+  "css/layout.css",
+  "css/pages.css",
+  "css/reset.css",
+  "css/variables.css",
+  // JS 공통
+  "js/common/accessibility.js",
+  "js/common/api.js",
+  "js/common/common.js",
+  "js/common/constants.js",
+  "js/common/idb-store.js",
+  "js/common/mock-cases.js",
+  "js/common/mock-scatter.js",
+  "js/common/nav.js",
+  "js/common/notifications-realtime.js",
+  "js/common/session-store.js",
+  "js/common/weather.js",
+  // JS 화면별
+  "js/pages/case-detail.js",
+  "js/pages/chatbot.js",
+  "js/pages/dashboard.js",
+  "js/pages/login.js",
+  "js/pages/notifications.js",
+  "js/pages/photo-analyzing.js",
+  "js/pages/photo-capture.js",
+  "js/pages/photo-result.js",
+  "js/pages/predict-input.js",
+  "js/pages/predict-loading.js",
+  "js/pages/predict-result.js",
+  "js/pages/profile.js",
+  "js/pages/scatter-detail.js",
+  "js/pages/signup.js",
+  "js/pages/similar-cases.js",
+  "js/pages/site-setup.js",
+  "js/pages/weather-hourly.js",
+  // 아이콘 (manifest.json이 가리키는 것과 동일 경로)
+  "../pictures/icon-192.png",
+  "../pictures/icon-512.png",
+  "../pictures/logo.png",
+];
+
+// 이 API 경로들만 "검색 결과"로 보고 Network First + 캐시 폴백 대상으로 삼는다.
+// (/api/predict, /api/analyze, /api/analyze-photo, /api/chat 은 매번 새로 계산되는
+//  결과라 캐싱 대상이 아니고, 프런트도 그 결과를 IndexedDB에 저장하지 않는다)
+const CACHEABLE_API_PREFIXES = ["/api/cases", "/api/incidents"];
+
+// 원본 대용량 데이터는 어떤 경우에도 캐시하지 않는다 (요구사항: 캐시 금지).
+function isLargeRawDataRequest(url) {
+  if (url.hostname.endsWith("huggingface.co")) return true;
+  return /\.(npy|csv|xlsx)$/i.test(url.pathname) || url.pathname.endsWith("incidents.db");
+}
+
+function isCacheableApiGet(request, url) {
+  if (request.method !== "GET") return false;
+  if (!url.pathname.includes("/api/")) return false;
+  return CACHEABLE_API_PREFIXES.some((p) => url.pathname.includes(p));
+}
+
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) =>
+      // 파일 하나가 404여도 설치 전체가 실패하지 않도록 개별 처리
+      Promise.all(
+        PRECACHE_URLS.map((url) =>
+          cache.add(url).catch((err) => console.warn(`[sw.js] precache 실패: ${url}`, err))
+        )
+      )
+    )
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => !CURRENT_CACHES.includes(k)).map((k) => caches.delete(k))))
+      .then(() => trimCache(API_CACHE, 40))
   );
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (e) => {
-  // 백엔드 API 호출은 캐싱하지 않고 항상 네트워크로 (최신 데이터 유지 목적)
-  if (e.request.url.includes("/api/")) return;
+// 오래된 API 캐시 정리 — 개수 상한을 넘으면 가장 오래 전에 저장된 것부터 삭제.
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= maxEntries) return;
+  const excess = keys.length - maxEntries;
+  for (let i = 0; i < excess; i++) {
+    await cache.delete(keys[i]);
+  }
+}
 
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
-        return res;
-      })
-      .catch(() => caches.match(e.request))
-  );
+self.addEventListener("fetch", (e) => {
+  const url = new URL(e.request.url);
+
+  if (isLargeRawDataRequest(url)) return; // 절대 가로채지 않음(캐시 금지) — 네트워크로만
+
+  if (e.request.method !== "GET") return; // POST 등은 항상 네트워크로만 (분석/예측 결과 등)
+
+  if (isCacheableApiGet(e.request, url)) {
+    e.respondWith(networkFirst(e.request));
+    return;
+  }
+
+  if (url.pathname.includes("/api/")) return; // 그 외 API GET(/health 등)은 캐싱하지 않고 네트워크로
+
+  // 화면 이동(navigation) 요청 — 셸 캐시 우선, 실패하면 오프라인 안내 화면
+  if (e.request.mode === "navigate") {
+    e.respondWith(cacheFirstShell(e.request).catch(() => caches.match(OFFLINE_URL)));
+    return;
+  }
+
+  // 그 외(CSS/JS/이미지 등 정적 자산) — Cache First
+  e.respondWith(cacheFirstShell(e.request));
 });
+
+async function cacheFirstShell(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const res = await fetch(request);
+  if (res.ok) {
+    const cache = await caches.open(SHELL_CACHE);
+    cache.put(request, res.clone());
+  }
+  return res;
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(API_CACHE);
+  try {
+    const res = await fetch(request, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      cache.put(request, res.clone());
+      trimCache(API_CACHE, 40);
+    }
+    return res;
+  } catch (err) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw err; // fetch()를 호출한 쪽(api.js)이 IndexedDB 폴백을 처리
+  }
+}

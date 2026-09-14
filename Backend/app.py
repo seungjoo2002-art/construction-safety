@@ -45,10 +45,7 @@ import io
 import os
 import sys
 import requests
-import pandas as pd
 from PIL import Image, ImageOps
-
-import config as CFG
 
 # ── Windows 콘솔(cp949 등 non-UTF-8 코드페이지)에서 이모지가 섞인 print()가
 #    UnicodeEncodeError로 서버 전체를 죽이는 걸 방지 (uvicorn 실행 시 흔히 발생).
@@ -61,6 +58,8 @@ except Exception:
 from predict_severity import SeverityPredictor
 from predict_accident_type import AccidentTypePredictor
 from similarity_service import SimilarityWebService
+from download_assets import ensure_large_assets
+import incidents_db
 
 from pathlib import Path
 
@@ -85,16 +84,28 @@ accident_type_predictor = AccidentTypePredictor()
 #    없으면 카테고리 완전/부분일치 기반 근사 유사도로 자동 대체합니다(둘 다 실제 DB 사용).
 #    자산 파일(df_db.csv 등) 로드 자체가 실패하는 경우에만 서비스가 비활성화되고,
 #    /api/analyze는 그때만 503을 반환합니다.
+#    서버 시작 시점이 아니라 /api/analyze 요청이 처음 들어왔을 때 지연 초기화합니다
+#    (초기화 실패/메모리 문제가 위험도 예측·사고유형 예측 엔드포인트에 영향을 주지 않도록).
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 sim_service: Optional[SimilarityWebService] = None
-try:
-    sim_service = SimilarityWebService(openai_api_key=OPENAI_API_KEY or None)
-    if OPENAI_API_KEY:
-        print("[app.py] 유사도 서비스 초기화 완료 (OpenAI 임베딩 모드)")
-    else:
-        print("[app.py] ⚠️ OPENAI_API_KEY가 없어 유사도 서비스가 근사(키워드 매칭) 모드로 동작합니다.")
-except Exception as e:
-    print(f"[app.py] ⚠️ 유사도 서비스 초기화 실패: {e}")
+
+
+def get_sim_service() -> Optional[SimilarityWebService]:
+    """sim_service를 처음 필요할 때 초기화해서 재사용(lazy loading).
+    db_v_con/fac/wrk.npy(HF 호스팅, 총 411MB)도 이 시점에 딱 1번만 내려받는다 —
+    서버 시작 시점(빌드/기동)에는 절대 다운로드하지 않는다."""
+    global sim_service
+    if sim_service is None:
+        try:
+            ensure_large_assets()
+            sim_service = SimilarityWebService(openai_api_key=OPENAI_API_KEY or None)
+            if OPENAI_API_KEY:
+                print("[app.py] 유사도 서비스 초기화 완료 (OpenAI 임베딩 모드)")
+            else:
+                print("[app.py] ⚠️ OPENAI_API_KEY가 없어 유사도 서비스가 근사(키워드 매칭) 모드로 동작합니다.")
+        except Exception as e:
+            print(f"[app.py] ⚠️ 유사도 서비스 초기화 실패: {e}")
+    return sim_service
 
 # ── 사진 분석 서비스 (safety_yolo_pkg/hazard.py — YOLO 객체탐지 + 룰 기반 위험 판정)
 #    ultralytics/torch가 설치되어 있지 않거나 모델 로드에 실패해도 서버 전체가
@@ -145,150 +156,86 @@ def distributions():
 
 
 # ============================================================
-# 사고 사례 DB 조회 (similarity_service.py가 쓰는 것과 같은 assets/df_db.csv)
+# 사고 사례 DB 조회 (incidents_db.py — assets/df_db.csv를 SQLite로 사전 처리해 조회)
 # ============================================================
-# 이 기능은 OpenAI 임베딩이 필요 없는 단순 CSV 조회/검색이라
-# OPENAI_API_KEY 유무와 무관하게 항상 동작합니다.
-CASES_CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "df_db.csv")
-try:
-    cases_df = pd.read_csv(CASES_CSV_PATH)
-    print(f"[app.py] 사고 사례 DB 로드 완료: {len(cases_df)}건")
-except Exception as e:
-    cases_df = None
-    print(f"[app.py] ⚠️ 사고 사례 DB(df_db.csv) 로드 실패: {e}")
+# 이 기능은 OpenAI 임베딩이 필요 없는 단순 조회/검색이라 OPENAI_API_KEY 유무와 무관하게
+# 항상 동작합니다. SQLite DB는 서버 시작 시점이 아니라 이 아래 엔드포인트가 처음
+# 호출된 순간에 1번만 빌드되고(incidents_db.ensure_db), 이후에는 페이지네이션된
+# 쿼리 결과만 응답합니다 — df_db.csv 전체를 메모리에 계속 들고 있지 않습니다.
 
-CASE_HAZARD_TAGS = ["전체", "추락", "낙하", "끼임", "전도", "베임", "감전", "기타"]
-
-# config.py의 부상유형(LEVEL_MAP, 4단계)을 3단계 배지 라벨로 축약해서 재사용
-# (모델 학습 때 쓰는 것과 동일한 기준이라 예측 화면의 등급 표현과 일관됩니다)
-_INJURY_LEVEL_TO_TAG = {}
-for _injury, _level in CFG.LEVEL_MAP.items():
-    _INJURY_LEVEL_TO_TAG[_injury] = "치명" if _level == 4 else ("중상" if _level == 3 else "경상")
-
-
-def _hazard_tag(raw) -> str:
-    """원본 '인적사고' 값 → 화면 필터/배지용 축약 사고유형."""
-    if pd.isna(raw):
-        return "기타"
-    val = str(raw)
-    if "떨어짐" in val or val == "깔림":
-        return "추락"
-    if "넘어짐" in val or val == "부딪힘":
-        return "전도"
-    if "물체에 맞음" in val:
-        return "낙하"
-    if val == "끼임":
-        return "끼임"
-    if "절단" in val or "베임" in val or "찔림" in val:
-        return "베임"
-    if "감전" in val:
-        return "감전"
-    return "기타"
-
-
-def _safe_str(v, default: str = "") -> str:
-    if v is None or (isinstance(v, float) and pd.isna(v)) or pd.isna(v):
-        return default
-    # 원본 엑셀 → CSV 변환 과정에서 줄바꿈이 "_x000D_" 리터럴로 깨져 들어온 행이 많음
-    return str(v).replace("_x000D_", " ").strip()
-
-
-def _safe_int(v, default: int = 0) -> int:
-    try:
-        if pd.isna(v):
-            return default
-        return int(v)
-    except (TypeError, ValueError):
-        return default
-
-
-def _severity_tag(row) -> str:
-    injury_type = row.get("추출된_부상유형")
-    if pd.notna(injury_type) and str(injury_type) in _INJURY_LEVEL_TO_TAG:
-        return _INJURY_LEVEL_TO_TAG[str(injury_type)]
-    return "치명" if _safe_int(row.get("총사망자수")) > 0 else "경상"
-
-
-def _victims_text(row) -> str:
-    deaths = _safe_int(row.get("총사망자수"))
-    injuries = _safe_int(row.get("총부상자수"))
-    parts = []
-    if deaths:
-        parts.append(f"사망 {deaths}명")
-    if injuries:
-        parts.append(f"부상 {injuries}명")
-    return ", ".join(parts) if parts else "인명피해 없음"
-
-
-def _case_summary(idx, row) -> Dict[str, Any]:
-    return {
-        "id": int(idx),
-        "tags": [_hazard_tag(row.get("인적사고")), _severity_tag(row)],
-        "title": _safe_str(row.get("사고명"), "제목 없음"),
-        "desc": _safe_str(row.get("사고경위")),
-        "date": _safe_str(row.get("발생일시")).replace("-", "."),
-        "victims": _victims_text(row),
-    }
-
-
-def _case_detail(idx, row) -> Dict[str, Any]:
-    base = _case_summary(idx, row)
-    location = " ".join(p for p in [_safe_str(row.get("시도")), _safe_str(row.get("군구"))] if p)
-    prevention = _safe_str(row.get("재발방지대책"))
-    base.update({
-        "location": location or "위치 정보 없음",
-        "causes": {
-            "direct": _safe_str(row.get("사고경위"), "정보 없음"),
-            "indirect": _safe_str(row.get("사고원인"), "정보 없음"),
-            "root": _safe_str(row.get("구체적 사고원인"), "정보 없음"),
-        },
-        "timeline": [_safe_str(row.get("사고경위"), "정보 없음")],
-        "prevention": [prevention] if prevention else ["등록된 재발방지대책이 없어요."],
-    })
-    return base
+MAX_PAGE_LIMIT = 50
 
 
 @app.get("/api/cases")
 def list_cases(q: str = "", hazard: str = "전체", limit: int = 20, offset: int = 0):
     """검색어/사고유형으로 사고 사례 DB를 조회. 프론트의 사례 검색 탭이 사용."""
-    if cases_df is None:
-        raise HTTPException(status_code=503, detail="사고 사례 DB를 불러오지 못했어요.")
-
-    df = cases_df
-    mask = pd.Series(True, index=df.index)
-
-    keyword = q.strip()
-    if keyword:
-        search_cols = ["사고명", "사고경위", "시도", "군구", "공종 - 중분류"]
-        text_mask = pd.Series(False, index=df.index)
-        for col in search_cols:
-            if col in df.columns:
-                text_mask = text_mask | df[col].astype(str).str.contains(keyword, case=False, na=False)
-        mask = mask & text_mask
-
-    if hazard and hazard != "전체":
-        mask = mask & (df["인적사고"].apply(_hazard_tag) == hazard)
-
-    filtered = df[mask]
-    total = len(filtered)
-    limit = max(1, min(limit, 50))
-    offset = max(0, offset)
-    page = filtered.iloc[offset: offset + limit]
-
-    return {
-        "total": total,
-        "cases": [_case_summary(idx, row) for idx, row in page.iterrows()],
-    }
+    try:
+        total, cases = incidents_db.query_cases(q=q, hazard=hazard, limit=limit, offset=offset)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=f"사고 사례 DB를 불러오지 못했어요: {e}")
+    return {"total": total, "cases": cases}
 
 
 @app.get("/api/cases/{case_id}")
 def get_case(case_id: int):
     """사고 사례 상세 조회. case_id는 /api/cases가 내려준 id 그대로."""
-    if cases_df is None:
-        raise HTTPException(status_code=503, detail="사고 사례 DB를 불러오지 못했어요.")
-    if case_id not in cases_df.index:
+    try:
+        result = incidents_db.get_case(case_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=f"사고 사례 DB를 불러오지 못했어요: {e}")
+    if result is None:
         raise HTTPException(status_code=404, detail="사례를 찾을 수 없어요.")
-    return _case_detail(case_id, cases_df.loc[case_id])
+    return result
+
+
+@app.get("/api/incidents")
+def list_incidents(
+    region: Optional[str] = None,
+    industry: Optional[str] = None,
+    year: Optional[int] = None,
+    page: int = 1,
+    limit: int = 20,
+):
+    """region/industry/year 조건 + page 페이지네이션으로 사고 사례 DB를 조회.
+    region/industry는 영문 슬러그(예: seoul, building)만 받는다 — incidents_db.REGION_SLUGS,
+    incidents_db.INDUSTRY_SLUGS 참고."""
+    if page < 1:
+        raise HTTPException(status_code=400, detail="page는 1 이상이어야 해요.")
+    if limit < 1:
+        raise HTTPException(status_code=400, detail="limit은 1 이상이어야 해요.")
+    limit = min(limit, MAX_PAGE_LIMIT)
+
+    region_kr = None
+    if region:
+        region_kr = incidents_db.SLUG_TO_REGION.get(region.lower())
+        if region_kr is None:
+            valid = ", ".join(sorted(incidents_db.SLUG_TO_REGION))
+            raise HTTPException(status_code=400, detail=f"알 수 없는 region이에요. 사용 가능한 값: {valid}")
+
+    industry_kr = None
+    if industry:
+        industry_kr = incidents_db.SLUG_TO_INDUSTRY.get(industry.lower())
+        if industry_kr is None:
+            valid = ", ".join(sorted(incidents_db.SLUG_TO_INDUSTRY))
+            raise HTTPException(status_code=400, detail=f"알 수 없는 industry예요. 사용 가능한 값: {valid}")
+
+    if year is not None and not (2000 <= year <= 2100):
+        raise HTTPException(status_code=400, detail="year 값이 올바르지 않아요 (2000~2100).")
+
+    try:
+        total, items = incidents_db.query_incidents(
+            region=region_kr, industry=industry_kr, year=year, page=page, limit=limit
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=f"사고 사례 DB를 불러오지 못했어요: {e}")
+
+    return {
+        "items": items,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "hasNextPage": page * limit < total,
+    }
 
 
 # ============================================================
@@ -332,14 +279,15 @@ def similarity(body: SimilarityIn):
     유사 사고사례 + MDS 2D 산점도 + 재발방지대책을 함께 반환.
     프론트는 predict-input.html에서 조립한 것과 동일한 payload를 그대로 보내면 됩니다.
     """
-    if sim_service is None:
+    service = get_sim_service()
+    if service is None:
         raise HTTPException(
             status_code=503,
-            detail="유사도 서비스가 초기화되지 않았어요. 서버 환경변수 OPENAI_API_KEY를 확인해주세요.",
+            detail="유사도 서비스를 초기화하지 못했습니다",
         )
     sim_input = build_similarity_input(body.data)
     try:
-        return sim_service.analyze(sim_input)
+        return service.analyze(sim_input)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"유사도 분석 중 오류: {e}")
 

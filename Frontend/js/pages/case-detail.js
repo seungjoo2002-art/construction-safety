@@ -47,9 +47,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `${y}년 ${Number(m)}월 ${Number(d)}일`;
   }
 
+  const _badge = caseData._mock
+    ? '<span class="mock-tag" style="color:#fff; background:rgba(255,255,255,0.25);">MOCK</span>'
+    : caseData._offline
+    ? '<span class="mock-tag" style="color:#fff; background:rgba(255,255,255,0.25);">저장된 최근 데이터</span>'
+    : "";
+
   root.innerHTML = `
     <div class="card case-alert">
-      <div class="case-alert__title">📋 사고 사례 상세 ${caseData._mock ? '<span class="mock-tag" style="color:#fff; background:rgba(255,255,255,0.25);">MOCK</span>' : ""}</div>
+      <div class="case-alert__title">📋 사고 사례 상세 ${_badge}</div>
       <div class="case-alert__desc">
         국내 건설사고 데이터베이스에 기록된 실제 사례입니다. 유사한 조건에서 작업 중이라면
         아래 재발 방지 대책을 참고해 사전 안전조치를 취하세요.
@@ -134,15 +140,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     </section>
   `;
 
-  // ── 저장/공유 (predict-result.js와 동일한 패턴)
-  document.getElementById("bookmark-btn").addEventListener("click", (e) => {
-    const saved = JSON.parse(localStorage.getItem("saved_cases") || "[]");
-    if (!saved.includes(caseData.id)) {
-      saved.unshift(caseData.id);
-      localStorage.setItem("saved_cases", JSON.stringify(saved.slice(0, 50)));
+  // ── 즐겨찾기(북마크) — IndexedDB에 저장 (요구사항: 즐겨찾기는 IndexedDB에만 저장)
+  const bookmarkBtn = document.getElementById("bookmark-btn");
+  const _favAvailable = typeof isFavorite === "function";
+
+  async function refreshBookmarkIcon() {
+    if (!_favAvailable) return;
+    bookmarkBtn.textContent = (await isFavorite(caseData.id)) ? "✅" : "🔖";
+  }
+  refreshBookmarkIcon();
+
+  bookmarkBtn.addEventListener("click", async () => {
+    if (!_favAvailable) {
+      alert("이 브라우저에서는 즐겨찾기를 저장할 수 없어요.");
+      return;
     }
-    e.target.textContent = "✅";
-    setTimeout(() => (e.target.textContent = "🔖"), 1200);
+    if (await isFavorite(caseData.id)) {
+      await removeFavorite(caseData.id);
+    } else {
+      await addFavorite(caseData);
+    }
+    await refreshBookmarkIcon();
   });
 
   document.getElementById("share-btn").addEventListener("click", async () => {

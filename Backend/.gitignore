@@ -4,10 +4,11 @@ assets/db_v_con.npy
 assets/db_v_fac.npy
 assets/db_v_wrk.npy
 
-# incidents_db.py가 assets/df_db.csv로부터 최초 요청 시 자동으로 빌드하는 SQLite DB.
-# 매번 다시 만들 수 있는 파생 산출물이라 커밋하지 않음(용량도 큼, ~50MB).
-assets/incidents.db
 assets/*.tmp
+
+# prepare_hf_dataset.py의 로컬 출력물(Hugging Face에 업로드할 CSV/Parquet). 매번
+# assets/df_db.csv에서 다시 만들 수 있는 파생 산출물이라 커밋하지 않음.
+hf_dataset_export/
 
 .env
 *.env

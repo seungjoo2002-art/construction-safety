@@ -11,6 +11,10 @@ Backend/assets/db_v_wrk.npy
 __MACOSX/
 .DS_Store
 
+# scripts/generate-env.js가 Render 빌드 시 pictures/ → Frontend/pictures/로 복사하는
+# 산출물. 원본은 저장소 루트 pictures/이므로 커밋하지 않음(중복 방지).
+Frontend/pictures/
+
 # 혹시 모를 환경변수 파일 (API 키 등이 들어갈 수 있는 파일 — 안전장치)
 .env
 *.env

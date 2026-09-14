@@ -1,9 +1,10 @@
 // ============================================================
 // case-detail.js — 사고 상세정보 화면
-// mock-cases.js, api.js 보다 나중에 로드되어야 합니다.
+// idb-store.js, mock-cases.js, env.js, hf-dataset.js, api.js 보다 나중에 로드되어야 합니다.
 // URL 쿼리스트링(?id=...)으로 어떤 사례를 보여줄지 결정합니다.
-// 백엔드(app.py의 /api/cases/{id})에서 가져오고, 연결 실패 시
-// api.js가 자동으로 MOCK_CASES에서 같은 id를 찾아 대체합니다.
+// Hugging Face Dataset Viewer API에서 가져오고(api.js의 getCaseDetail →
+// hf-dataset.js), 연결 실패 시 api.js가 자동으로 IndexedDB의 최근 데이터 또는
+// MOCK_CASES에서 같은 id를 찾아 대체합니다.
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", async () => {

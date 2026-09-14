@@ -1,7 +1,8 @@
 // ============================================================
 // mock-cases.js — 사고사례 목업 데이터
-// 백엔드(app.py의 /api/cases, /api/cases/{id})가 꺼져있거나 연결 실패할 때만
-// api.js의 getCases()/getCaseDetail()가 폴백으로 사용합니다.
+// Hugging Face 데이터셋이 설정되지 않았거나(HF_DATASET_ID 미설정) 연결 실패 +
+// IndexedDB에도 저장된 최근 데이터가 없을 때만 api.js의 getCases()/getCaseDetail()가
+// 최후의 폴백으로 사용합니다.
 //    similar-cases.js(목록), case-detail.js(상세) 둘 다 api.js를 통해 이 배열을 공유합니다.
 // ============================================================
 
@@ -168,5 +169,5 @@ const MOCK_CASES = [
   },
 ];
 
-// 백엔드 /api/cases의 사고유형 태그 체계(app.py의 CASE_HAZARD_TAGS)와 동일하게 맞춰둠
+// Hugging Face 데이터셋의 hazard_tag 체계(구 incidents_db.py 파생 컬럼과 동일)와 맞춰둠
 const CASE_FILTER_TAGS = ["전체", "추락", "낙하", "끼임", "전도", "베임", "감전", "기타"];

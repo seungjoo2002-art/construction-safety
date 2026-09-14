@@ -2,11 +2,16 @@
 // sw.js — PWA 캐시 정책
 // ============================================================
 // 캐시하는 것: 앱 화면(HTML/CSS/JS), 아이콘, manifest, 오프라인 안내 화면 (Cache First)
-// 캐시하되 갱신 우선: /api/ 검색류 GET 응답 (Network First, 실패 시 캐시 폴백)
-// 절대 캐시하지 않는 것: /api/ 중 쓰기·분석성 POST, 그리고 대용량 원본 데이터
-//   (huggingface.co 직접 URL, *.npy, *.csv, *.xlsx, incidents.db 등 — 이 앱은
-//   원래 그런 URL을 브라우저에서 직접 fetch하지 않지만, 혹시라도 추가되더라도
-//   서비스워커가 캐시에 담지 않도록 명시적으로 막아둔다)
+// 캐시하되 갱신 우선: /api/ 중 남은 검색류 GET 응답 (Network First, 실패 시 캐시 폴백)
+// 절대 캐시하지 않는 것: /api/ 중 쓰기·분석성 POST(predict/analyze/analyze-photo/chat),
+//   그리고 대용량 원본 데이터(huggingface.co 직접 URL, *.npy, *.csv, *.xlsx, *.db 등).
+//   사고 사례 검색(similar-cases.html, case-detail.html)은 이제 이 서버가 아니라
+//   Hugging Face Dataset Viewer API(datasets-server.huggingface.co)를 브라우저가
+//   직접 호출한다 — huggingface.co 하위 도메인이라 아래 isLargeRawDataRequest()에
+//   걸려 서비스워커가 절대 캐시하지 않는다(대용량 원본 차단 규칙을 그대로 재사용).
+//   대신 "최근 조회 결과"는 hf-dataset.js → api.js가 idb-store.js(IndexedDB)에
+//   저장해서 네트워크 실패 시 보여준다 — Network First + IndexedDB 폴백은 앱
+//   레벨(api.js)에서 구현되고, 서비스워커는 여기 관여하지 않는다.
 // ============================================================
 
 const SHELL_CACHE = "ai-safety-shell-v3";
@@ -81,10 +86,11 @@ const PRECACHE_URLS = [
   "../pictures/logo.png",
 ];
 
-// 이 API 경로들만 "검색 결과"로 보고 Network First + 캐시 폴백 대상으로 삼는다.
-// (/api/predict, /api/analyze, /api/analyze-photo, /api/chat 은 매번 새로 계산되는
-//  결과라 캐싱 대상이 아니고, 프런트도 그 결과를 IndexedDB에 저장하지 않는다)
-const CACHEABLE_API_PREFIXES = ["/api/cases", "/api/incidents"];
+// 이 백엔드(Render Web Service)에는 더 이상 "검색 결과"성 GET 엔드포인트가 없다
+// (구 /api/cases, /api/incidents는 Hugging Face Dataset Viewer API 직접 호출로
+// 대체되어 제거됨 — 위 주석 참고). /api/predict, /api/analyze, /api/analyze-photo,
+// /api/chat은 전부 매번 새로 계산되는 POST 결과라 애초에 캐싱 대상이 아니었다.
+const CACHEABLE_API_PREFIXES = [];
 
 // 원본 대용량 데이터는 어떤 경우에도 캐시하지 않는다 (요구사항: 캐시 금지).
 function isLargeRawDataRequest(url) {

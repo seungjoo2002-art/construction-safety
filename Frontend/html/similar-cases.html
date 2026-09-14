@@ -41,10 +41,15 @@
     <div class="filter-chip-row" id="filter-chip-row"></div>
 
     <p class="case-count" id="case-count"></p>
+    <p class="case-filter-note" id="case-filter-note" style="display:none;"></p>
 
     <div id="case-list"></div>
 
-    <button type="button" id="case-load-more" class="btn btn-outline btn-block" style="margin-top: var(--space-md); display:none;">더 보기</button>
+    <div class="case-pagination" id="case-pagination" style="display:none;">
+      <button type="button" id="case-prev" class="btn btn-outline" disabled>← 이전</button>
+      <span class="case-pagination__page" id="case-page-indicator">1 페이지</span>
+      <button type="button" id="case-next" class="btn btn-outline">다음 →</button>
+    </div>
   </div>
 
   <nav class="bottom-nav">
@@ -60,6 +65,8 @@
 
 <script src="../js/common/idb-store.js"></script>
 <script src="../js/common/mock-cases.js"></script>
+<script src="../js/common/env.js"></script>
+<script src="../js/common/hf-dataset.js"></script>
 <script src="../js/common/api.js"></script>
 <script src="../js/pages/similar-cases.js"></script>
 <script>

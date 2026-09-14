@@ -59,7 +59,6 @@ from predict_severity import SeverityPredictor
 from predict_accident_type import AccidentTypePredictor
 from similarity_service import SimilarityWebService
 from download_assets import ensure_large_assets
-import incidents_db
 
 from pathlib import Path
 
@@ -156,86 +155,14 @@ def distributions():
 
 
 # ============================================================
-# 사고 사례 DB 조회 (incidents_db.py — assets/df_db.csv를 SQLite로 사전 처리해 조회)
+# 사고 사례 DB 조회(구 /api/cases, /api/cases/{id}, /api/incidents)는 제거되었습니다.
+# 프런트(similar-cases.html, case-detail.html)는 이제 Hugging Face Dataset Viewer API를
+# 브라우저에서 직접 호출합니다 — 이 백엔드가 df_db.csv를 SQLite로 변환해 서빙할 필요가
+# 없어졌습니다(구 incidents_db.py, assets/incidents.db 삭제됨). 자세한 내용은 프로젝트
+# 루트 README.md와 Backend/prepare_hf_dataset.py를 참고하세요.
+# 단, similarity_service.py(아래 /api/analyze)는 df_db.csv를 계속 독립적으로 사용합니다
+# (임베딩 기반 유사도 계산 자체가 서버 연산이라 이 마이그레이션 대상이 아님).
 # ============================================================
-# 이 기능은 OpenAI 임베딩이 필요 없는 단순 조회/검색이라 OPENAI_API_KEY 유무와 무관하게
-# 항상 동작합니다. SQLite DB는 서버 시작 시점이 아니라 이 아래 엔드포인트가 처음
-# 호출된 순간에 1번만 빌드되고(incidents_db.ensure_db), 이후에는 페이지네이션된
-# 쿼리 결과만 응답합니다 — df_db.csv 전체를 메모리에 계속 들고 있지 않습니다.
-
-MAX_PAGE_LIMIT = 50
-
-
-@app.get("/api/cases")
-def list_cases(q: str = "", hazard: str = "전체", limit: int = 20, offset: int = 0):
-    """검색어/사고유형으로 사고 사례 DB를 조회. 프론트의 사례 검색 탭이 사용."""
-    try:
-        total, cases = incidents_db.query_cases(q=q, hazard=hazard, limit=limit, offset=offset)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=f"사고 사례 DB를 불러오지 못했어요: {e}")
-    return {"total": total, "cases": cases}
-
-
-@app.get("/api/cases/{case_id}")
-def get_case(case_id: int):
-    """사고 사례 상세 조회. case_id는 /api/cases가 내려준 id 그대로."""
-    try:
-        result = incidents_db.get_case(case_id)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=f"사고 사례 DB를 불러오지 못했어요: {e}")
-    if result is None:
-        raise HTTPException(status_code=404, detail="사례를 찾을 수 없어요.")
-    return result
-
-
-@app.get("/api/incidents")
-def list_incidents(
-    region: Optional[str] = None,
-    industry: Optional[str] = None,
-    year: Optional[int] = None,
-    page: int = 1,
-    limit: int = 20,
-):
-    """region/industry/year 조건 + page 페이지네이션으로 사고 사례 DB를 조회.
-    region/industry는 영문 슬러그(예: seoul, building)만 받는다 — incidents_db.REGION_SLUGS,
-    incidents_db.INDUSTRY_SLUGS 참고."""
-    if page < 1:
-        raise HTTPException(status_code=400, detail="page는 1 이상이어야 해요.")
-    if limit < 1:
-        raise HTTPException(status_code=400, detail="limit은 1 이상이어야 해요.")
-    limit = min(limit, MAX_PAGE_LIMIT)
-
-    region_kr = None
-    if region:
-        region_kr = incidents_db.SLUG_TO_REGION.get(region.lower())
-        if region_kr is None:
-            valid = ", ".join(sorted(incidents_db.SLUG_TO_REGION))
-            raise HTTPException(status_code=400, detail=f"알 수 없는 region이에요. 사용 가능한 값: {valid}")
-
-    industry_kr = None
-    if industry:
-        industry_kr = incidents_db.SLUG_TO_INDUSTRY.get(industry.lower())
-        if industry_kr is None:
-            valid = ", ".join(sorted(incidents_db.SLUG_TO_INDUSTRY))
-            raise HTTPException(status_code=400, detail=f"알 수 없는 industry예요. 사용 가능한 값: {valid}")
-
-    if year is not None and not (2000 <= year <= 2100):
-        raise HTTPException(status_code=400, detail="year 값이 올바르지 않아요 (2000~2100).")
-
-    try:
-        total, items = incidents_db.query_incidents(
-            region=region_kr, industry=industry_kr, year=year, page=page, limit=limit
-        )
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=f"사고 사례 DB를 불러오지 못했어요: {e}")
-
-    return {
-        "items": items,
-        "page": page,
-        "limit": limit,
-        "total": total,
-        "hasNextPage": page * limit < total,
-    }
 
 
 # ============================================================

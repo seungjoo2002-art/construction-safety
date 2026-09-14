@@ -210,10 +210,11 @@ function mockSimilarityResult() {
 }
 
 // ============================================================
-// 사고 사례 DB 조회 (app.py의 /api/cases, /api/cases/{id} 연동 — 실제 22,325건 DB)
-// mock-cases.js의 MOCK_CASES는 백엔드 연결 실패 + IndexedDB에도 저장된 게 없을 때만
-// 최후의 폴백으로 사용됩니다. 성공한 검색 결과는 idb-store.js(있으면)를 통해
-// IndexedDB에 저장해두고, 네트워크가 끊기면 그 "최근 데이터"로 화면을 보여줍니다.
+// 사고 사례 DB 조회 (Hugging Face Dataset Viewer API 직접 호출 — hf-dataset.js)
+// 더 이상 Render 백엔드를 거치지 않습니다. mock-cases.js의 MOCK_CASES는 HF 데이터셋이
+// 설정되지 않았거나 연결 실패 + IndexedDB에도 저장된 게 없을 때만 최후의 폴백으로
+// 사용됩니다. 성공한 조회 결과는 idb-store.js(있으면)를 통해 IndexedDB에 저장해두고,
+// 네트워크가 끊기면 그 "최근 데이터"로 화면을 보여줍니다.
 // ============================================================
 
 // idb-store.js가 로드되지 않은 페이지(예: 이 함수들을 쓰지 않는 화면)에서도
@@ -221,22 +222,27 @@ function mockSimilarityResult() {
 const _idbAvailable = typeof saveRecentSearch === "function";
 
 /**
- * @param {{q?: string, hazard?: string, limit?: number, offset?: number}} opts
- * @returns {Promise<{total: number, cases: object[], _mock?: boolean, _offline?: boolean}>}
+ * @param {{q?: string, hazard?: string, limit?: number, offset?: number}} opts limit은 최대 100으로 잘림
+ * @returns {Promise<{total: number, cases: object[], _hf?: boolean, _mock?: boolean, _offline?: boolean, _notConfigured?: boolean, _filterUnsupported?: boolean}>}
  */
 async function getCases({ q = "", hazard = "전체", limit = 20, offset = 0 } = {}) {
   const queryKey = `q=${q}&hazard=${hazard}&limit=${limit}&offset=${offset}`;
+
+  if (typeof hfConfigReady === "function" && !hfConfigReady()) {
+    console.warn("[api.js] HF_DATASET_ID가 설정되지 않아 사례 DB를 조회할 수 없어요.");
+    if (_idbAvailable) {
+      const cached = (await getRecentSearch("cases", queryKey)) || (offset === 0 ? await getLatestSearch("cases") : null);
+      if (cached) return { ...cached, _offline: true };
+    }
+    return { total: 0, cases: [], _notConfigured: true };
+  }
+
   try {
-    const params = new URLSearchParams({ q, hazard, limit, offset });
-    const res = await fetch(`${API_BASE_URL}/api/cases?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`사례 목록 요청 실패 (${res.status})`);
-    const data = await res.json();
+    const data = await getCasesFromHF({ q, hazard, limit, offset });
     if (_idbAvailable) saveRecentSearch("cases", queryKey, data);
     return data;
   } catch (err) {
-    console.warn(`[api.js] 사례 DB(${API_BASE_URL}) 연결 실패 → 저장된 최근 데이터를 찾습니다.`, err);
+    console.warn("[api.js] Hugging Face Dataset Viewer 연결 실패 → 저장된 최근 데이터를 찾습니다.", err);
     if (_idbAvailable) {
       const cached = (await getRecentSearch("cases", queryKey)) || (offset === 0 ? await getLatestSearch("cases") : null);
       if (cached) return { ...cached, _offline: true };
@@ -262,20 +268,26 @@ function mockCaseList({ q, hazard, limit, offset }) {
 }
 
 /**
- * @param {string|number} caseId /api/cases가 내려준 id
+ * @param {string|number} caseId HF 데이터셋 행 id (= 원본 df_db.csv 행 인덱스)
  * @returns {Promise<object|null>}
  */
 async function getCaseDetail(caseId) {
+  if (typeof hfConfigReady === "function" && !hfConfigReady()) {
+    if (_idbAvailable) {
+      const cached = await getRecentSearch("caseDetail", String(caseId));
+      if (cached) return { ...cached, _offline: true };
+    }
+    const found = MOCK_CASES.find((c) => String(c.id) === String(caseId));
+    return found ? { ...found, _mock: true } : null;
+  }
+
   try {
-    const res = await fetch(`${API_BASE_URL}/api/cases/${encodeURIComponent(caseId)}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`사례 상세 요청 실패 (${res.status})`);
-    const data = await res.json();
+    const data = await getCaseDetailFromHF(caseId);
+    if (!data) throw new Error("사례를 찾을 수 없어요.");
     if (_idbAvailable) saveRecentSearch("caseDetail", String(caseId), data);
     return data;
   } catch (err) {
-    console.warn(`[api.js] 사례 DB(${API_BASE_URL}) 연결 실패 → 저장된 최근 데이터를 찾습니다.`, err);
+    console.warn("[api.js] Hugging Face Dataset Viewer 연결 실패 → 저장된 최근 데이터를 찾습니다.", err);
     if (_idbAvailable) {
       const cached = await getRecentSearch("caseDetail", String(caseId));
       if (cached) return { ...cached, _offline: true };
@@ -283,36 +295,5 @@ async function getCaseDetail(caseId) {
     console.warn("[api.js] 저장된 최근 데이터도 없어 목업으로 대체합니다.");
     const found = MOCK_CASES.find((c) => String(c.id) === String(caseId));
     return found ? { ...found, _mock: true } : null;
-  }
-}
-
-// ============================================================
-// 국가 사고 데이터 조회 (app.py의 /api/incidents 연동 — region/industry/year 필터 + page 페이지네이션)
-// ============================================================
-/**
- * @param {{region?: string, industry?: string, year?: number, page?: number, limit?: number}} opts
- * @returns {Promise<{items: object[], page: number, limit: number, total: number, hasNextPage: boolean, _offline?: boolean}>}
- */
-async function getIncidents({ region = "", industry = "", year = "", page = 1, limit = 20 } = {}) {
-  const queryKey = `region=${region}&industry=${industry}&year=${year}&page=${page}&limit=${limit}`;
-  try {
-    const params = new URLSearchParams({ page, limit });
-    if (region) params.set("region", region);
-    if (industry) params.set("industry", industry);
-    if (year) params.set("year", year);
-    const res = await fetch(`${API_BASE_URL}/api/incidents?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`사고 데이터 요청 실패 (${res.status})`);
-    const data = await res.json();
-    if (_idbAvailable) saveRecentSearch("incidents", queryKey, data);
-    return data;
-  } catch (err) {
-    console.warn(`[api.js] 사고 데이터 API(${API_BASE_URL}) 연결 실패 → 저장된 최근 데이터를 찾습니다.`, err);
-    if (_idbAvailable) {
-      const cached = (await getRecentSearch("incidents", queryKey)) || (page === 1 ? await getLatestSearch("incidents") : null);
-      if (cached) return { ...cached, _offline: true };
-    }
-    return { items: [], page, limit, total: 0, hasNextPage: false, _offline: true };
   }
 }

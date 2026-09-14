@@ -846,6 +846,23 @@
   color: var(--color-text-secondary);
   font-size: var(--fs-sm);
 }
+.case-filter-note {
+  font-size: 11px;
+  color: var(--color-caution);
+  margin: -4px 0 var(--space-sm);
+}
+.case-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+.case-pagination .btn { flex: 0 0 auto; }
+.case-pagination__page {
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+}
 
 /* ============================================================
    [case-detail.html]

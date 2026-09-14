@@ -186,6 +186,16 @@ function renderSimilarCases(cases) {
     .join("");
 }
 
+// ── "▶ A, B, C" 형태의 대책 한 줄을 짧은 체크리스트 항목 여러 개로 분리
+//    (맨 앞의 "▶ " 같은 기호는 제거)
+function splitPreventionGuideline(text) {
+  return text
+    .replace(/^[▶►∙・\-–>\s]+/, "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // ── 예방 조치: similarity_service.py의 prevention_guidelines(SIF 기반 실제 대책) 우선 사용,
 //    없으면 예측 TOP1 사고유형 기반 일반 예방수칙(ACCIDENT_TYPE_TIPS)으로 대체
 function renderPrevention(accidentType, guidelines) {
@@ -196,11 +206,12 @@ function renderPrevention(accidentType, guidelines) {
     gridEl.innerHTML = `
       <div class="card" style="background: var(--color-safe-bg); padding: var(--space-md);">
         ${guidelines
+          .flatMap(splitPreventionGuideline)
           .map(
-            (g) => `
+            (item) => `
           <div class="prevention-list__item">
             <span class="prevention-list__check">✓</span>
-            <span>${g}</span>
+            <span class="prevention-list__text">${item}</span>
           </div>
         `
           )

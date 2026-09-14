@@ -131,6 +131,8 @@
 .badge--danger { background: var(--color-danger-bg); color: var(--color-danger); }
 .badge--caution { background: var(--color-caution-bg); color: var(--color-caution); }
 .badge--safe { background: var(--color-safe-bg); color: var(--color-safe); }
+.badge--info { background: #3B82F622; color: #3B82F6; }
+.badge--purple { background: #8B5CF622; color: #8B5CF6; }
 
 /* ── 폼 그룹 (라벨 + 설명 + 컨트롤) — site-setup, predict-input 등 입력 화면 공통 */
 .form-group {

@@ -147,27 +147,61 @@ function buildNotificationItems(savedResults, savedPhotoResults) {
   return items.sort((a, b) => new Date(b.time) - new Date(a.time));
 }
 
+// 알림 타입 → 배지 클래스 (카드 왼쪽 테두리 색(.notif-item--*)과 항상 일치시킴)
+const NOTIF_BADGE_CLASS = {
+  danger: "badge--danger",
+  safe: "badge--safe",
+  info: "badge--info",
+  purple: "badge--purple",
+};
+
+// ── 알림 목록을 "오늘" / "어제" / "이전" 구간으로 나눠 구분선과 함께 렌더링
 function renderList(items) {
   const listEl = document.getElementById("notif-list");
-  listEl.innerHTML = items
-    .map((n) => {
-      const tag = n.href ? "a" : "div";
-      const hrefAttr = n.href ? ` href="${n.href}"` : "";
-      return `
-      <${tag}${hrefAttr} class="notif-item notif-item--${n.type}">
-        <span class="notif-item__icon">${n.icon}</span>
-        <div class="notif-item__body">
-          <div class="notif-item__title-row">
-            <span class="notif-item__title">${n.title}</span>
-            <span class="badge ${n.type === "danger" ? "badge--danger" : n.type === "safe" ? "badge--safe" : "badge--caution"}">${n.badge}</span>
-          </div>
-          <div class="notif-item__desc">${n.desc}</div>
-          <div class="notif-item__time">${formatTime(n.time)}</div>
-        </div>
-      </${tag}>
-    `;
-    })
+
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  const groups = { 오늘: [], 어제: [], 이전: [] };
+  items.forEach((n) => {
+    const d = new Date(n.time);
+    if (d.toDateString() === now.toDateString()) groups["오늘"].push(n);
+    else if (d.toDateString() === yesterday.toDateString()) groups["어제"].push(n);
+    else groups["이전"].push(n);
+  });
+
+  listEl.innerHTML = ["오늘", "어제", "이전"]
+    .filter((label) => groups[label].length > 0)
+    .map(
+      (label) => `
+      <div class="notif-group-divider">
+        <span class="notif-group-divider__label">${label}</span>
+        <span class="notif-group-divider__line"></span>
+      </div>
+      ${groups[label].map(renderNotifItem).join("")}
+    `
+    )
     .join("");
+}
+
+function renderNotifItem(n) {
+  const tag = n.href ? "a" : "div";
+  const hrefAttr = n.href ? ` href="${n.href}"` : "";
+  const badgeClass = NOTIF_BADGE_CLASS[n.type] || "badge--caution";
+  return `
+    <${tag}${hrefAttr} class="notif-item notif-item--${n.type}">
+      <span class="notif-item__icon">${n.icon}</span>
+      <div class="notif-item__body">
+        <div class="notif-item__title-row">
+          <span class="notif-item__title">${n.title}</span>
+          <span class="badge ${badgeClass}">${n.badge}</span>
+        </div>
+        <div class="notif-item__desc text-clamp-2">${n.desc}</div>
+        <div class="notif-item__time">${formatTime(n.time)}</div>
+      </div>
+    </${tag}>
+  `;
 }
 
 // ── 미확인 개수: 마지막으로 이 화면을 본 시점 이후의 항목 수를 셈

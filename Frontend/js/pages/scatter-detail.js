@@ -74,6 +74,16 @@ function renderSimilarCases(cases) {
     .join("");
 }
 
+// ── "▶ A, B, C" 형태의 대책 한 줄을 짧은 체크리스트 항목 여러 개로 분리
+//    (맨 앞의 "▶ " 같은 기호는 제거) — predict-result.js와 동일한 로직
+function splitPreventionGuideline(text) {
+  return text
+    .replace(/^[▶►∙・\-–>\s]+/, "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // ── 재발 방지 대책 (predict-result.js의 renderPrevention과 동일한 스타일)
 function renderPreventionList(guidelines) {
   const listEl = document.getElementById("prevention-list");
@@ -84,11 +94,12 @@ function renderPreventionList(guidelines) {
   }
 
   listEl.innerHTML = guidelines
+    .flatMap(splitPreventionGuideline)
     .map(
-      (g) => `
+      (item) => `
       <div class="prevention-list__item">
         <span class="prevention-list__check">✓</span>
-        <span>${g}</span>
+        <span class="prevention-list__text">${item}</span>
       </div>
     `
     )

@@ -5,8 +5,9 @@
 // env.js(빌드 시 scripts/generate-env.js가 생성)가 이 파일보다 먼저 로드되어
 // window.APP_CONFIG.BACKEND_API_BASE_URL을 채워두면 그 값을 쓰고, 없으면(로컬에서
 // 빌드 스크립트 없이 그냥 열어 테스트하는 경우) 로컬 백엔드 기본 주소로 대체합니다.
-const API_BASE_URL =
-  (window.APP_CONFIG && window.APP_CONFIG.BACKEND_API_BASE_URL) || "http://127.0.0.1:8000";
+const API_BASE_URL = (
+  (window.APP_CONFIG && window.APP_CONFIG.BACKEND_API_BASE_URL) || "http://127.0.0.1:8000"
+).replace(/\/+$/, ""); // 끝의 "/"를 제거 — 안 그러면 아래 `${API_BASE_URL}/api/...`가 "//api/..."가 됨
 
 /**
  * 위험도(심각도) + 사고유형 예측 요청.

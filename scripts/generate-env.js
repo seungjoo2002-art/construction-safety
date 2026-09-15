@@ -27,7 +27,9 @@ function generateEnvFile() {
   const datasetConfig = process.env.HF_DATASET_CONFIG || "default";
   const datasetSplit = process.env.HF_DATASET_SPLIT || "train";
   const apiBase = process.env.HF_API_BASE || "https://datasets-server.huggingface.co";
-  const backendApiBaseUrl = process.env.BACKEND_API_BASE_URL || "http://127.0.0.1:8000";
+  // 끝에 "/"를 붙여 등록하는 실수를 하면 api.js가 `${API_BASE_URL}/api/predict`처럼 붙일 때
+  // "//api/predict"(슬래시 중복)가 되어 백엔드가 못 찾는 경로가 되어버린다. 미리 제거해둔다.
+  const backendApiBaseUrl = (process.env.BACKEND_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
   const content = `// ============================================================
 // env.js — scripts/generate-env.js가 빌드 시 자동 생성한 파일입니다. 직접 수정하지 마세요.

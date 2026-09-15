@@ -14,7 +14,7 @@
 //   레벨(api.js)에서 구현되고, 서비스워커는 여기 관여하지 않는다.
 // ============================================================
 
-const SHELL_CACHE = "ai-safety-shell-v3";
+const SHELL_CACHE = "ai-safety-shell-v4";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -139,10 +139,21 @@ async function trimCache(cacheName, maxEntries) {
   }
 }
 
+// env.js는 Render Static Site 빌드마다(generate-env.js가) 내용이 새로 바뀌는 파일이다
+// (BACKEND_API_BASE_URL 등). 파일 경로 자체는 그대로라 아래 "그 외 정적 자산" Cache
+// First 규칙에 걸리면, 배포를 새로 해서 백엔드 주소가 바뀌어도 브라우저가 예전에 캐시해둔
+// env.js를 계속 써버려 "백엔드가 켜져 있는데도 프론트가 옛날(또는 잘못된) 주소로만 요청해서
+// 연결 실패로 보이는" 문제가 생긴다. 그래서 절대 캐시하지 않고 항상 네트워크로만 받는다.
+function isEnvConfigRequest(url) {
+  return url.pathname.endsWith("/js/common/env.js");
+}
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
 
   if (isLargeRawDataRequest(url)) return; // 절대 가로채지 않음(캐시 금지) — 네트워크로만
+
+  if (isEnvConfigRequest(url)) return; // 절대 캐시하지 않음 — 항상 최신 빌드 설정을 네트워크로
 
   if (e.request.method !== "GET") return; // POST 등은 항상 네트워크로만 (분석/예측 결과 등)
 

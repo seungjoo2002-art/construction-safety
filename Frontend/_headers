@@ -1,0 +1,6 @@
+# Render Static Site 응답 헤더 커스터마이징.
+# env.js는 scripts/generate-env.js가 빌드마다 다시 생성하는 설정 파일(백엔드 URL 등)이라
+# CDN/브라우저가 오래 캐싱하면 재배포 후에도 옛 백엔드 주소를 계속 쓰게 된다.
+# 항상 재검증하도록 캐시를 금지한다.
+/js/common/env.js
+  Cache-Control: no-cache, no-store, must-revalidate

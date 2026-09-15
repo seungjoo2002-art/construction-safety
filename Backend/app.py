@@ -80,7 +80,11 @@ def root():
 #    등록하면 그 도메인만 허용합니다. 비워두면(로컬 개발 등) 전체 허용("*")으로 동작하므로,
 #    운영 배포에서는 반드시 설정하세요 — 값 자체는 공개 정보(프런트 URL)라 비밀값이 아닙니다.
 _allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "").strip()
-ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()] or ["*"]
+# 끝에 "/"를 붙여 등록하는 실수(예: "https://foo.onrender.com/")를 하면 브라우저가 보내는
+# Origin 헤더("https://foo.onrender.com", 절대 끝에 "/" 없음)와 문자열이 정확히 일치하지
+# 않아 CORS가 조용히 막힌다(프리플라이트는 200이 나오지만 실제 요청은 브라우저가 차단).
+# 그래서 여기서 미리 trailing slash를 제거해둔다.
+ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _allowed_origins_raw.split(",") if o.strip()] or ["*"]
 
 app.add_middleware(
     CORSMiddleware,

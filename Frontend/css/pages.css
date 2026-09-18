@@ -204,18 +204,70 @@
 /* ============================================================
    [dashboard.html]
    ============================================================ */
-.greeting-card {
-  margin-bottom: var(--space-md);
-}
-.greeting-card__title {
+/* ── ① 오늘의 현장 안전 상태 (종합 위험도 히어로 카드) */
+.dash-hero { margin-bottom: var(--space-md); }
+.dash-hero__title {
   font-weight: 800;
   font-size: var(--fs-base);
-  color: var(--color-primary);
+  margin-bottom: var(--space-sm);
 }
-.greeting-card__desc {
+.dash-hero__body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+.dash-hero__info { flex: 1; }
+.dash-hero__label {
   font-size: var(--fs-xs);
   color: var(--color-text-secondary);
-  margin-top: 4px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.dash-hero__meta {
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-sm);
+}
+.dash-hero__meta b { color: var(--color-text-primary); }
+.dash-hero__focus-line {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── ③ 지금 가장 주의할 위험 (액션 유도 카드) */
+.dash-focus { margin-bottom: var(--space-md); }
+.dash-focus__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: 2px;
+}
+.dash-focus__icon { font-size: 22px; }
+.dash-focus__type { font-weight: 800; font-size: var(--fs-lg); }
+.dash-focus__pct { font-weight: 700; font-size: var(--fs-sm); color: var(--color-danger); }
+.dash-focus__tip {
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+/* 대시보드 카드 안의 작은 소제목 (예: 파이차트 아래 "주요 사고 유형") */
+.dash-subsection-title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin: var(--space-md) 0 var(--space-xs);
+}
+.dash-trend-insight {
+  font-size: var(--fs-xs);
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-top: var(--space-sm);
+  text-align: center;
 }
 
 /* ── 통계 2x2 그리드 */
@@ -225,17 +277,16 @@
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
 }
+/* 보조 정보(세부 위험 분석)는 핵심 카드보다 한 단계 작게 */
+.stat-grid--secondary .stat-card__value { font-size: var(--fs-lg); }
+.stat-grid--secondary .stat-card { padding: 12px var(--space-md); }
 .stat-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
 }
-.stat-card--danger {
-  background: var(--color-danger-bg);
-}
-.stat-card__title,
-.stat-card__label {
+.stat-card__title {
   font-size: var(--fs-xs);
   color: var(--color-text-secondary);
   font-weight: 600;
@@ -246,12 +297,6 @@
   line-height: 1.15;
 }
 .stat-card__value--caution { color: var(--color-caution); }
-.stat-card__value--danger { color: var(--color-danger); font-size: var(--fs-xl); margin-top: 2px; }
-.stat-card__value-sub {
-  font-size: var(--fs-lg);
-  font-weight: 800;
-  color: var(--color-danger);
-}
 .stat-card__delta {
   font-size: 11px;
   color: var(--color-text-placeholder);
@@ -1366,43 +1411,24 @@
 
 /* ============================================================
    [notifications.html]
+   "지금 무엇을 확인/조치해야 하는가"에 집중 — 통계 재노출 대신 행동 중심 카드.
    ============================================================ */
-.notif-hero {
-  background: linear-gradient(135deg, #C62828, var(--color-danger));
-  color: #fff;
+.notif-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  background: var(--color-primary-light);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   margin-bottom: var(--space-md);
 }
-.notif-hero__date { font-size: 11px; opacity: 0.9; }
-.notif-hero__row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
-.notif-hero__score { font-size: var(--fs-3xl); font-weight: 800; }
-.notif-hero__badge {
-  display: inline-block;
-  background: rgba(255,255,255,0.2);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  margin-top: 6px;
+.notif-summary__label { font-size: var(--fs-sm); font-weight: 700; color: var(--color-primary); }
+.notif-summary__count {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  color: var(--color-primary);
 }
-.notif-hero__ring { position: relative; width: 76px; height: 76px; flex-shrink: 0; }
-.notif-hero__ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.notif-hero__ring-track { fill: none; stroke: rgba(255,255,255,0.25); stroke-width: 8; }
-.notif-hero__ring-value { fill: none; stroke: #FFC107; stroke-width: 8; stroke-linecap: round; }
-.notif-hero__ring-center {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-.notif-hero__ring-num { font-size: var(--fs-lg); font-weight: 800; }
-.notif-hero__ring-label { font-size: 9px; opacity: 0.9; }
-
-.notif-hero__chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: var(--space-md); }
-.notif-hero__chip { background: rgba(0,0,0,0.18); border-radius: var(--radius-sm); padding: 6px 2px; text-align: center; }
-.notif-hero__chip-pct { font-weight: 800; font-size: var(--fs-sm); }
-.notif-hero__chip-label { font-size: 10px; opacity: 0.9; }
-
-.notif-section-title { font-size: var(--fs-base); font-weight: 700; margin: var(--space-md) 0 var(--space-sm); }
+.notif-summary__count span { font-size: var(--fs-2xl); }
 
 /* 알림 시간대 구분선("오늘"/"어제"/"이전") */
 .notif-group-divider {
@@ -1424,34 +1450,54 @@
   background: var(--color-border);
 }
 
+/* 알림 카드 1건 — 위에서부터: 중요도 → 제목 → 상황 → 권장조치 → 시간/출처 → 버튼 */
 .notif-item {
-  display: flex;
-  gap: var(--space-sm);
   background: #fff;
   border-radius: var(--radius-md);
   border-left: 4px solid var(--color-border);
   box-shadow: var(--shadow-card);
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-md);
   margin-bottom: 12px;
 }
-.notif-item--danger { border-left-color: var(--color-danger); }
-.notif-item--safe { border-left-color: var(--color-safe); }
+.notif-item--urgent { border-left-color: var(--color-danger); }
+.notif-item--caution { border-left-color: var(--color-caution); }
 .notif-item--info { border-left-color: #3B82F6; }
-.notif-item--purple { border-left-color: #8B5CF6; }
 
-.notif-item__icon {
-  width: 36px; height: 36px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-page);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  flex-shrink: 0;
+.notif-item__importance {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 4px;
 }
-.notif-item__body { flex: 1; }
-.notif-item__title-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.notif-item__title { font-weight: 700; font-size: var(--fs-sm); }
-.notif-item__desc { font-size: var(--fs-xs); color: var(--color-text-secondary); margin-top: 2px; line-height: 1.5; }
-.notif-item__time { font-size: 10px; color: var(--color-text-placeholder); margin-top: 4px; }
+.notif-item--urgent .notif-item__importance { color: var(--color-danger); }
+.notif-item--caution .notif-item__importance { color: var(--color-caution); }
+.notif-item--info .notif-item__importance { color: #3B82F6; }
+
+.notif-item__title { font-weight: 700; font-size: var(--fs-base); }
+.notif-item__situation {
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.notif-item__action {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  background: var(--color-bg-page);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.notif-item__action-label {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-text-placeholder);
+}
+.notif-item__action-text { font-size: var(--fs-xs); font-weight: 600; }
+.notif-item__meta { font-size: 10px; color: var(--color-text-placeholder); margin-top: var(--space-sm); }
+.notif-item__btn { margin-top: var(--space-sm); }
 
 .notif-end-note {
   text-align: center;
@@ -1561,6 +1607,33 @@
   padding: 10px 20px;
   border-radius: var(--radius-pill);
 }
+
+/* ============================================================
+   [analysis-history.html]
+   ============================================================ */
+.history-item { margin-bottom: var(--space-md); }
+.history-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+.history-item__type-tag {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+.history-item__time { font-size: 11px; color: var(--color-text-placeholder); }
+.history-item__score { font-weight: 700; font-size: var(--fs-base); margin-bottom: 2px; }
+.history-item__hazards {
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+.history-item__hazards b { color: var(--color-text-primary); }
 
 .stat-card--empty {
   align-items: center;

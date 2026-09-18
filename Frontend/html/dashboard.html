@@ -37,45 +37,56 @@
     </div>
 
     <div class="app-header__actions">
-      <a href="notifications.html" class="app-header__icon-btn" aria-label="알림">
-        🔔<span class="dot"></span>
+      <a href="notifications.html" class="app-header__icon-btn" aria-label="알림" id="header-notif-btn">
+        🔔<span class="icon-badge" id="header-notif-badge" style="display:none;"></span>
       </a>
-      <a href="profile.html" class="app-header__icon-btn" aria-label="내 정보">👤</a>
+      <a href="analysis-history.html" class="app-header__icon-btn" aria-label="분석 기록">📁</a>
     </div>
   </header>
 
   <div class="app-content">
 
-    <!-- 인사말 -->
-    <section class="card greeting-card">
-      <p class="greeting-card__title"><span id="greeting-name">관리자님</span>, 오늘도 안전한 하루 되세요! 🙋</p>
-      <p class="greeting-card__desc">AI 엔진이 현장 데이터를 분석하여 실시간 안전 정보를 제공합니다.</p>
+    <!-- ① 현재 현장의 종합 위험도 — 대시보드에서 가장 먼저 봐야 하는 정보 -->
+    <section class="card dash-hero" id="dash-hero">
+      <div class="dash-hero__title">오늘의 현장 안전 상태</div>
+      <div class="dash-hero__body" id="dash-hero-body">
+        <div class="gauge">
+          <svg viewBox="0 0 100 100">
+            <circle class="gauge__track" cx="50" cy="50" r="42"></circle>
+            <circle class="gauge__value" id="gauge-total-circle" cx="50" cy="50" r="42"></circle>
+          </svg>
+          <div class="gauge__center">
+            <div class="gauge__number" id="gauge-total-number">--</div>
+            <div class="gauge__label" id="gauge-total-label">위험</div>
+          </div>
+        </div>
+        <div class="dash-hero__info">
+          <div class="dash-hero__label">종합 위험도</div>
+          <span class="badge" id="dash-hero-badge">--</span>
+          <div class="dash-hero__meta" id="dash-hero-meta">최근 분석 기준</div>
+        </div>
+      </div>
+      <p class="dash-hero__focus-line" id="dash-hero-focus-line" style="display:none;"></p>
     </section>
 
-    <!-- 현장촬영 진입 배너 -->
-    <a href="photo-capture.html" class="card chatbot-banner" style="background: linear-gradient(135deg, #1B3FB8, #2F5FE0); margin-bottom: var(--space-md);">
-      <span>📷 현장 촬영으로 위험요소 확인</span>
-      <span class="chatbot-banner__chevron">›</span>
-    </a>
-
-    <!-- 통계 2x2 -->
-    <div id="stat-grid-wrapper">
-      <div class="stat-grid">
-        <div class="card stat-card">
-          <div class="gauge">
-            <svg viewBox="0 0 100 100">
-              <circle class="gauge__track" cx="50" cy="50" r="42"></circle>
-              <circle class="gauge__value" id="gauge-total-circle" cx="50" cy="50" r="42"></circle>
-            </svg>
-            <div class="gauge__center">
-              <div class="gauge__number" id="gauge-total-number">--</div>
-              <div class="gauge__label" id="gauge-total-label">위험</div>
-            </div>
-          </div>
-          <div class="stat-card__title">종합 위험도</div>
-          <div class="stat-card__delta" id="delta-total">최근 분석 기준</div>
+    <!-- ③ 지금 가장 먼저 확인해야 할 위험 — 실제 분석 결과 기반, 없으면 섹션 자체를 숨김 -->
+    <section class="card dash-focus" id="dash-focus" style="display:none;">
+      <h2 class="card-section-title">지금 가장 주의할 위험</h2>
+      <div class="dash-focus__row">
+        <span class="dash-focus__icon" id="dash-focus-icon">🔴</span>
+        <div>
+          <div class="dash-focus__type" id="dash-focus-type">--</div>
+          <div class="dash-focus__pct" id="dash-focus-pct">--%</div>
         </div>
+      </div>
+      <p class="dash-focus__tip" id="dash-focus-tip"></p>
+      <a href="predict-input.html" class="btn btn-outline btn-block" id="dash-focus-btn">위험도 상세 보기</a>
+    </section>
 
+    <!-- ④ 세부 위험 분석 (보조 정보 — 카드를 작게) -->
+    <h2 class="card-section-title" style="margin: 0 0 var(--space-sm) 4px;">세부 위험 분석</h2>
+    <div id="stat-grid-wrapper">
+      <div class="stat-grid stat-grid--secondary">
         <div class="card stat-card">
           <div class="stat-card__title">평균 대비 위험도</div>
           <div class="stat-card__value" id="value-lift">--배</div>
@@ -89,17 +100,10 @@
           <div class="progress-bar"><div class="progress-bar__fill progress-bar__fill--caution" id="bar-fatal"></div></div>
           <div class="stat-card__delta" id="delta-fatal">경+중등도 / 중상 / 치명</div>
         </div>
-
-        <div class="card stat-card stat-card--danger">
-          <div class="stat-card__label">예측 사고 유형 TOP1</div>
-          <div class="stat-card__value--danger" id="value-top-type">--</div>
-          <div class="stat-card__value-sub" id="value-top-type-pct">--%</div>
-          <div class="stat-card__delta" id="delta-top-type">최근 분석 기준</div>
-        </div>
       </div>
     </div>
 
-    <!-- 파이차트 -->
+    <!-- 예측 사고 유형 분류: 파이차트 + 순위 리스트(우선순위를 빠르게 파악) -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <h2 class="card-section-title">예측 사고 유형 분류</h2>
       <div id="pie-section-body">
@@ -107,10 +111,12 @@
           <canvas id="type-pie-chart"></canvas>
         </div>
         <div class="legend-list" id="type-pie-legend"></div>
+        <p class="dash-subsection-title">주요 사고 유형</p>
+        <div id="type-rank-mini-list"></div>
       </div>
     </section>
 
-    <!-- 유사사례 TOP3 -->
+    <!-- ⑤ 유사 사례 (보조 정보 — 제목/유형/유사도 중심으로 가볍게) -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <div class="card-section-header">
         <h2 class="card-section-title" style="margin-bottom:0;">유사사례 TOP3 <span class="mock-tag" id="similar-cases-mock-tag" style="display:none;">MOCK</span></h2>
@@ -119,17 +125,22 @@
       <div id="similar-case-list"></div>
     </section>
 
-    <!-- 위험도 변화 추이 -->
+    <!-- ⑥ 시간별 위험도 (보조 정보) -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <h2 class="card-section-title">오늘 시간별 위험도 추이</h2>
       <div id="trend-section-body">
         <div class="chart-canvas-wrap chart-canvas-wrap--line">
           <canvas id="trend-line-chart"></canvas>
         </div>
+        <p class="dash-trend-insight" id="trend-insight-text" style="display:none;"></p>
       </div>
     </section>
 
-    <!-- AI 챗봇 배너 -->
+    <!-- 진입 배너(액션) — 우선순위상 정보보다 아래, 화면 맨 끝 -->
+    <a href="photo-capture.html" class="card chatbot-banner" style="background: linear-gradient(135deg, #1B3FB8, #2F5FE0); margin-bottom: var(--space-md);">
+      <span>📷 현장 촬영으로 위험요소 확인</span>
+      <span class="chatbot-banner__chevron">›</span>
+    </a>
     <a href="chatbot.html" class="card chatbot-banner">
       <span>🤖 AI 챗봇 상담</span>
       <span class="chatbot-banner__chevron">›</span>
@@ -143,7 +154,7 @@
     <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
     <a href="similar-cases.html" class="bottom-nav__item">사례 검색</a>
     <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
-    <a href="notifications.html" class="bottom-nav__item">알림</a>
+    <a href="profile.html" class="bottom-nav__item">내 정보</a>
   </nav>
 
 </div>
@@ -151,6 +162,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="../js/common/session-store.js"></script>
 <script src="../js/common/constants.js"></script>
+<script src="../js/common/notification-center.js"></script>
 <script src="../js/common/common.js"></script>
 <script src="../js/common/weather.js"></script>
 <script src="../js/common/env.js"></script>

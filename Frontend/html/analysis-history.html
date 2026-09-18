@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>사고 상세정보 | AI 건설현장 안전관리 시스템</title>
+<title>분석 기록 | AI 건설현장 안전관리 시스템</title>
 
 <script src="../js/common/accessibility.js"></script>
 <link rel="manifest" href="manifest.json">
@@ -22,35 +22,32 @@
 <div class="app-frame" data-has-nav="true">
 
   <header class="app-header app-header--back">
-    <a href="javascript:history.back()" class="back-btn" aria-label="뒤로가기">&#8249;</a>
-    <div class="app-header__title">사고 상세정보</div>
-    <div class="app-header__actions">
-      <span class="app-header__icon-btn" id="bookmark-btn" aria-label="저장">🔖</span>
-      <span class="app-header__icon-btn" id="share-btn" aria-label="공유">🔗</span>
-    </div>
+    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <div class="app-header__title">분석 기록</div>
   </header>
 
-  <div class="app-content" id="content-root">
-    <!-- JS가 채웁니다 -->
+  <div class="app-content">
+
+    <div class="filter-chip-row" id="filter-chip-row"></div>
+
+    <div id="history-list"></div>
+
   </div>
 
   <nav class="bottom-nav">
     <a href="dashboard.html" class="bottom-nav__item">대시보드</a>
     <a href="predict-input.html" class="bottom-nav__item">위험도 분석</a>
     <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
-    <a href="similar-cases.html" class="bottom-nav__item is-active">사례 검색</a>
+    <a href="similar-cases.html" class="bottom-nav__item">사례 검색</a>
     <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
     <a href="profile.html" class="bottom-nav__item">내 정보</a>
   </nav>
 
 </div>
 
-<script src="../js/common/idb-store.js"></script>
-<script src="../js/common/mock-cases.js"></script>
-<script src="../js/common/env.js"></script>
-<script src="../js/common/hf-dataset.js"></script>
-<script src="../js/common/api.js"></script>
-<script src="../js/pages/case-detail.js"></script>
+<script src="../js/common/constants.js"></script>
+<script src="../js/common/session-store.js"></script>
+<script src="../js/pages/analysis-history.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

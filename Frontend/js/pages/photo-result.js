@@ -1,18 +1,34 @@
 // ============================================================
 // photo-result.js — 사진 분석 결과 화면
-// photo-analyzing.html에서 저장한 sessionStorage 값을 읽어 렌더링합니다.
+// URL에 ?resultId=...가 있으면 분석 기록·알림 화면 등에서 다시 열어본 지난 사진
+// 분석 이력을 보여주고(이때 이미지는 원본이 아니라 축소 저장된 썸네일입니다),
+// 없으면 photo-analyzing.html에서 저장한 sessionStorage 값(방금 막 끝난 분석)을
+// 읽어 렌더링합니다. session-store.js 보다 나중에 로드되어야 합니다.
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-  const resultRaw = sessionStorage.getItem("photo_result");
-  const photoDataUrl = sessionStorage.getItem("captured_photo");
+  const resultId = new URLSearchParams(window.location.search).get("resultId");
 
-  if (!resultRaw || !photoDataUrl) {
-    window.location.href = "photo-capture.html";
-    return;
+  let result, photoDataUrl;
+
+  if (resultId) {
+    const record = getSavedPhotoResultById(resultId);
+    if (!record) {
+      window.location.href = "photo-capture.html";
+      return;
+    }
+    result = record.result;
+    photoDataUrl = record.thumbnail; // 원본 대신 저장된 축소 썸네일
+  } else {
+    const resultRaw = sessionStorage.getItem("photo_result");
+    photoDataUrl = sessionStorage.getItem("captured_photo");
+
+    if (!resultRaw || !photoDataUrl) {
+      window.location.href = "photo-capture.html";
+      return;
+    }
+    result = JSON.parse(resultRaw);
   }
-
-  const result = JSON.parse(resultRaw);
 
   const mockTagEl = document.getElementById("photo-mock-tag");
   if (mockTagEl) mockTagEl.style.display = result._mock ? "inline-block" : "none";
@@ -20,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderImageWithBoxes(photoDataUrl, result.boxes);
   renderScore(result);
   renderHazardList(result.hazards);
-  bindActions(result);
+  bindActions(result, photoDataUrl);
 });
 
 const BOX_COLOR = {
@@ -31,6 +47,13 @@ const BOX_COLOR = {
 
 function renderImageWithBoxes(photoDataUrl, boxes) {
   const container = document.getElementById("photo-result-image");
+
+  if (!photoDataUrl) {
+    // 아주 예전에 수동 저장 버튼으로만 저장된 기록(썸네일 없음) 등 — 사진 없이 결과만 표시
+    container.innerHTML = `<p style="text-align:center; padding:40px 0; color: var(--color-text-secondary);">저장된 사진이 없어요. 아래 위험요소 결과만 확인할 수 있어요.</p>`;
+    return;
+  }
+
   const boxesHtml = boxes
     .map((b) => {
       const color = BOX_COLOR[b.color] || BOX_COLOR.caution;
@@ -80,7 +103,7 @@ function renderHazardList(hazards) {
     .join("");
 }
 
-function bindActions(result) {
+function bindActions(result, photoDataUrl) {
   const saveBtn = document.getElementById("save-btn");
   const downloadBtn = document.getElementById("download-btn");
   const shareBtn = document.getElementById("share-btn");
@@ -94,7 +117,10 @@ function bindActions(result) {
   });
 
   downloadBtn.addEventListener("click", () => {
-    const photoDataUrl = sessionStorage.getItem("captured_photo");
+    if (!photoDataUrl) {
+      alert("저장된 사진이 없어서 다운로드할 수 없어요.");
+      return;
+    }
     const a = document.createElement("a");
     a.href = photoDataUrl;
     a.download = `현장분석_${new Date().toISOString().slice(0, 10)}.jpg`;

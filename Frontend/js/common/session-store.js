@@ -139,3 +139,31 @@ function getSavedResults() {
 function getSavedResultById(id) {
   return getSavedResults().find((r) => r.id === id) || null;
 }
+
+// ============================================================
+// 사진 분석 이력 (분석 기록·알림 화면에서 지난 사진 분석 결과를 다시 열어볼 때 씀)
+// photo-analyzing.js가 분석이 끝날 때마다 자동으로 여기 쌓는다. saved_photo_results
+// localStorage 키는 기존 photo-result.js의 수동 "저장" 버튼과 공유하지만(하위호환),
+// 그 수동 저장 항목엔 id/thumbnail이 없어 상세 재진입은 안 되고 목록 카운트에만 잡힌다.
+// 원본 사진(수 MB) 전체를 저장하지 않고, 작게 축소한 thumbnail(dataURL)만 같이 보관한다.
+// ============================================================
+const SAVED_PHOTO_RESULTS_KEY = "saved_photo_results";
+
+/** 사진 분석 1건을 이력에 추가하고, 나중에 다시 찾아올 때 쓸 고유 id를 반환합니다. */
+function savePhotoAnalysisRecord(result, thumbnail) {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const saved = getSavedPhotoResults();
+  saved.unshift({ id, savedAt: new Date().toISOString(), result, thumbnail: thumbnail || null });
+  localStorage.setItem(SAVED_PHOTO_RESULTS_KEY, JSON.stringify(saved.slice(0, 50))); // 최근 50건만 보관
+  return id;
+}
+
+function getSavedPhotoResults() {
+  const raw = localStorage.getItem(SAVED_PHOTO_RESULTS_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+/** id로 지난 사진 분석 1건을 다시 조회. 없으면 null. */
+function getSavedPhotoResultById(id) {
+  return getSavedPhotoResults().find((r) => r.id === id) || null;
+}

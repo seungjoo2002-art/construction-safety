@@ -1,31 +1,41 @@
 // ============================================================
 // dashboard.js — 대시보드 화면
-// session-store.js, constants.js, weather.js, api.js, mock-cases.js
+// session-store.js, constants.js, notification-center.js, weather.js, api.js
 // 보다 나중에 로드되어야 합니다.
+//
+// 정보 우선순위(위→아래): 현재 상태 → 가장 위험한 사고유형 → 지금 할 일 →
+// 세부 위험 분석 → 유사 사례 → 시간별 위험도 → 진입 배너
 //
 // 데이터 소스:
 //  - 종합위험도 / 사고유형 / 파이차트  → getLastPredictResult() (실제 모델 응답, 없으면 빈 상태)
 //  - 유사사례 TOP3                    → MOCK_CASES (목업, 분석 전엔 빈 상태)
 //  - 오늘 시간별 위험도 추이           → 오늘 남은 시간대 실제 날씨 + predictRisk() 실제 호출
+//  - 헤더 알림 배지                    → notification-center.js (알림 화면과 동일한 데이터)
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
   renderHeaderWeatherMini();
-  renderGreetingName();
+  renderHeaderNotifBadge();
 
   const lastResult = getLastPredictResult();
   const lastInput = getLastPredictInput();
   const lastSimilarity = getLastSimilarity();
   const siteSetup = hasSiteSetup() ? getSiteSetup() : null;
 
-  // ── 통계/파이차트/유사사례: 실제 위험도 분석을 한 번이라도 해야 채워짐
+  // ── 핵심 정보(종합위험도/가장위험한유형/지금할일/세부분석/파이차트): 실제 위험도
+  //    분석을 한 번이라도 해야 채워짐
   if (!lastResult) {
+    renderHeroEmpty();
+    renderFocusEmpty();
     renderStatsEmpty();
     renderPieEmpty();
     renderSimilarEmpty();
   } else {
+    renderHero(lastResult);
+    renderFocus(lastResult.accident_type);
     renderStats(lastResult);
     renderPieChart(lastResult.accident_type.probabilities);
+    renderTypeRankMiniList(lastResult.accident_type.probabilities);
 
     if (lastSimilarity && lastSimilarity.similar_cases && lastSimilarity.similar_cases.length > 0) {
       renderSimilarCases(lastSimilarity.similar_cases.slice(0, 3), lastSimilarity);
@@ -69,6 +79,19 @@ function emptyStateHtml(text, href, linkText) {
   `;
 }
 
+function renderHeroEmpty() {
+  document.getElementById("dash-hero-body").innerHTML = emptyStateHtml(
+    "아직 위험도 분석 결과가 없어요.<br>분석을 진행하면 오늘의 안전 상태가 여기에 표시돼요.",
+    "predict-input.html",
+    "위험도 분석하러 가기"
+  );
+  document.getElementById("dash-hero-focus-line").style.display = "none";
+}
+
+function renderFocusEmpty() {
+  document.getElementById("dash-focus").style.display = "none";
+}
+
 function renderStatsEmpty() {
   document.getElementById("stat-grid-wrapper").innerHTML = emptyStateHtml(
     "아직 위험도 분석 결과가 없어요.<br>분석을 진행하면 여기에 수치가 채워져요.",
@@ -93,17 +116,6 @@ function renderSimilarEmpty(text) {
   );
 }
 
-// ── 인사말: 로그인한 계정의 실제 이름으로 표시 (없으면 "관리자님" 유지)
-function renderGreetingName() {
-  const loggedInUsername = localStorage.getItem("logged_in_username");
-  const registeredUsers = JSON.parse(localStorage.getItem("registered_users") || "[]");
-  const account = registeredUsers.find((u) => u.username === loggedInUsername);
-
-  if (account && account.name) {
-    document.getElementById("greeting-name").textContent = `${account.name}님`;
-  }
-}
-
 // ── 헤더 날씨 미니위젯
 async function renderHeaderWeatherMini() {
   const iconEl = document.getElementById("hwm-icon");
@@ -119,18 +131,42 @@ async function renderHeaderWeatherMini() {
   }
 }
 
+// ── 헤더 알림 배지: notification-center.js가 알림 화면과 동일한 기준으로 계산
+//    (읽음 처리는 하지 않음 — 실제로 알림 화면을 열었을 때만 markNotificationsSeen() 호출)
+function renderHeaderNotifBadge() {
+  const badgeEl = document.getElementById("header-notif-badge");
+  try {
+    const items = buildNotificationItems();
+    const unread = getUnreadNotificationCount(items);
+    if (unread > 0) {
+      badgeEl.textContent = unread > 9 ? "9+" : String(unread);
+      badgeEl.style.display = "flex";
+    } else {
+      badgeEl.style.display = "none";
+    }
+  } catch (err) {
+    console.error("[dashboard.js] 알림 배지 계산 실패:", err);
+  }
+}
+
 function riskColor(pct) {
   if (pct >= 80) return "var(--color-danger)";
   if (pct >= 50) return "var(--color-caution)";
   return "var(--color-safe)";
 }
 
-// ── 통계 카드 4개 (실제 predict_severity.py / predict_accident_type.py 응답 기반)
-function renderStats(result) {
+function gradeToBadgeClass(grade) {
+  if (grade === "매우위험" || grade === "위험") return "badge--danger";
+  if (grade === "주의") return "badge--caution";
+  return "badge--safe";
+}
+
+// ── ① 오늘의 현장 안전 상태 (종합 위험도 히어로 카드)
+// 실제 predict_severity.py fatal_risk 응답을 그대로 사용
+function renderHero(result) {
   const fr = result.severity.fatal_risk;
   const pct = Math.round(fr.percentile);
 
-  // 종합 위험도 게이지
   const r = 42;
   const circumference = 2 * Math.PI * r;
   const circle = document.getElementById("gauge-total-circle");
@@ -142,20 +178,60 @@ function renderStats(result) {
   gaugeLabel.textContent = fr.grade;
   gaugeLabel.style.color = riskColor(pct);
 
-  // 평균 대비 위험도 (lift_vs_median — README상 raw 확률(p_fatal)은 직접 노출 금지라 배수로 표시)
+  const badgeEl = document.getElementById("dash-hero-badge");
+  badgeEl.textContent = fr.grade;
+  badgeEl.className = `badge ${gradeToBadgeClass(fr.grade)}`;
+
+  document.getElementById("dash-hero-meta").innerHTML =
+    `최근 분석 기준 · 평균 사고 대비 <b>${fr.lift_vs_median}배</b>`;
+
+  // "현재 가장 주의가 필요한 위험: 끼임 (27%)" — 문장 형태로도 한 번 더 확인 가능하게
+  const topType = result.accident_type.predicted_type;
+  const topShort = ACCIDENT_TYPE_SHORT_LABEL[topType] || topType;
+  const topPct = Math.round(result.accident_type.confidence * 100);
+  const focusLineEl = document.getElementById("dash-hero-focus-line");
+  focusLineEl.innerHTML = `현재 가장 주의가 필요한 위험: <b>${topShort}</b> (${topPct}%)`;
+  focusLineEl.style.display = "";
+}
+
+// ── ③ 지금 가장 주의할 위험 (액션 유도 카드) — 예측 사고유형 TOP1 + 예방수칙 첫 항목
+function renderFocus(accidentType) {
+  const section = document.getElementById("dash-focus");
+  const topType = accidentType.predicted_type;
+  const pct = Math.round(accidentType.confidence * 100);
+  const tip = (ACCIDENT_TYPE_TIPS[topType] && ACCIDENT_TYPE_TIPS[topType][0]) || null;
+
+  if (!tip) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "";
+  document.getElementById("dash-focus-icon").textContent = pct >= 30 ? "🔴" : pct >= 15 ? "🟠" : "🔵";
+  document.getElementById("dash-focus-type").textContent = ACCIDENT_TYPE_SHORT_LABEL[topType] || topType;
+  document.getElementById("dash-focus-pct").textContent = `${pct}%`;
+  document.getElementById("dash-focus-tip").textContent = tip.desc;
+
+  // 방금 본 lastResult가 어느 이력(id)에 대응하는지 찾아서 상세 화면으로 바로 이동
+  const btn = document.getElementById("dash-focus-btn");
+  const latestWithId = getSavedResults().find((r) => r.id);
+  if (latestWithId) {
+    btn.href = `predict-result.html?resultId=${encodeURIComponent(latestWithId.id)}`;
+  } else {
+    btn.href = "predict-input.html";
+  }
+}
+
+// ── ④ 세부 위험 분석 (보조 정보 — 평균 대비 위험도 / 예측 심각도)
+function renderStats(result) {
+  const fr = result.severity.fatal_risk;
+
   document.getElementById("value-lift").textContent = `${fr.lift_vs_median}배`;
   document.getElementById("bar-prob").style.width = `${Math.min(fr.lift_vs_median * 20, 100)}%`;
 
-  // 예측 심각도 (경+중등도 / 중상 / 치명)
   document.getElementById("value-severity-class").textContent = result.severity.predicted_class;
   const severityBarPct = { "경+중등도": 20, "중상": 60, "치명": 100 }[result.severity.predicted_class] || 20;
   document.getElementById("bar-fatal").style.width = `${severityBarPct}%`;
-
-  // 예측 사고유형 TOP1
-  document.getElementById("value-top-type").textContent =
-    (ACCIDENT_TYPE_SHORT_LABEL && ACCIDENT_TYPE_SHORT_LABEL[result.accident_type.predicted_type]) ||
-    result.accident_type.predicted_type;
-  document.getElementById("value-top-type-pct").textContent = `${Math.round(result.accident_type.confidence * 100)}%`;
 }
 
 // ── 파이차트 (실제 5분류 확률 분포)
@@ -203,7 +279,25 @@ function renderPieChart(probabilities) {
     .join("");
 }
 
-// ── 유사사례 TOP3 (similarity_service.py 연동, 서버 없으면 자동 목업)
+// ── 파이차트 아래 "주요 사고 유형" 순위 텍스트 리스트 (우선순위를 빠르게 파악)
+function renderTypeRankMiniList(probabilities) {
+  const ranked = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+  document.getElementById("type-rank-mini-list").innerHTML = ranked
+    .map(([type, p], i) => {
+      const color = ACCIDENT_TYPE_COLORS[type] || "#B0B7C3";
+      const label = ACCIDENT_TYPE_SHORT_LABEL[type] || type;
+      return `
+        <div class="similar-case-list__item">
+          <span class="similar-case-list__rank">${i + 1}</span>
+          <div class="similar-case-list__title" style="flex:1;">${label}</div>
+          <span class="badge" style="background:${color}22; color:${color};">${Math.round(p * 100)}%</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// ── ⑤ 유사사례 TOP3 (제목 / 사고유형 / 유사도만 — 대시보드에서는 가볍게)
 function renderSimilarCases(cases, sim) {
   const tagEl = document.getElementById("similar-cases-mock-tag");
   if (tagEl) {
@@ -226,10 +320,7 @@ function renderSimilarCases(cases, sim) {
         <span class="similar-case-list__rank">${i + 1}</span>
         <div>
           <div class="similar-case-list__title">${c.title}</div>
-          <div class="similar-case-list__date">
-            <span class="badge" style="background:${color}22; color:${color};">${c.hazard_type}</span>
-          </div>
-          <div class="similar-case-list__summary text-clamp-1">${c.summary}</div>
+          <span class="badge" style="background:${color}22; color:${color}; margin-top:2px;">${c.hazard_type}</span>
         </div>
         <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
       </a>
@@ -238,7 +329,7 @@ function renderSimilarCases(cases, sim) {
     .join("");
 }
 
-// ── 오늘 시간별 위험도 추이
+// ── ⑥ 오늘 시간별 위험도 추이
 // 최근 분석에 쓰인 입력값(작업정보 등)은 그대로 두고, 기상 필드만 그 시간대 예보값으로
 // 바꿔서 predictRisk()를 시간대별로 실제 호출 → 진짜 시간별 위험도를 계산합니다.
 async function renderHourlyRiskTrend(basePayload) {
@@ -305,9 +396,30 @@ async function renderHourlyRiskTrend(basePayload) {
         scales: { y: { min: 0, max: 100 } },
       },
     });
+
+    renderTrendInsight(scores);
   } catch (err) {
     console.error("[dashboard.js] 시간별 위험도 추이 계산 실패:", err);
     document.getElementById("trend-loading-note")?.remove();
     wrap.innerHTML = `<p style="text-align:center; padding-top:60px; font-size: var(--fs-sm); color: var(--color-text-secondary);">⚠️ 백엔드 서버에 연결되지 않아 시간별 위험도를 계산할 수 없어요.<br>서버(uvicorn)가 켜져 있는지 확인해주세요.</p>`;
+  }
+}
+
+// 실제 계산된 시간별 점수가 뚜렷하게 오르내릴 때만 문구를 보여준다 (임의 문구 생성 금지)
+function renderTrendInsight(scores) {
+  const el = document.getElementById("trend-insight-text");
+  if (scores.length < 2) {
+    el.style.display = "none";
+    return;
+  }
+  const delta = scores[scores.length - 1] - scores[0];
+  if (delta >= 3) {
+    el.textContent = "📈 오늘 남은 시간대의 위험도가 상승하는 추세입니다.";
+    el.style.display = "";
+  } else if (delta <= -3) {
+    el.textContent = "📉 오늘 남은 시간대의 위험도가 낮아지는 추세입니다.";
+    el.style.display = "";
+  } else {
+    el.style.display = "none";
   }
 }

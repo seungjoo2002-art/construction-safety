@@ -323,12 +323,21 @@ class SimilarityWebService:
         construction_text = str(raw_user_input.get('construction_text', '미지정'))
         work_text = str(raw_user_input.get('work_text', '미지정'))
 
-        # 1. 텍스트 채널 유사도 — OpenAI 키가 있으면 임베딩, 없으면 카테고리 완전/부분일치로 근사
+        # 1. 텍스트 채널 유사도 — OpenAI 키가 있으면 임베딩, 없거나 호출이 실패하면(크레딧 소진,
+        #    429, 네트워크 오류 등) 카테고리 완전/부분일치 근사로 자동 대체합니다. 키가 "있는데
+        #    호출이 실패하는" 경우를 안 잡으면 /api/analyze 전체가 500으로 죽어 화면에서
+        #    산점도·유사사례가 통째로 사라집니다 — advisor.py가 겪은 것과 동일한 문제.
+        used_embedding = False
         if self.client is not None:
-            sim_fac, sim_con, sim_wrk, build_pairwise = self._text_channels_embedding(
-                facility_text, construction_text, work_text
-            )
-        else:
+            try:
+                sim_fac, sim_con, sim_wrk, build_pairwise = self._text_channels_embedding(
+                    facility_text, construction_text, work_text
+                )
+                used_embedding = True
+            except Exception as e:
+                print(f"[similarity_service.py] ⚠️ OpenAI 임베딩 호출 실패, 근사 유사도로 대체: {e}")
+
+        if not used_embedding:
             sim_fac, sim_con, sim_wrk, build_pairwise = self._text_channels_fallback(
                 facility_text, construction_text, work_text
             )
@@ -416,7 +425,7 @@ class SimilarityWebService:
             "similar_cases": cases_list,
             "mds_chart_image": f"data:image/png;base64,{chart_base64}",
             "prevention_guidelines": guidelines,
-            # client가 없으면(OPENAI_API_KEY 미설정) 텍스트 임베딩 대신 카테고리
+            # 임베딩 호출을 못 했으면(키 미설정 또는 호출 실패) 텍스트 임베딩 대신 카테고리
             # 완전/부분일치로 근사한 결과 — 실제 DB 기반이지만 정밀도는 임베딩보다 낮음.
-            "is_approximate": self.client is None,
+            "is_approximate": not used_embedding,
         }

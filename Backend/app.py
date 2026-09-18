@@ -176,6 +176,55 @@ def predict(body: PredictIn):
     }
 
 
+# ── 해결방안 서비스 (advisor.py — KOSHA 유사사례 검색 + Gemini 안전수칙 생성)
+#    로컬 TF-IDF(가벼움)만 쓰므로 sim_service/hazard_service처럼 메모리 걱정은
+#    없지만, 패턴을 통일하기 위해 동일하게 지연 초기화합니다.
+advisor_service: Optional["SafetyAdvisor"] = None
+
+
+def get_advisor_service() -> Optional["SafetyAdvisor"]:
+    global advisor_service
+    if advisor_service is None:
+        try:
+            from advisor import SafetyAdvisor
+
+            advisor_service = SafetyAdvisor(gemini_api_key=os.environ.get("GEMINI_API_KEY", ""))
+            print("[app.py] 해결방안 서비스(advisor.py) 초기화 완료")
+        except Exception as e:
+            print(f"[app.py] ⚠️ 해결방안 서비스 초기화 실패: {e}")
+    return advisor_service
+
+
+class AdviseIn(BaseModel):
+    data: Dict[str, Any]        # /api/predict 와 동일한 31개 필드
+    상황: Optional[str] = None  # 자유 서술 (없으면 예측 결과로 자동 생성)
+
+
+@app.post("/api/advise")
+def advise(body: AdviseIn):
+    """예측(위험도·사고유형) → KOSHA 유사사례 검색 → Gemini 안전수칙 생성을 한 번에 반환.
+    예측 모형은 /api/predict와 동일한 severity_predictor/accident_type_predictor를 재사용한다
+    (모형을 중복 로드하지 않음)."""
+    service = get_advisor_service()
+    if service is None:
+        raise HTTPException(status_code=503, detail="해결방안 서비스를 초기화하지 못했습니다 (kosha_sif 자산 확인 필요)")
+
+    severity = severity_predictor.predict_one(body.data)
+    accident_type = accident_type_predictor.predict_one(body.data)
+    risk = {
+        "injury_top": accident_type["predicted_type"],
+        "relative_risk_percentile": severity["fatal_risk"]["percentile"],
+    }
+    result = service.advise(
+        risk,
+        body.data.get("공종 - 중분류", ""),
+        body.data.get("추출된_작업종류", ""),
+        상황=body.상황,
+    )
+    result["risk"] = {"severity": severity, "accident_type": accident_type}
+    return result
+
+
 @app.get("/api/distributions")
 def distributions():
     """참조분포 요약 — 나중에 통계/차트 화면에서 쓸 수 있음."""

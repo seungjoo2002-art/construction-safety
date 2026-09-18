@@ -93,6 +93,21 @@
     <h2 class="card-section-title" style="margin: 0 0 var(--space-sm) 4px;">예방 조치</h2>
     <div class="tip-grid" id="tip-grid"></div>
 
+    <!-- ── AI 안전수칙 (advisor.py: KOSHA 유사사례 검색 + Gemini 생성) -->
+    <section class="card" style="margin: var(--space-md) 0; display:none;" id="ai-advice-section">
+      <h2 class="card-section-title">🤖 AI 맞춤 안전수칙</h2>
+      <p style="font-size: 11px; color: var(--color-text-secondary); margin-bottom: var(--space-sm);">
+        예측 결과와 가장 비슷한 KOSHA 실제 재해사례의 대책을 바탕으로 생성했어요. 확실하지 않은 부분은
+        아래 근거 사례 원문과 대조해서 확인해주세요.
+      </p>
+      <div id="ai-advice-warning" style="display:none; font-size: var(--fs-sm); color: var(--color-caution); background: var(--color-caution-bg); padding: var(--space-sm); border-radius: 8px; margin-bottom: var(--space-sm);"></div>
+      <div id="ai-advice-text" style="font-size: var(--fs-sm); line-height: 1.6; margin-bottom: var(--space-sm);"></div>
+      <details>
+        <summary style="cursor:pointer; font-size: var(--fs-sm); color: var(--color-text-secondary);">📋 근거가 된 KOSHA 사례 원문 보기</summary>
+        <div id="ai-advice-evidence" style="margin-top: var(--space-sm);"></div>
+      </details>
+    </section>
+
     <!-- ── 분석 정보 -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <h2 class="card-section-title">분석 정보</h2>

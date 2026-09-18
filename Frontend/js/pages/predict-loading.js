@@ -50,6 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ── 실제(목업) API 호출은 화면 연출과 동시에 백그라운드에서 진행
   const apiPromise = predictRisk(payload);
   const simPromise = getSimilarity(payload); // 유사도 분석(유사사례+산점도+재발방지대책)도 같이 요청
+  const advisePromise = getSafetyAdvice(payload); // KOSHA 근거사례 + AI 생성 안전수칙도 같이 요청
 
   markActive(step1);
   setProgress(10);
@@ -65,13 +66,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   markActive(step3);
 
   try {
-    const [result, simResult] = await Promise.all([apiPromise, simPromise]); // { severity, accident_type }, { similar_cases, mds_chart_image, prevention_guidelines }
+    const [result, simResult, adviseResult] = await Promise.all([apiPromise, simPromise, advisePromise]); // { severity, accident_type }, { similar_cases, mds_chart_image, prevention_guidelines }, { evidence, advice, verification, retrieval }|null
     markDone(step3);
     setProgress(100);
 
     // ── 디버깅용: 백엔드에서 받은 결과값을 콘솔에 그대로 표시
     console.log("[predict-loading.js] 위험도 분석 결과 (severity + accident_type):", result);
     console.log("[predict-loading.js] 유사도 분석 결과 (similar_cases + mds_chart_image + prevention_guidelines):", simResult);
+    console.log("[predict-loading.js] 해결방안 결과 (evidence + advice + verification):", adviseResult);
 
     saveLastPredictResult(result, payload); // 대시보드가 읽어갈 "최근 분석" 갱신
     saveLastSimilarity(simResult); // 대시보드/유사사례가 읽어갈 "최근 유사도 분석" 갱신
@@ -91,6 +93,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     sessionStorage.setItem("predict_result", JSON.stringify(result));
     sessionStorage.setItem("predict_result_input", JSON.stringify(payload));
     sessionStorage.setItem("similarity_result", JSON.stringify(simResult));
+    if (adviseResult) sessionStorage.setItem("advise_result", JSON.stringify(adviseResult));
+    else sessionStorage.removeItem("advise_result");
 
     await wait(400); // 체크 표시가 눈에 보일 시간 살짝 확보
     window.location.href = "predict-result.html";

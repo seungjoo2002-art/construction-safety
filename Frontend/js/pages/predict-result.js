@@ -9,7 +9,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const resultId = new URLSearchParams(window.location.search).get("resultId");
 
-  let result, input, sim;
+  let result, input, sim, advise;
 
   if (resultId) {
     const record = getSavedResultById(resultId);
@@ -21,10 +21,12 @@ document.addEventListener("DOMContentLoaded", () => {
     result = record.result;
     input = record.input || {};
     sim = record.sim || null;
+    advise = null; // 지난 이력은 AI 생성문을 다시 보관하지 않음(매번 재생성하면 값이 바뀔 수 있어서)
   } else {
     const resultRaw = sessionStorage.getItem("predict_result");
     const inputRaw = sessionStorage.getItem("predict_result_input");
     const simRaw = sessionStorage.getItem("similarity_result");
+    const adviseRaw = sessionStorage.getItem("advise_result");
 
     if (!resultRaw) {
       // 결과 없이 이 화면에 바로 들어온 경우 → 입력 화면으로 되돌림
@@ -35,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     result = JSON.parse(resultRaw); // { severity, accident_type }
     input = inputRaw ? JSON.parse(inputRaw) : {};
     sim = simRaw ? JSON.parse(simRaw) : null; // { similar_cases, mds_chart_image, prevention_guidelines, _mock?, is_approximate? }
+    advise = adviseRaw ? JSON.parse(adviseRaw) : null; // { evidence, advice, verification, retrieval }
   }
 
   // ── 디버깅용: 이 결과 화면에 쓰인 입력 변수/결과값을 콘솔에 그대로 표시
@@ -59,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPrevention(result.accident_type, null);
   }
 
+  renderAiAdvice(advise);
   renderAnalysisMeta(input);
   bindActions(result, input);
 });
@@ -236,6 +240,70 @@ function renderPrevention(accidentType, guidelines) {
     `
     )
     .join("");
+}
+
+// ── AI 안전수칙 (advisor.py: KOSHA 유사사례 검색 + Gemini 생성)
+//    advise가 null이면(백엔드 연결 실패 등) 섹션 자체를 숨긴다 — 목업 텍스트를
+//    실제 AI 답변처럼 보여주는 건 부적절하기 때문.
+function renderAiAdvice(advise) {
+  const section = document.getElementById("ai-advice-section");
+  if (!advise || !advise.evidence || advise.evidence.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "";
+
+  const textEl = document.getElementById("ai-advice-text");
+  const warnEl = document.getElementById("ai-advice-warning");
+  const evidenceEl = document.getElementById("ai-advice-evidence");
+
+  if (advise.advice) {
+    // AI가 생성한 문장을 그대로 표시 (줄바꿈만 <br>로 치환)
+    textEl.innerHTML = escapeHtml(advise.advice).replace(/\n/g, "<br>");
+
+    const v = advise.verification;
+    const issues = [];
+    if (v?.지어낸수치?.length) issues.push(`원문에 없는 수치가 섞였을 수 있어요: ${v.지어낸수치.join(", ")}`);
+    if (v?.가짜출처?.length) issues.push(`존재하지 않는 사례 번호가 인용됐어요: #${v.가짜출처.join(", #")}`);
+    if (v?.과다재작성?.length) issues.push(`${v.과다재작성.length}개 항목이 원문과 많이 달라졌어요 — 아래 근거 사례 원문과 대조해보세요.`);
+
+    if (issues.length) {
+      warnEl.style.display = "";
+      warnEl.innerHTML = `⚠️ AI 생성문 자동 검증 결과<br>${issues.map((t) => `· ${escapeHtml(t)}`).join("<br>")}`;
+    } else {
+      warnEl.style.display = "none";
+    }
+  } else {
+    // LLM 미사용/실패 시: KOSHA 원문 대책을 그대로 노출 (README 권장 폴백)
+    textEl.innerHTML =
+      `<span style="color:var(--color-text-secondary); font-size:var(--fs-sm);">AI 생성 요약 없이, 유사 사례의 KOSHA 원문 대책을 그대로 보여드려요.</span>`;
+    warnEl.style.display = "none";
+  }
+
+  // 근거 사례 (접이식) — 안전 정보는 사람이 원문과 대조할 수 있어야 하므로 항상 같이 노출
+  evidenceEl.innerHTML = advise.evidence
+    .map((e) => {
+      const lowSim = e.점수 < 0.3; // 로컬 TF-IDF 기준 근사 임계치 — 낮으면 "참고용"으로 표시
+      return `
+        <div class="prevention-list__item" style="align-items:flex-start;">
+          <span class="prevention-list__check">📋</span>
+          <span class="prevention-list__text">
+            ${escapeHtml(e.대책)}
+            <span style="display:block; font-size:11px; color:var(--color-text-placeholder); margin-top:2px;">
+              KOSHA 사례 #${e.출처.id} · ${escapeHtml(e.출처.공종)}/${escapeHtml(e.출처.작업명)} · ${escapeHtml(e.출처.재해종류)}
+              ${lowSim ? " · <span style=\"color:var(--color-caution);\">참고용(유사도 낮음)</span>" : ""}
+            </span>
+          </span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function escapeHtml(s) {
+  const div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
 }
 
 // ── 분석 정보 (실제 입력값 기반 — 위치는 역지오코딩 미보유로 생략)

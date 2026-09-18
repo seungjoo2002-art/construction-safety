@@ -211,6 +211,31 @@ function mockSimilarityResult() {
 }
 
 // ============================================================
+// 해결방안 (advisor.py 연동 — KOSHA 유사사례 검색 + Gemini 안전수칙 생성)
+// ============================================================
+/**
+ * @param {object} payload predict-input.js에서 조립한 것과 동일한 RAW_INPUT_COLS 형태 객체
+ * @param {string} [상황] 자유 서술(예: "슬래브 콘크리트 타설 중 거푸집 붕괴 위험"). 없으면 서버가 예측 결과로 자동 생성.
+ * @returns {Promise<{evidence, advice, verification, retrieval}|null>} 실패 시 null
+ *          (AI 생성문이라 목업으로 대체하면 실제처럼 보여 부적절 — 실패하면 그냥 섹션을 숨긴다)
+ */
+async function getSafetyAdvice(payload, 상황) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/advise`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: payload, 상황: 상황 || null }),
+      signal: AbortSignal.timeout(40000), // Gemini 생성 호출이 껴서 넉넉히 40초
+    });
+    if (!res.ok) throw new Error(`해결방안 요청 실패 (${res.status})`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[api.js] 해결방안 서비스(${API_BASE_URL}) 연결 실패 → 섹션을 생략합니다.`, err);
+    return null;
+  }
+}
+
+// ============================================================
 // 사고 사례 DB 조회 (Hugging Face Dataset Viewer API 직접 호출 — hf-dataset.js)
 // 더 이상 Render 백엔드를 거치지 않습니다. mock-cases.js의 MOCK_CASES는 HF 데이터셋이
 // 설정되지 않았거나 연결 실패 + IndexedDB에도 저장된 게 없을 때만 최후의 폴백으로

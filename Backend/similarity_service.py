@@ -369,9 +369,10 @@ class SimilarityWebService:
 
         top_20_idx = np.argsort(scores)[::-1][:20]
 
-        # 4. Top-20 유사 사고 사례 수집
+        # 4. Top-20 유사 사고 사례 수집 — 결과 화면 위젯은 상위 3건만 보여주지만,
+        #    "전체 →" 클릭 시 유사도 순 전체 목록을 보여줄 수 있도록 20건 모두 반환합니다.
         cases_list = []
-        for idx in top_20_idx[:6]:
+        for idx in top_20_idx:
             row = self.df_db.iloc[idx]
             sim_percent = int((scores[idx] / self.total_w) * 100)
             cases_list.append({

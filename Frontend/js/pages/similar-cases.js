@@ -11,6 +11,7 @@ const CASES_PAGE_LIMIT = 50; // 한 번에 50건, 최대 100건(hf-dataset.js가
 document.addEventListener("DOMContentLoaded", () => {
   const chipRow = document.getElementById("filter-chip-row");
   const searchInput = document.getElementById("case-search-input");
+  const searchBoxEl = document.getElementById("case-search-box");
   const listEl = document.getElementById("case-list");
   const countEl = document.getElementById("case-count");
   const dbNoteEl = document.getElementById("db-total-note");
@@ -20,6 +21,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const nextBtn = document.getElementById("case-next");
   const pageIndicatorEl = document.getElementById("case-page-indicator");
   const filterNoteEl = document.getElementById("case-filter-note");
+  const exitLinkEl = document.getElementById("analysis-mode-exit");
+
+  // ── 위험도 분석 결과("전체 →")에서 들어온 경우: 검색/필터 대신 방금 분석에서
+  //    계산된 유사도 순 목록을 그대로 보여준다 (predict-loading.js가 저장해둔
+  //    sessionStorage "similarity_result", similarity_service.analyze()의 결과).
+  if (new URLSearchParams(location.search).get("from") === "analysis") {
+    const simRaw = sessionStorage.getItem("similarity_result");
+    const sim = simRaw ? JSON.parse(simRaw) : null;
+    if (sim && Array.isArray(sim.similar_cases) && sim.similar_cases.length > 0) {
+      renderAnalysisCases(sim.similar_cases);
+      return;
+    }
+    // 분석 데이터가 없으면(세션 만료 등) 일반 검색 모드로 자연스럽게 대체
+  }
 
   let activeFilter = "전체";
   let requestSeq = 0; // 느리게 도착한 이전 요청 응답이 최신 렌더를 덮어쓰지 않도록
@@ -144,6 +159,42 @@ document.addEventListener("DOMContentLoaded", () => {
     pageIndicatorEl.textContent = `${currentPage} 페이지`;
     prevBtn.disabled = offset <= 0;
     nextBtn.disabled = !hasNext;
+  }
+
+  // ── 위험도 분석 결과 기반 유사 사례 (유사도 순, similarity_service.py의 similar_cases)
+  //    predict-result.js의 TOP3 위젯과 동일한 카드 스타일(similar-case-list__item)을 쓴다 —
+  //    이 데이터는 HF 데이터셋 검색 결과가 아니라 방금 계산된 분석 결과 그대로이므로
+  //    검색창/필터/페이지네이션은 의미가 없어 숨긴다.
+  function renderAnalysisCases(cases) {
+    searchBoxEl.style.display = "none";
+    chipRow.style.display = "none";
+    paginationEl.style.display = "none";
+    filterNoteEl.style.display = "none";
+    mockTagEl.style.display = "none";
+    exitLinkEl.style.display = "inline";
+
+    dbNoteEl.textContent = "위험도 분석 결과 기반 유사 사례 · 유사도 순";
+    countEl.textContent = `${cases.length}건`;
+    listEl.classList.add("card");
+
+    listEl.innerHTML = cases
+      .map((c, i) => {
+        const color = (typeof SIM_HAZARD_COLORS !== "undefined" && SIM_HAZARD_COLORS[c.hazard_type]) || "#B0B7C3";
+        return `
+        <a href="case-detail.html?id=${encodeURIComponent(c.id)}" class="similar-case-list__item">
+          <span class="similar-case-list__rank">${i + 1}</span>
+          <div>
+            <div class="similar-case-list__title">${c.title}</div>
+            <div class="similar-case-list__date">
+              <span class="badge" style="background:${color}22; color:${color};">${c.hazard_type}</span>
+            </div>
+            <div class="similar-case-list__summary text-clamp-1">${c.summary}</div>
+          </div>
+          <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
+        </a>
+      `;
+      })
+      .join("");
   }
 
   loadCases({ offset: 0 });

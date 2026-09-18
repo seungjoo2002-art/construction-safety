@@ -31,9 +31,10 @@
   <div class="app-content">
     <p style="font-size: var(--fs-xs); color: var(--color-text-placeholder); margin-top: -8px; margin-bottom: var(--space-md);">
       <span id="db-total-note">불러오는 중...</span> <span class="mock-tag" id="cases-mock-tag" style="display:none;">MOCK</span>
+      <a href="similar-cases.html" id="analysis-mode-exit" style="display:none; margin-left:6px;">· 전체 사례 검색으로 보기</a>
     </p>
 
-    <div class="case-search">
+    <div class="case-search" id="case-search-box">
       <span class="case-search__icon">🔍</span>
       <input type="text" id="case-search-input" placeholder="사고 유형, 현장 검색...">
     </div>
@@ -65,6 +66,7 @@
 
 <script src="../js/common/idb-store.js"></script>
 <script src="../js/common/mock-cases.js"></script>
+<script src="../js/common/constants.js"></script>
 <script src="../js/common/env.js"></script>
 <script src="../js/common/hf-dataset.js"></script>
 <script src="../js/common/api.js"></script>

@@ -1430,27 +1430,30 @@
 }
 .notif-summary__count span { font-size: var(--fs-2xl); }
 
-/* 알림 시간대 구분선("오늘"/"어제"/"이전") */
-.notif-group-divider {
+/* 알림 출처 구분 섹션 헤더 (위험도 분석 / 사진 분석 / AI 챗봇 / 기상 정보 / 교육 안내) */
+.notif-source-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: var(--space-md) 0 var(--space-sm);
+  gap: 6px;
+  margin: var(--space-lg) 0 var(--space-sm);
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--color-border);
 }
-.notif-group-divider:first-child { margin-top: 0; }
-.notif-group-divider__label {
-  flex-shrink: 0;
+.notif-source-header:first-child { margin-top: 0; }
+.notif-source-header__icon { font-size: 15px; }
+.notif-source-header__label {
+  font-weight: 800;
+  font-size: var(--fs-sm);
+  color: var(--color-text-primary);
+}
+.notif-source-header__count {
+  margin-left: auto;
   font-size: 11px;
   font-weight: 700;
   color: var(--color-text-placeholder);
 }
-.notif-group-divider__line {
-  flex: 1;
-  height: 1px;
-  background: var(--color-border);
-}
 
-/* 알림 카드 1건 — 위에서부터: 중요도 → 제목 → 상황 → 권장조치 → 시간/출처 → 버튼 */
+/* 알림 카드 1건 — 위에서부터: 중요도 → 제목 → 상황 → 권장조치 → 시간 → 버튼 */
 .notif-item {
   background: #fff;
   border-radius: var(--radius-md);

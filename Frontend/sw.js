@@ -14,7 +14,7 @@
 //   레벨(api.js)에서 구현되고, 서비스워커는 여기 관여하지 않는다.
 // ============================================================
 
-const SHELL_CACHE = "ai-safety-shell-v4";
+const SHELL_CACHE = "ai-safety-shell-v5";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -24,6 +24,7 @@ const OFFLINE_URL = "html/offline.html";
 // 원본 데이터 파일(assets/*.npy, *.csv, *.xlsx, incidents.db)은 여기 절대 넣지 않는다.
 const PRECACHE_URLS = [
   // HTML 화면
+  "html/analysis-history.html",
   "html/case-detail.html",
   "html/chatbot.html",
   "html/dashboard.html",
@@ -59,10 +60,12 @@ const PRECACHE_URLS = [
   "js/common/mock-cases.js",
   "js/common/mock-scatter.js",
   "js/common/nav.js",
+  "js/common/notification-center.js",
   "js/common/notifications-realtime.js",
   "js/common/session-store.js",
   "js/common/weather.js",
   // JS 화면별
+  "js/pages/analysis-history.js",
   "js/pages/case-detail.js",
   "js/pages/chatbot.js",
   "js/pages/dashboard.js",

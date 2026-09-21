@@ -47,7 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[predict-result.js] 유사도 분석 결과 (similar_cases + mds_chart_image + prevention_guidelines):", sim);
 
   renderScore(result.severity);
-  renderTypeRankList(result.accident_type);
 
   if (sim) {
     // _mock: 백엔드 연결 자체가 실패해서 완전 하드코딩 목업으로 대체된 경우
@@ -59,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSimilarCases(sim.similar_cases);
     renderPrevention(result.accident_type, sim.prevention_guidelines);
   } else {
+    renderScatterImage(null); // 유사도 결과 없음 → "불러오지 못했어요" 안내 + 확대 버튼 숨김
     renderPrevention(result.accident_type, null);
   }
 
@@ -82,18 +82,32 @@ function toggleModeTag(id, sim) {
 }
 
 // ── 유사도 산점도 미니 이미지 (백엔드 /api/analyze가 렌더링해서 내려주는 이미지)
+//    이미지 자체 또는 "🔍 자세히 보기" 버튼을 누르면 전체화면 뷰어로 확대한다.
 function renderScatterImage(imageUrl) {
   const img = document.getElementById("scatter-mini-image");
+  const zoomBtn = document.getElementById("scatter-zoom-btn");
   const showError = () => {
     img.closest(".scatter-mini-canvas-wrap").innerHTML =
       `<p style="text-align:center; padding:60px 0; font-size:14px; color:#888;">산점도 이미지를 불러오지 못했어요.</p>`;
+    zoomBtn.hidden = true; // 확대할 이미지가 없으면 버튼도 숨김
   };
-  if (imageUrl) {
-    img.onerror = showError; // src는 있는데 디코딩/로드 자체가 실패한 경우까지 잡아줌
-    img.src = imageUrl;
-  } else {
+  if (!imageUrl) {
     showError();
+    return;
   }
+
+  const openViewer = () =>
+    ImageViewer.open(imageUrl, {
+      alt: "유사도 산점도 차트",
+      caption: "두 손가락으로 확대 · 두 번 탭하면 확대/원래대로",
+      detailHref: "scatter-detail.html",
+      detailLabel: "유사 사례·재발 방지 대책 보기 →",
+    });
+
+  img.onerror = showError; // src는 있는데 디코딩/로드 자체가 실패한 경우까지 잡아줌
+  img.src = imageUrl;
+  ImageViewer.bindTrigger(img, openViewer);
+  zoomBtn.addEventListener("click", openViewer);
 }
 
 // ── 종합 위험도 (fatal_risk.percentile을 0~100 점수로 그대로 사용)
@@ -124,40 +138,6 @@ function gradeToColor(grade) {
   if (grade === "매우위험" || grade === "위험") return "var(--color-danger)";
   if (grade === "주의") return "var(--color-caution)";
   return "var(--color-safe)";
-}
-
-// ── 예측 사고 유형 순위 (실제 백엔드 응답 형태 그대로 사용)
-function renderTypeRankList(accidentType) {
-  const listEl = document.getElementById("type-rank-list");
-  const top = accidentType.ranked_types.slice(0, 4); // 상위 4개만 표시
-
-  listEl.innerHTML = top
-    .map((r) => {
-      const color = ACCIDENT_TYPE_COLORS[r.type] || "#B0B7C3";
-      const shortLabel = ACCIDENT_TYPE_SHORT_LABEL[r.type] || r.type;
-      const badgeClass =
-        r.likelihood === "매우높음" || r.likelihood === "높음"
-          ? "badge--danger"
-          : r.likelihood === "보통"
-          ? "badge--caution"
-          : "badge--safe";
-
-      return `
-        <div class="type-rank-item">
-          <span class="type-rank-item__icon" style="background:${color}"></span>
-          <div>
-            <div class="type-rank-item__title">
-              ${shortLabel}
-              <span class="badge ${badgeClass}">${r.likelihood}</span>
-            </div>
-            <div class="type-rank-item__desc">
-              발생확률 ${Math.round(r.probability * 100)}% · ${r.likelihood_description}
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
 }
 
 // ── 유사 사고 사례 (similarity_service.py의 similar_cases — title/summary/hazard_type/similarity_percent)

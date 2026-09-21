@@ -44,6 +44,7 @@ import base64
 import io
 import os
 import sys
+import threading
 import requests
 from PIL import Image, ImageOps
 
@@ -193,6 +194,24 @@ def get_advisor_service() -> Optional["SafetyAdvisor"]:
         except Exception as e:
             print(f"[app.py] ⚠️ 해결방안 서비스 초기화 실패: {e}")
     return advisor_service
+
+
+@app.on_event("startup")
+def _warm_up_advisor():
+    """ADVISOR_LLM=exaone 이면 서버가 뜰 때 백그라운드에서 모델을 미리 올린다
+    (첫 요청이 모델 로딩 ~20초까지 떠안지 않도록). 그 외(Gemini)에는 아무것도 하지 않는다."""
+    if os.environ.get("ADVISOR_LLM", "").strip().lower() != "exaone":
+        return
+
+    def _load():
+        svc = get_advisor_service()
+        if svc is not None:
+            try:
+                svc.load_exaone()
+            except Exception as e:
+                print(f"[app.py] ⚠️ EXAONE 사전 로딩 실패 (요청 시 Gemini 폴백): {e}")
+
+    threading.Thread(target=_load, daemon=True).start()
 
 
 class AdviseIn(BaseModel):

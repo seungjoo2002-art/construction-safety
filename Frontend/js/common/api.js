@@ -225,7 +225,7 @@ async function getSafetyAdvice(payload, 상황) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: payload, 상황: 상황 || null }),
-      signal: AbortSignal.timeout(40000), // Gemini 생성 호출이 껴서 넉넉히 40초
+      signal: AbortSignal.timeout(300000), // 로컬 EXAONE(CPU) 생성은 1건에 ~2분 → 5분까지 기다린다 (Gemini면 수 초)
     });
     if (!res.ok) throw new Error(`해결방안 요청 실패 (${res.status})`);
     return await res.json();

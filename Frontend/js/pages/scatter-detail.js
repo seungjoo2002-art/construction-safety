@@ -40,6 +40,13 @@ function renderScatterImage(imageUrl) {
   if (imageUrl) {
     img.onerror = showError; // src는 있는데 디코딩/로드 자체가 실패한 경우까지 잡아줌
     img.src = imageUrl;
+    // 이미지를 탭하면 전체화면 뷰어로 확대 (predict-result 화면과 같은 뷰어)
+    ImageViewer.bindTrigger(img, () =>
+      ImageViewer.open(imageUrl, {
+        alt: "유사 사례 2D 투영 산점도",
+        caption: "두 손가락으로 확대 · 두 번 탭하면 확대/원래대로",
+      })
+    );
   } else {
     showError();
   }

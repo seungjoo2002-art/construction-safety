@@ -35,6 +35,14 @@ torch
 torchvision
 pillow
 
+# ============================================================
+# (선택) ADVISOR_LLM=exaone — 해결방안 생성을 로컬 EXAONE-4.0-1.2B로 돌릴 때만 필요.
+# Render 배포(기본값 ADVISOR_LLM=gemini)에서는 설치하지 않아도 됩니다.
+# 모델은 첫 실행 때 Hugging Face에서 자동으로 받습니다(약 2.6GB, 토큰 불필요).
+# ※ dtype= 인자를 쓰므로 transformers 4.56 이상이 필요합니다.
+# ============================================================
+# transformers>=4.56
+
 # 설치
 #   pip install -r requirements.txt
 #

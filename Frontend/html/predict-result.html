@@ -56,25 +56,20 @@
       </div>
     </section>
 
-    <!-- ── 예측 사고 유형 순위 (predict_accident_type.py의 ranked_types) -->
-    <section class="card" style="margin-bottom: var(--space-md);">
-      <h2 class="card-section-title">예측 사고 유형 순위</h2>
-      <div id="type-rank-list"></div>
-    </section>
-
-    <!-- ── 유사도 산점도 (similarity_service.py 연동, 서버 없으면 자동 목업) -->
+    <!-- ── 유사도 산점도 (similarity_service.py 연동, 서버 없으면 자동 목업)
+         이미지 또는 "자세히 보기"를 누르면 전체화면 뷰어(image-viewer.js)로 확대 -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <div class="card-section-header">
         <h2 class="card-section-title" style="margin-bottom:0;">
           유사도 산점도 <span class="mock-tag" id="scatter-mock-tag" style="display:none;">MOCK</span>
         </h2>
-        <a href="scatter-detail.html" class="card-section-link">🔍 자세히 보기</a>
+        <button type="button" class="card-section-link card-section-link--btn" id="scatter-zoom-btn">🔍 자세히 보기</button>
       </div>
       <p style="font-size: 11px; color: var(--color-text-secondary); margin-bottom: var(--space-sm);">
         9개 변수 기반 2D 유사도 공간 · 상위 20개 사례
       </p>
-      <div class="scatter-mini-canvas-wrap">
-        <img id="scatter-mini-image" style="width: 100%; height: auto; display: block; border-radius: 8px;" alt="유사도 산점도 차트" />
+      <div class="scatter-mini-canvas-wrap" id="scatter-mini-wrap">
+        <img id="scatter-mini-image" class="scatter-zoomable" alt="유사도 산점도 차트 (탭하면 확대)" />
       </div>
     </section>
 
@@ -135,6 +130,7 @@
 
 <script src="../js/common/constants.js"></script>
 <script src="../js/common/session-store.js"></script>
+<script src="../js/common/image-viewer.js"></script>
 <script src="../js/pages/predict-result.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

@@ -5,9 +5,11 @@
 //
 // 정보 우선순위(위→아래): 현재 상태 → 가장 위험한 사고유형 → 지금 할 일 →
 // 세부 위험 분석 → 유사 사례 → 시간별 위험도 → 진입 배너
+// (사고유형별 확률 분포 — "예측 사고 유형 분류" 파이차트/순위 — 는 화면에서 제거됨.
+//  모델/API 응답의 accident_type.probabilities 자체는 그대로이고 여기서 그리지만 않는다.)
 //
 // 데이터 소스:
-//  - 종합위험도 / 사고유형 / 파이차트  → getLastPredictResult() (실제 모델 응답, 없으면 빈 상태)
+//  - 종합위험도 / 사고유형             → getLastPredictResult() (실제 모델 응답, 없으면 빈 상태)
 //  - 유사사례 TOP3                    → MOCK_CASES (목업, 분석 전엔 빈 상태)
 //  - 오늘 시간별 위험도 추이           → 오늘 남은 시간대 실제 날씨 + predictRisk() 실제 호출
 //  - 헤더 알림 배지                    → notification-center.js (알림 화면과 동일한 데이터)
@@ -22,20 +24,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const lastSimilarity = getLastSimilarity();
   const siteSetup = hasSiteSetup() ? getSiteSetup() : null;
 
-  // ── 핵심 정보(종합위험도/가장위험한유형/지금할일/세부분석/파이차트): 실제 위험도
+  // ── 핵심 정보(종합위험도/가장위험한유형/지금할일/세부분석): 실제 위험도
   //    분석을 한 번이라도 해야 채워짐
   if (!lastResult) {
     renderHeroEmpty();
     renderFocusEmpty();
     renderStatsEmpty();
-    renderPieEmpty();
     renderSimilarEmpty();
   } else {
     renderHero(lastResult);
     renderFocus(lastResult.accident_type);
     renderStats(lastResult);
-    renderPieChart(lastResult.accident_type.probabilities);
-    renderTypeRankMiniList(lastResult.accident_type.probabilities);
 
     if (lastSimilarity && lastSimilarity.similar_cases && lastSimilarity.similar_cases.length > 0) {
       renderSimilarCases(lastSimilarity.similar_cases.slice(0, 3), lastSimilarity);
@@ -95,14 +94,6 @@ function renderFocusEmpty() {
 function renderStatsEmpty() {
   document.getElementById("stat-grid-wrapper").innerHTML = emptyStateHtml(
     "아직 위험도 분석 결과가 없어요.<br>분석을 진행하면 여기에 수치가 채워져요.",
-    "predict-input.html",
-    "위험도 분석하러 가기"
-  );
-}
-
-function renderPieEmpty() {
-  document.getElementById("pie-section-body").innerHTML = emptyStateHtml(
-    "예측 사고 유형 분류를 보려면 먼저 분석을 진행해주세요.",
     "predict-input.html",
     "위험도 분석하러 가기"
   );
@@ -232,69 +223,6 @@ function renderStats(result) {
   document.getElementById("value-severity-class").textContent = result.severity.predicted_class;
   const severityBarPct = { "경+중등도": 20, "중상": 60, "치명": 100 }[result.severity.predicted_class] || 20;
   document.getElementById("bar-fatal").style.width = `${severityBarPct}%`;
-}
-
-// ── 파이차트 (실제 5분류 확률 분포)
-function renderPieChart(probabilities) {
-  const canvas = document.getElementById("type-pie-chart");
-  const wrap = canvas.closest(".chart-canvas-wrap");
-  const entries = Object.entries(probabilities); // [ [type, prob], ... ]
-
-  try {
-    if (typeof Chart === "undefined") throw new Error("Chart.js를 불러오지 못했어요");
-    const existing = Chart.getChart(canvas);
-    if (existing) existing.destroy();
-
-    new Chart(canvas, {
-      type: "pie",
-      data: {
-        labels: entries.map(([type]) => ACCIDENT_TYPE_SHORT_LABEL[type] || type),
-        datasets: [
-          {
-            data: entries.map(([, p]) => Math.round(p * 1000) / 10),
-            backgroundColor: entries.map(([type]) => ACCIDENT_TYPE_COLORS[type] || "#B0B7C3"),
-            borderWidth: 0,
-          },
-        ],
-      },
-      options: { plugins: { legend: { display: false } }, maintainAspectRatio: false },
-    });
-  } catch (err) {
-    console.error("[dashboard.js] 파이차트 렌더링 실패:", err);
-    wrap.innerHTML = `<p style="text-align:center; padding-top:80px; font-size: var(--fs-sm); color: var(--color-text-secondary);">차트를 불러오지 못했어요.</p>`;
-  }
-
-  document.getElementById("type-pie-legend").innerHTML = entries
-    .map(([type, p]) => {
-      const color = ACCIDENT_TYPE_COLORS[type] || "#B0B7C3";
-      const label = ACCIDENT_TYPE_SHORT_LABEL[type] || type;
-      return `
-        <div class="legend-list__item">
-          <span class="legend-list__dot" style="background:${color}"></span>
-          ${label}
-          <span class="legend-list__pct">${Math.round(p * 100)}%</span>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-// ── 파이차트 아래 "주요 사고 유형" 순위 텍스트 리스트 (우선순위를 빠르게 파악)
-function renderTypeRankMiniList(probabilities) {
-  const ranked = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
-  document.getElementById("type-rank-mini-list").innerHTML = ranked
-    .map(([type, p], i) => {
-      const color = ACCIDENT_TYPE_COLORS[type] || "#B0B7C3";
-      const label = ACCIDENT_TYPE_SHORT_LABEL[type] || type;
-      return `
-        <div class="similar-case-list__item">
-          <span class="similar-case-list__rank">${i + 1}</span>
-          <div class="similar-case-list__title" style="flex:1;">${label}</div>
-          <span class="badge" style="background:${color}22; color:${color};">${Math.round(p * 100)}%</span>
-        </div>
-      `;
-    })
-    .join("");
 }
 
 // ── ⑤ 유사사례 TOP3 (제목 / 사고유형 / 유사도만 — 대시보드에서는 가볍게)

@@ -255,13 +255,7 @@
   margin: var(--space-sm) 0 var(--space-md);
 }
 
-/* 대시보드 카드 안의 작은 소제목 (예: 파이차트 아래 "주요 사고 유형") */
-.dash-subsection-title {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  margin: var(--space-md) 0 var(--space-xs);
-}
+
 .dash-trend-insight {
   font-size: var(--fs-xs);
   color: var(--color-primary);
@@ -366,31 +360,6 @@
   font-size: var(--fs-xs);
   color: var(--color-primary);
   font-weight: 700;
-}
-
-/* 파이차트 범례 */
-.legend-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: var(--space-sm);
-}
-.legend-list__item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--fs-xs);
-  color: var(--color-text-secondary);
-}
-.legend-list__dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.legend-list__pct {
-  margin-left: auto;
-  font-weight: 700;
-  color: var(--color-text-primary);
 }
 
 /* 유사사례 리스트 */
@@ -690,33 +659,6 @@
   font-weight: 800;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-}
-
-/* 사고유형 순위 리스트 */
-.type-rank-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-.type-rank-item:last-child { border-bottom: none; }
-.type-rank-item__icon {
-  width: 36px; height: 36px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-.type-rank-item__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  font-size: var(--fs-sm);
-}
-.type-rank-item__desc {
-  font-size: var(--fs-xs);
-  color: var(--color-text-secondary);
-  margin-top: 2px;
 }
 
 /* 예방수칙 카드 2개 그리드 */
@@ -1513,6 +1455,23 @@
    [predict-result.html 미니 산점도 카드] / [scatter-detail.html]
    ============================================================ */
 .scatter-mini-canvas-wrap { position: relative; min-height: 160px; margin-bottom: var(--space-sm); }
+/* 산점도 이미지: 카드 폭에 맞추고(넘치지 않음), 탭하면 전체화면 뷰어로 확대 (image-viewer.js) */
+.scatter-zoomable {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+/* "🔍 자세히 보기" 버튼: 글자 크기는 그대로, 눌리는 영역만 사방으로 넓혀 44px 이상 확보(레이아웃은 안 밀림) */
+.card-section-link--btn {
+  padding: 13px 8px;
+  margin: -13px -8px;
+  min-height: 44px;
+  box-sizing: content-box;
+  white-space: nowrap;
+}
 
 .analysis-method-card {
   background: var(--color-primary-light);
@@ -1586,7 +1545,6 @@
 /* ── 차트 캔버스 wrapper — Chart.js는 반응형일 때 "높이가 고정된 부모"가
    반드시 필요합니다. 없으면 렌더링될 때마다 캔버스가 계속 커지는 버그가 생겨요. */
 .chart-canvas-wrap { position: relative; width: 100%; }
-.chart-canvas-wrap--pie { height: 220px; }
 .chart-canvas-wrap--line { height: 180px; }
 
 /* ── 대시보드 빈 상태 (아직 위험도 분석 안 했을 때) */

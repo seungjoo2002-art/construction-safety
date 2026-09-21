@@ -25,10 +25,12 @@ risk 인자) 검색·생성만 얹습니다.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import requests
@@ -42,6 +44,15 @@ from build_sif import 공종_MAP, 작업종류_MAP, 재해종류_MAP  # noqa: E4
 
 GEMINI_MODEL = "gemini-2.0-flash"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+
+# ── 생성 백엔드 선택 ────────────────────────────────────────────
+#   ADVISOR_LLM=gemini (기본) : Gemini REST API. Render 소형 인스턴스에서도 동작.
+#   ADVISOR_LLM=exaone        : 로컬 EXAONE-4.0-1.2B(Hugging Face 캐시). transformers/torch 필요.
+#                               실패하면 GEMINI_API_KEY가 있을 때 Gemini로 폴백.
+LLM_BACKEND = os.environ.get("ADVISOR_LLM", "gemini").strip().lower()
+EXAONE_MODEL_ID = os.environ.get("EXAONE_MODEL_ID", "LGAI-EXAONE/EXAONE-4.0-1.2B")
+EXAONE_MAX_NEW_TOKENS = int(os.environ.get("EXAONE_MAX_NEW_TOKENS", "640"))
+_CACHE_MAX = 64  # 같은 입력을 다시 물으면 재생성하지 않는다 (CPU 생성은 1건에 ~2분)
 
 _영문타입 = re.compile(r"\s*\([^)]*\)\s*$")
 _공백 = re.compile(r"[\s·,()]+")
@@ -106,8 +117,14 @@ def _정리(t: str) -> str:
 class SafetyAdvisor:
     """예측 결과 → KOSHA 유사사례 검색(TF-IDF) → Gemini 생성. 프로세스당 1개만 만들 것."""
 
-    def __init__(self, gemini_api_key: str = ""):
+    def __init__(self, gemini_api_key: str = "", llm_backend: Optional[str] = None):
         self.gemini_api_key = gemini_api_key
+        self.llm_backend = (llm_backend or LLM_BACKEND).lower()
+
+        self._exaone = None                    # (tokenizer, model) — 첫 사용 시 지연 로딩
+        self._load_lock = threading.Lock()
+        self._gen_lock = threading.Lock()      # 모델 1개를 여러 요청이 동시에 돌리지 않도록
+        self._cache: Dict[str, str] = {}
 
         with open(KOSHA_DIR / "sif.jsonl", encoding="utf-8") as f:
             self.recs: List[Dict[str, Any]] = [json.loads(line) for line in f]
@@ -166,10 +183,58 @@ class SafetyAdvisor:
                     return 결과, 단계, int(len(후보))
         return 결과, 단계, int(len(후보))
 
-    # ── 생성 (Gemini) ─────────────────────────────────────────
-    def generate(self, 현장: str, injury_top: str, top_percent: float, evidence: list) -> str:
-        if not self.gemini_api_key or not evidence:
-            return ""
+    # ── 생성 (EXAONE 로컬 / Gemini 폴백) ───────────────────────
+    def load_exaone(self):
+        """EXAONE 토크나이저·모델을 1회만 로드한다 (Hugging Face 캐시에서, 없으면 다운로드).
+        CPU에서는 bf16(2.4GB)이 메모리상 가장 안전하다 — fp32는 4.8GB라 RAM 8GB급 PC에서 페이징이 난다."""
+        with self._load_lock:
+            if self._exaone is None:
+                import torch
+                from transformers import AutoModelForCausalLM, AutoTokenizer
+
+                tok = AutoTokenizer.from_pretrained(EXAONE_MODEL_ID)
+                model = AutoModelForCausalLM.from_pretrained(EXAONE_MODEL_ID, dtype=torch.bfloat16)
+                model.eval()
+                if torch.cuda.is_available():
+                    model.to("cuda")
+                self._exaone = (tok, model)
+                print(f"[advisor.py] EXAONE 로드 완료: {EXAONE_MODEL_ID} "
+                      f"({'cuda' if torch.cuda.is_available() else 'cpu'})")
+        return self._exaone
+
+    def _generate_exaone(self, user: str) -> str:
+        import torch
+
+        tok, model = self.load_exaone()
+        msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
+        enc = tok.apply_chat_template(msgs, add_generation_prompt=True,
+                                      return_tensors="pt", return_dict=True).to(model.device)
+        with self._gen_lock, torch.no_grad():
+            out = model.generate(**enc, max_new_tokens=EXAONE_MAX_NEW_TOKENS,
+                                 do_sample=False,             # 안전 정보 → 무작위성 제거
+                                 repetition_penalty=1.12,     # 같은 줄 반복 억제
+                                 no_repeat_ngram_size=18,
+                                 pad_token_id=tok.eos_token_id)
+        return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+
+    def _generate_gemini(self, user: str) -> str:
+        res = requests.post(
+            GEMINI_URL,
+            params={"key": self.gemini_api_key},
+            json={
+                "contents": [{"role": "user", "parts": [{"text": user}]}],
+                "systemInstruction": {"parts": [{"text": SYSTEM}]},
+            },
+            timeout=30,
+        )
+        res.raise_for_status()
+        return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+    def generate_ex(self, 현장: str, injury_top: str, top_percent: float,
+                    evidence: list) -> Tuple[str, Optional[str], Optional[str]]:
+        """(안전수칙 문장, 실제로 쓴 모델 'exaone'|'gemini'|None, 실패 사유|None)"""
+        if not evidence:
+            return "", None, "근거 사례가 없어 생성하지 않았습니다"
         사례 = "\n".join(f"{n}. {r['대책']}  [사례 #{r['출처']['id']}]"
                         for n, r in enumerate(evidence, 1))
         user = (f"[현장 조건]\n{현장}\n\n"
@@ -177,22 +242,33 @@ class SafetyAdvisor:
                 f"사고 발생 시 예상 유형: {injury_top}\n"
                 f"치명 위험도: 상위 {top_percent:.0f}%\n\n"
                 f"[참고 사례]  — 아래 {len(evidence)}개를 전부 사용하라\n{사례}")
-        try:
-            res = requests.post(
-                GEMINI_URL,
-                params={"key": self.gemini_api_key},
-                json={
-                    "contents": [{"role": "user", "parts": [{"text": user}]}],
-                    "systemInstruction": {"parts": [{"text": SYSTEM}]},
-                },
-                timeout=30,
-            )
-            res.raise_for_status()
-            text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:
-            print(f"[advisor.py] ⚠️ Gemini 생성 실패: {e}")
-            return ""
-        return _정리(text)
+
+        if user in self._cache:
+            return self._cache[user], self.llm_backend, None
+
+        errors = []
+        order = ["exaone", "gemini"] if self.llm_backend == "exaone" else ["gemini"]
+        for name in order:
+            if name == "gemini" and not self.gemini_api_key:
+                errors.append("gemini: GEMINI_API_KEY 미설정")
+                continue
+            try:
+                raw = self._generate_exaone(user) if name == "exaone" else self._generate_gemini(user)
+            except Exception as e:
+                print(f"[advisor.py] ⚠️ {name} 생성 실패: {e}")
+                errors.append(f"{name}: {type(e).__name__}: {e}")
+                continue
+            text = _정리(raw)
+            if text:
+                if len(self._cache) >= _CACHE_MAX:
+                    self._cache.pop(next(iter(self._cache)))
+                self._cache[user] = text
+                return text, name, None
+            errors.append(f"{name}: 빈 응답")
+        return "", None, " | ".join(errors)
+
+    def generate(self, 현장: str, injury_top: str, top_percent: float, evidence: list) -> str:
+        return self.generate_ex(현장, injury_top, top_percent, evidence)[0]
 
     # ── 검증 ──────────────────────────────────────────────────
     @staticmethod
@@ -228,11 +304,13 @@ class SafetyAdvisor:
         상황 = 상황 or f"{공종} {작업종류} 중 {injury_top} 위험"
 
         evidence, 단계, n후보 = self.retrieve(공종, 작업종류, injury_top, 상황, k=k)
-        advice = self.generate(f"{공종} / {작업종류} — {상황}", injury_top, top_percent, evidence)
+        advice, llm_used, llm_error = self.generate_ex(
+            f"{공종} / {작업종류} — {상황}", injury_top, top_percent, evidence)
 
         return {
             "evidence": evidence,
             "advice": advice,
+            "llm": {"backend": self.llm_backend, "used": llm_used, "error": llm_error},
             "verification": self.verify(advice, evidence, top_percent) if advice else None,
             "retrieval": {"filter_stage": 단계, "candidates": n후보},
         }

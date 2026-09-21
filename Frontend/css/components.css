@@ -479,3 +479,95 @@
   border: 1px solid var(--color-danger-bg);
   border-color: #F5C6C5;
 }
+
+/* ============================================================
+   전체화면 이미지 뷰어 (js/common/image-viewer.js) — 산점도 확대 보기
+   z-index 는 고정 헤더·하단 탭바(100)보다 위(--z-modal).
+   ============================================================ */
+html.img-viewer-open,
+html.img-viewer-open body {
+  overflow: hidden;
+}
+.img-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  /* 위쪽: 상태바 영역 + X 버튼 자리(44px + 여백) 만큼 비워 X 가 이미지를 가리지 않게 */
+  padding-top: calc(var(--safe-top) + 56px);
+  background: rgba(8, 12, 24, 0.97); /* 뒤의 고정 헤더·탭바가 비쳐 X 버튼과 겹쳐 보이지 않게 거의 불투명하게 */
+  overscroll-behavior: contain;
+}
+.img-viewer[hidden] { display: none; }
+.img-viewer__close {
+  position: absolute;
+  top: calc(var(--safe-top) + 8px);
+  right: 12px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.img-viewer__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;           /* 핀치/팬을 브라우저 기본 스크롤·줌이 가로채지 않게 */
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.img-viewer__stage.is-zoomed { cursor: grab; }
+.img-viewer__img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: 100%;              /* 원본 비율을 유지한 채 화면에 맞춤 */
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  will-change: transform;
+  background: #fff;
+  border-radius: 6px;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.img-viewer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md) calc(10px + env(safe-area-inset-bottom, 0px));
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--fs-xs);
+}
+.img-viewer__caption { flex: 1; min-width: 0; }
+.img-viewer__detail {
+  flex-shrink: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.img-viewer__detail[hidden] { display: none; }
+.img-viewer :focus-visible { outline-color: #fff; }
+
+/* 확대 뷰어를 여는 이미지(트리거) 표시 */
+.is-zoom-trigger { cursor: zoom-in; }

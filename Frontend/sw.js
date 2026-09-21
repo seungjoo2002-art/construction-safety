@@ -14,7 +14,9 @@
 //   레벨(api.js)에서 구현되고, 서비스워커는 여기 관여하지 않는다.
 // ============================================================
 
-const SHELL_CACHE = "ai-safety-shell-v5";
+// ⚠️ 화면(HTML/CSS/JS)을 고치면 이 버전을 올려야 이미 설치된 PWA가 새 파일을 받는다
+//    (앱 셸이 Cache First 라서, 안 올리면 배포해도 예전 CSS/JS 가 계속 쓰인다).
+const SHELL_CACHE = "ai-safety-shell-v6";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -57,6 +59,7 @@ const PRECACHE_URLS = [
   "js/common/common.js",
   "js/common/constants.js",
   "js/common/idb-store.js",
+  "js/common/image-viewer.js",
   "js/common/mock-cases.js",
   "js/common/mock-scatter.js",
   "js/common/nav.js",

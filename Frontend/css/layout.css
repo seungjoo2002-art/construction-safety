@@ -43,15 +43,22 @@ body {
 /* ============================================================
    헤더 타입 A — 로고형 (대시보드처럼 타이틀+아이콘들이 있는 헤더)
    ============================================================ */
+/* 상단 고정: sticky. .app-frame 이 문서 스크롤 안에서 헤더를 자기 자리(흐름)에 두므로
+   본문이 헤더 뒤로 숨지 않고, 별도의 padding-top 보정도 필요 없다. (하단 탭바와 같은 방식)
+   상태바 영역: padding-top 으로 safe-area 만큼 헤더 배경을 늘리고, 높이도 그만큼 더한다.
+   → 배경 그라데이션이 상태바 밑까지 이어지고, 아이콘/제목은 상태바 아래에 놓인다. */
 .app-header {
-  height: var(--header-height);
-  min-height: var(--header-height);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  height: calc(var(--header-height) + var(--safe-top));
+  min-height: calc(var(--header-height) + var(--safe-top));
   background: linear-gradient(135deg, var(--color-primary-darker), var(--color-primary));
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-md);
+  padding: var(--safe-top) var(--space-md) 0;
 }
 .app-header__title {
   font-size: var(--fs-lg);
@@ -61,14 +68,29 @@ body {
   font-size: var(--fs-xs);
   opacity: 0.85;
 }
+/* 가운데 제목: 남는 폭을 차지하되 min-width:0 으로 좌/우 영역(날씨·버튼)을 절대 침범하지 않게 한다 */
 .app-header__center {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  padding: 0 var(--space-xs);
+}
+.app-header__center > div {
+  min-width: 0;
+}
+.app-header__center .app-header__title,
+.app-header__center .app-header__subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .app-header__logo-icon {
   width: 26px;
   height: 26px;
+  flex-shrink: 0;
   object-fit: contain;
 }
 .header-weather-mini {
@@ -82,21 +104,25 @@ body {
   font-size: var(--fs-sm);
   font-weight: 700;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .header-weather-mini__icon { font-size: 16px; }
 .app-header__actions {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
+/* 터치 영역 44x44 (모바일 최소 권장 크기). 두 버튼 사이 gap 으로 서로 분리되어 보인다. */
 .app-header__icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   background: rgba(255,255,255,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 20px;
   position: relative;
 }
 .app-header__icon-btn .dot {
@@ -124,19 +150,45 @@ body {
   border: 1.5px solid var(--color-primary-dark);
 }
 
+/* 작은 화면(≤380px, 320/360/375 포함): 날씨 | 제목 | 알림·저장소 세 영역이 겹치지 않도록
+   여백/글자만 줄인다. 버튼 44px 터치 영역은 유지한다. */
+@media (max-width: 380px) {
+  .app-header { padding-left: var(--space-sm); padding-right: var(--space-sm); }
+  .header-weather-mini { padding: 6px 8px; font-size: 13px; }
+  .header-weather-mini__icon { font-size: 14px; }
+  .app-header__center { gap: 6px; padding: 0 2px; }
+  .app-header__logo-icon { width: 22px; height: 22px; }
+  .app-header__center .app-header__title { font-size: var(--fs-base); }
+  .app-header__center .app-header__subtitle { font-size: 11px; }
+  .app-header__actions { gap: 6px; }
+}
+/* 320px급 초소형 화면: 날씨 오류 문구("날씨 오류")처럼 긴 상태에서도 제목이 잘리지 않도록 한 단계 더 축소 */
+@media (max-width: 340px) {
+  .header-weather-mini { padding: 6px 6px; font-size: 12px; gap: 2px; }
+  .header-weather-mini__icon { font-size: 13px; }
+}
+
 /* ============================================================
    헤더 타입 B — 뒤로가기형 (입력폼/상세/결과 페이지)
    ============================================================ */
 .app-header--back {
-  background: #fff;
+  /* 상태바 영역(위 --safe-top 만큼)은 브랜드색 띠로 칠하고 그 아래만 흰색.
+     black-translucent 상태바의 시간/5G/배터리 글자는 흰색이라, 흰 배경 위에 그대로 두면
+     안 보인다. safe-top=0(일반 브라우저/데스크탑)이면 띠가 0px 이라 예전처럼 순수 흰색. */
+  background: linear-gradient(to bottom,
+    var(--color-primary) 0, var(--color-primary) var(--safe-top), #fff var(--safe-top));
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
   justify-content: flex-start;
   gap: var(--space-sm);
 }
+/* 뒤로가기: 글자(‹)는 그대로 두고 터치 영역만 44x44 로 확대 (왼쪽 음수 마진으로 시각 위치 유지) */
 .app-header--back .back-btn {
   font-size: 22px;
-  width: 32px;
+  width: 44px;
+  height: 44px;
+  margin-left: -8px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,7 +220,7 @@ body {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   align-items: center;
-  z-index: 10;
+  z-index: var(--z-bottom-nav);
 }
 .bottom-nav__item {
   display: flex;

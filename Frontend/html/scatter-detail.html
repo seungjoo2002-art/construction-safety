@@ -35,7 +35,8 @@
 
     <section class="card" style="margin-bottom: var(--space-md);">
       <h2 class="card-section-title">유사 사례 2D 투영 산점도</h2>
-      <img id="scatter-full-image" style="width: 100%; height: auto; display: block; border-radius: 8px; margin-top: var(--space-sm);" alt="유사도 산점도 차트" />
+      <p style="font-size: 11px; color: var(--color-text-secondary);">이미지를 탭하면 확대해서 볼 수 있어요.</p>
+      <img id="scatter-full-image" class="scatter-zoomable" style="margin-top: var(--space-sm);" alt="유사도 산점도 차트 (탭하면 확대)" />
     </section>
 
     <section class="card" style="margin-bottom: var(--space-md);">
@@ -53,6 +54,7 @@
 </div>
 
 <script src="../js/common/constants.js"></script>
+<script src="../js/common/image-viewer.js"></script>
 <script src="../js/pages/scatter-detail.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

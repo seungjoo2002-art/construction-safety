@@ -18,13 +18,29 @@ from scipy.spatial import ConvexHull
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import seaborn as sns
+import textwrap
 
 # 폰트 설정 — 기본 sans-serif(DejaVu Sans)는 한글 글리프가 없어 제목/축/범례의
-# 한글이 전부 깨져서(네모 상자 또는 빈칸) 렌더링됩니다. 한글 지원 폰트를 우선순위로 지정합니다.
+# 한글이 전부 깨져서(네모 상자 □□□) 렌더링됩니다.
+#
+# 예전 설정은 ['Malgun Gothic', 'AppleGothic', 'NanumGothic', 'DejaVu Sans'] 였는데,
+# Malgun Gothic은 Windows에만, AppleGothic은 macOS에만 있고 Render(Linux) 기본 이미지에는
+# 한글 폰트가 하나도 없어서 결국 DejaVu Sans로 떨어져 한글이 깨졌습니다.
+# → 저장소에 동봉한 NanumGothic(SIL OFL 1.1, Backend/fonts/OFL.txt — 재배포 허용)을
+#   직접 등록해서 어떤 OS에서도 같은 폰트로 그립니다. 시스템 폰트는 그 뒤 폴백입니다.
+_FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+for _font_file in ("NanumGothic-Regular.ttf", "NanumGothic-Bold.ttf"):
+    _font_path = os.path.join(_FONT_DIR, _font_file)
+    if os.path.exists(_font_path):
+        font_manager.fontManager.addfont(_font_path)
+    else:
+        print(f"[similarity_service.py] ⚠️ 한글 폰트 파일이 없습니다: {_font_path} (산점도 한글이 깨질 수 있음)")
 plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = ['Malgun Gothic', 'AppleGothic', 'NanumGothic', 'DejaVu Sans']
-plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['font.sans-serif'] = ['NanumGothic', 'Malgun Gothic', 'AppleGothic',
+                                   'Noto Sans CJK KR', 'Noto Sans KR', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False  # 한글 폰트에서 '−'(U+2212)가 네모로 나오는 것 방지
 
 class SimilarityWebService:
     def __init__(self, openai_api_key: Optional[str] = None, base_path: str = None):
@@ -256,20 +272,24 @@ class SimilarityWebService:
         top_k_coords = coords[top_k_indices + 1]
 
         # 3. 플롯 캔버스 생성
-        fig, ax = plt.subplots(figsize=(11, 9), dpi=150)
+        #    표시 방식만 모바일용으로 조정했다(계산 결과와 무관):
+        #    - 폭 5.6in: 카드(약 360px)에 들어갈 때 1pt ≈ 0.9px 이라 12pt 글자가 ≈11px 로 읽힌다.
+        #      (예전 11in 폭은 같은 카드에서 0.47배로 줄어 10pt 글자가 ≈5px 가 됨)
+        #    - dpi 200: 확대 뷰어에서 pinch-zoom 해도 글자가 뭉개지지 않는 해상도(≈1100px 폭).
+        fig, ax = plt.subplots(figsize=(5.6, 7.6), dpi=200)
 
         # A. 과거 유사 사고 20개 점 플로팅
         sns.scatterplot(
             data=df_plot, x='X', y='Y',
             hue='사고유형', style='사고유형',
-            s=180, palette='Set2', alpha=0.9, edgecolor='w', linewidth=1.2, ax=ax
+            s=130, palette='Set2', alpha=0.9, edgecolor='w', linewidth=1.2, ax=ax
         )
 
         # B. 현재 입력 쿼리 점 (빨간 별)
         query_x, query_y = coords[0, 0], coords[0, 1]
         ax.scatter(
             query_x, query_y,
-            color='red', marker='*', s=500, label='현재 입력 케이스 (Query)',
+            color='red', marker='*', s=420, label='현재 입력 케이스 (Query)',
             edgecolors='black', linewidth=1.5, zorder=10
         )
 
@@ -299,20 +319,27 @@ class SimilarityWebService:
             )
 
         # 타이틀 및 데코레이션 (실시간 사용자 입력값 매핑)
-        ax.set_title(
-            f"MDS 기반 유사 사고 공간 분포도\n"
-            f"입력 시설물: {facility_text} | 입력 작업: {work_text}",
-            fontsize=14, pad=20
+        #  - 시설물/작업 문구는 길면 그림 밖으로 잘리므로 줄바꿈한다(문구 자체는 그대로).
+        #  - 범례는 그림 오른쪽 바깥(작게 몰림) 대신 그래프 아래 2열로 둔다.
+        ax.set_title("MDS 기반 유사 사고 공간 분포도", fontsize=14, fontweight='bold', pad=50)
+        subtitle = (
+            "입력 시설물: " + "\n".join(textwrap.wrap(str(facility_text), 26) or ["-"]) + "\n"
+            "입력 작업: " + "\n".join(textwrap.wrap(str(work_text), 26) or ["-"])
         )
-        ax.set_xlabel("가상 축 1 (Component 1)", fontsize=11, labelpad=10)
-        ax.set_ylabel("가상 축 2 (Component 2)", fontsize=11, labelpad=10)
-        ax.legend(bbox_to_anchor=(1.03, 1), loc='upper left', title="범례 항목", title_fontsize='11', fontsize='10')
+        ax.text(0.5, 1.015, subtitle, transform=ax.transAxes, ha='center', va='bottom',
+                fontsize=11, color='#444444', linespacing=1.35)
+        ax.set_xlabel("가상 축 1 (Component 1)", fontsize=12, labelpad=8)
+        ax.set_ylabel("가상 축 2 (Component 2)", fontsize=12, labelpad=8)
+        ax.tick_params(axis='both', labelsize=10.5)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.185), ncol=2,
+                  title="범례 항목", title_fontsize=12, fontsize=11, frameon=True,
+                  columnspacing=1.2, handletextpad=0.5, borderpad=0.8)
         ax.grid(True, linestyle=':', alpha=0.5)
         plt.tight_layout()
 
         # 메모리 상에서 PNG 바이트 스트림 생성 후 Base64 변환
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight')
+        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.2)
         plt.close(fig)
         buf.seek(0)
         

@@ -20,7 +20,9 @@
 //     (accessibility.css, i18n.js, i18n/*.js, user-prefs.js 신규 + 기존 JS 다수 수정 —
 //     버전을 안 올리면 이미 설치된 사용자는 이 변경을 하나도 못 받는다).
 // v8: 일본어(ja) 추가 — lang-ja.js 신규, profile.js/i18n.js/status-labels.js 수정.
-const SHELL_CACHE = "ai-safety-shell-v8";
+// v9: 예방조치 생성 신뢰성 수정(advisor.py) + "AI 맞춤 안전수칙" 카드를
+//     "예방 조치" 섹션에 통합(predict-result.html/js).
+const SHELL_CACHE = "ai-safety-shell-v9";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 

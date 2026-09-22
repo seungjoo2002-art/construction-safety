@@ -22,7 +22,8 @@
 // v8: 일본어(ja) 추가 — lang-ja.js 신규, profile.js/i18n.js/status-labels.js 수정.
 // v9: 예방조치 생성 신뢰성 수정(advisor.py) + "AI 맞춤 안전수칙" 카드를
 //     "예방 조치" 섹션에 통합(predict-result.html/js).
-const SHELL_CACHE = "ai-safety-shell-v9";
+// v10: 대시보드 "오늘 시간별 위험도 추이" 섹션 제거(dashboard.html/js, Chart.js 의존 제거).
+const SHELL_CACHE = "ai-safety-shell-v10";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 

@@ -4,62 +4,33 @@
 // i18n.js 보다 나중에 로드되어야 합니다.
 //
 // 정보 우선순위(위→아래): 현재 상태 → 가장 위험한 사고유형 → 지금 할 일 →
-// 세부 위험 분석 → 유사 사례 → 시간별 위험도 → 진입 배너
+// 세부 위험 분석 → 유사 사례 → 진입 배너
 // (사고유형별 확률 분포 — "예측 사고 유형 분류" 파이차트/순위 — 는 화면에서 제거됨.
-//  모델/API 응답의 accident_type.probabilities 자체는 그대로이고 여기서 그리지만 않는다.)
+//  모델/API 응답의 accident_type.probabilities 자체는 그대로이고 여기서 그리지만 않는다.
+//  "오늘 시간별 위험도 추이" 섹션도 요청에 따라 제거됨 — Chart.js/predictRisk() 시간대별
+//  반복 호출 로직은 더 이상 쓰지 않는다.)
 //
 // 데이터 소스:
 //  - 종합위험도 / 사고유형             → getLastPredictResult() (실제 모델 응답, 없으면 빈 상태)
 //  - 유사사례 TOP3                    → MOCK_CASES (목업, 분석 전엔 빈 상태)
-//  - 오늘 시간별 위험도 추이           → 오늘 남은 시간대 실제 날씨 + predictRisk() 실제 호출
 //  - 헤더 알림 배지                    → notification-center.js (알림 화면과 동일한 데이터)
 //
-// i18n: renderHero/renderFocus/renderStats/renderSimilarCases/renderTrendInsight는
-// 화면에 보여줄 값(등급/유형명/문구)만 매번 새로 그리므로, 언어가 바뀌면(i18n:change)
-// 서버를 다시 호출하지 않고 캐시해둔 데이터로 그대로 다시 그린다.
+// i18n: renderHero/renderFocus/renderStats/renderSimilarCases는 화면에 보여줄 값(등급/
+// 유형명/문구)만 매번 새로 그리므로, 언어가 바뀌면(i18n:change) 서버를 다시 호출하지
+// 않고 캐시해둔 데이터로 그대로 다시 그린다.
 // ============================================================
 
 let _cachedResult = null;
 let _cachedSimilarity = null;
-let _cachedTrendScores = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   renderHeaderWeatherMini();
   renderHeaderNotifBadge();
 
-  const lastResult = getLastPredictResult();
-  const lastInput = getLastPredictInput();
-  const lastSimilarity = getLastSimilarity();
-  const siteSetup = hasSiteSetup() ? getSiteSetup() : null;
-
-  _cachedResult = lastResult;
-  _cachedSimilarity = lastSimilarity;
+  _cachedResult = getLastPredictResult();
+  _cachedSimilarity = getLastSimilarity();
 
   renderLocalizedParts();
-
-  // ── 오늘 시간별 위험도 추이: 날씨는 분석 여부와 무관하게 매시간 바뀌므로,
-  //    "위험도 분석"까지는 안 해도 되고 "현장 설정"(로그인 직후 필수)만 있으면 바로 계산함.
-  //    분석을 이미 했다면 그 입력값(작업정보 포함)을 쓰는 게 더 정확해서 우선 사용.
-  let trendBasePayload = lastInput || siteSetup;
-
-  // 현장설정만 있고 아직 분석을 한 적 없으면 공정률이 비어있으니, 날짜 기준으로 채워줌
-  if (!lastInput && siteSetup && siteSetup["공사시작일"] && siteSetup["공사종료일"]) {
-    const progress = calcProgressBucket(siteSetup["공사시작일"], siteSetup["공사종료일"]);
-    if (progress) trendBasePayload = { ...siteSetup, "공정률": progress.bucket };
-  }
-
-  if (trendBasePayload) {
-    renderHourlyRiskTrend(trendBasePayload);
-  } else {
-    // 현장설정조차 없는 예외적인 경우 (직접 URL 접근 등)
-    document.getElementById("trend-section-body").innerHTML = `
-      <div class="dashboard-empty">
-        <div class="dashboard-empty__icon">🏗️</div>
-        <p class="dashboard-empty__text">${t("dashboard.noSiteInfoLine1")}<br>${t("dashboard.noSiteInfoLine2")}</p>
-        <a href="site-setup.html" class="dashboard-empty__btn">${t("dashboard.goSiteSetup")}</a>
-      </div>
-    `;
-  }
 
   document.addEventListener("i18n:change", renderLocalizedParts);
 });
@@ -82,7 +53,6 @@ function renderLocalizedParts() {
       renderSimilarEmpty(t("dashboard.similarLoadFailed"));
     }
   }
-  if (_cachedTrendScores) renderTrendInsight(_cachedTrendScores);
 }
 
 function emptyStateHtml(text, href, linkText) {
@@ -277,98 +247,3 @@ function renderSimilarCases(cases, sim) {
     .join("");
 }
 
-// ── ⑥ 오늘 시간별 위험도 추이
-// 최근 분석에 쓰인 입력값(작업정보 등)은 그대로 두고, 기상 필드만 그 시간대 예보값으로
-// 바꿔서 predictRisk()를 시간대별로 실제 호출 → 진짜 시간별 위험도를 계산합니다.
-async function renderHourlyRiskTrend(basePayload) {
-  const canvas = document.getElementById("trend-line-chart");
-  const wrap = canvas.closest(".chart-canvas-wrap");
-  wrap.insertAdjacentHTML(
-    "beforebegin",
-    `<p id="trend-loading-note" style="font-size:11px; color:var(--color-text-placeholder); margin-bottom:6px;">⏳ ${t("dashboard.trendCalculating")}</p>`
-  );
-
-  try {
-    const { hourlyList } = await getWeatherSnapshot();
-
-    if (!hourlyList || hourlyList.length === 0) {
-      document.getElementById("trend-section-body").innerHTML = `
-        <div class="dashboard-empty">
-          <div class="dashboard-empty__icon">🌙</div>
-          <p class="dashboard-empty__text">${t("dashboard.noForecastLine1")}<br>${t("dashboard.noForecastLine2")}</p>
-        </div>
-      `;
-      return;
-    }
-
-    const labels = [];
-    const scores = [];
-
-    for (const h of hourlyList) {
-      const hourPayload = {
-        ...basePayload,
-        "기상상태 - 습도": h.humidity,
-        "평균기온(°C)": h.temp,
-        "일강수량(mm)": h.rain3h,
-        "평균 풍속(m/s)": h.windSpeed,
-      };
-      const result = await predictRisk(hourPayload); // 실제 서버 또는 자동 목업 폴백
-      labels.push(h.time);
-      scores.push(Math.round(result.severity.fatal_risk.percentile));
-    }
-
-    document.getElementById("trend-loading-note")?.remove();
-
-    if (typeof Chart === "undefined") throw new Error("Chart.js를 불러오지 못했어요");
-    const existing = Chart.getChart(canvas);
-    if (existing) existing.destroy();
-
-    new Chart(canvas, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            data: scores,
-            borderColor: "#2F5FE0",
-            backgroundColor: "rgba(47,95,224,0.08)",
-            fill: true,
-            tension: 0.35,
-            pointBackgroundColor: "#2F5FE0",
-          },
-        ],
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        maintainAspectRatio: false,
-        scales: { y: { min: 0, max: 100 } },
-      },
-    });
-
-    _cachedTrendScores = scores;
-    renderTrendInsight(scores);
-  } catch (err) {
-    console.error("[dashboard.js] 시간별 위험도 추이 계산 실패:", err);
-    document.getElementById("trend-loading-note")?.remove();
-    wrap.innerHTML = `<p style="text-align:center; padding-top:60px; font-size: var(--fs-sm); color: var(--color-text-secondary);">⚠️ ${t("dashboard.trendFailedLine1")}<br>${t("dashboard.trendFailedLine2")}</p>`;
-  }
-}
-
-// 실제 계산된 시간별 점수가 뚜렷하게 오르내릴 때만 문구를 보여준다 (임의 문구 생성 금지)
-function renderTrendInsight(scores) {
-  const el = document.getElementById("trend-insight-text");
-  if (scores.length < 2) {
-    el.style.display = "none";
-    return;
-  }
-  const delta = scores[scores.length - 1] - scores[0];
-  if (delta >= 3) {
-    el.textContent = `📈 ${t("dashboard.trendUp")}`;
-    el.style.display = "";
-  } else if (delta <= -3) {
-    el.textContent = `📉 ${t("dashboard.trendDown")}`;
-    el.style.display = "";
-  } else {
-    el.style.display = "none";
-  }
-}

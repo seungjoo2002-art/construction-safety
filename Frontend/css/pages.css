@@ -256,14 +256,6 @@
 }
 
 
-.dash-trend-insight {
-  font-size: var(--fs-xs);
-  color: var(--color-primary);
-  font-weight: 600;
-  margin-top: var(--space-sm);
-  text-align: center;
-}
-
 /* ── 통계 2x2 그리드 */
 .stat-grid {
   display: grid;
@@ -1541,11 +1533,6 @@
 }
 .ai-pattern-box__title { display:flex; align-items:center; gap:6px; font-weight:700; font-size: var(--fs-sm); color: var(--color-primary-dark); margin-bottom: var(--space-sm); }
 .ai-pattern-box__text { font-size: var(--fs-sm); line-height: 1.7; color: var(--color-text-primary); white-space: pre-line; }
-
-/* ── 차트 캔버스 wrapper — Chart.js는 반응형일 때 "높이가 고정된 부모"가
-   반드시 필요합니다. 없으면 렌더링될 때마다 캔버스가 계속 커지는 버그가 생겨요. */
-.chart-canvas-wrap { position: relative; width: 100%; }
-.chart-canvas-wrap--line { height: 180px; }
 
 /* ── 대시보드 빈 상태 (아직 위험도 분석 안 했을 때) */
 .dashboard-empty {

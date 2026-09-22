@@ -124,17 +124,6 @@
       <div id="similar-case-list"></div>
     </section>
 
-    <!-- ⑥ 시간별 위험도 (보조 정보) -->
-    <section class="card" style="margin-bottom: var(--space-md);">
-      <h2 class="card-section-title" data-i18n="dashboard.trendTitle">오늘 시간별 위험도 추이</h2>
-      <div id="trend-section-body">
-        <div class="chart-canvas-wrap chart-canvas-wrap--line">
-          <canvas id="trend-line-chart"></canvas>
-        </div>
-        <p class="dash-trend-insight" id="trend-insight-text" style="display:none;"></p>
-      </div>
-    </section>
-
     <!-- 진입 배너(액션) — 우선순위상 정보보다 아래, 화면 맨 끝 -->
     <a href="photo-capture.html" class="card chatbot-banner" style="background: linear-gradient(135deg, #1B3FB8, #2F5FE0); margin-bottom: var(--space-md);">
       <span data-i18n="dashboard.bannerPhoto">📷 현장 촬영으로 위험요소 확인</span>
@@ -158,7 +147,6 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="../js/common/session-store.js"></script>
 <script src="../js/common/constants.js"></script>
 <script src="../js/common/notification-center.js"></script>

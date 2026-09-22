@@ -202,19 +202,31 @@ class SafetyAdvisor:
                       f"({'cuda' if torch.cuda.is_available() else 'cpu'})")
         return self._exaone
 
-    def _generate_exaone(self, user: str) -> str:
+    def _generate_exaone(self, user: str, min_new_tokens: int = 0, force_sample: bool = False) -> str:
         import torch
 
         tok, model = self.load_exaone()
         msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
         enc = tok.apply_chat_template(msgs, add_generation_prompt=True,
                                       return_tensors="pt", return_dict=True).to(model.device)
+        gen_kwargs = dict(
+            max_new_tokens=EXAONE_MAX_NEW_TOKENS,
+            # ⚠️ min_new_tokens 없이는 "■ 핵심 위험" 한 줄만 쓰고 EOS를 내버리는 조기 종료가
+            #    실측으로 나왔다(항목 0/5) — 최소 토큰 수를 강제해 "■ 안전 조치사항" 목록까지
+            #    쓸 여유를 준다. 0이면(호출자가 안 정하면) 제한을 걸지 않는다.
+            min_new_tokens=min_new_tokens or None,
+            repetition_penalty=1.12,       # 같은 줄 반복 억제
+            no_repeat_ngram_size=18,
+            pad_token_id=tok.eos_token_id,
+        )
+        if force_sample:
+            # 그리디(do_sample=False)가 나쁜 경로로 일찍 멈췄을 때 재시도용 — 약간의 무작위성으로
+            # 같은 조기종료를 반복하지 않게 한다(안전 정보라 기본은 여전히 그리디).
+            gen_kwargs.update(do_sample=True, temperature=0.7, top_p=0.9)
+        else:
+            gen_kwargs["do_sample"] = False
         with self._gen_lock, torch.no_grad():
-            out = model.generate(**enc, max_new_tokens=EXAONE_MAX_NEW_TOKENS,
-                                 do_sample=False,             # 안전 정보 → 무작위성 제거
-                                 repetition_penalty=1.12,     # 같은 줄 반복 억제
-                                 no_repeat_ngram_size=18,
-                                 pad_token_id=tok.eos_token_id)
+            out = model.generate(**enc, **gen_kwargs)
         return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
     def generate_chat(self, system_prompt: str, turns: list, max_new_tokens: int = 400) -> str:
@@ -252,9 +264,47 @@ class SafetyAdvisor:
         res.raise_for_status()
         return res.json()["candidates"][0]["content"]["parts"][0]["text"]
 
+    @staticmethod
+    def _truncate_to_n_items(text: str, n: int) -> str:
+        """번호 항목이 n개를 넘어가면 n번째 항목에서 자른다.
+        ⚠️ 실측: EXAONE-4.0은 추론(思考) 겸용 모델이라, min_new_tokens로 조기종료를
+        막으면 목록을 다 쓰고 나서도 멈추지 않고 내부 추론 문구("stopping instruction
+        immediately after...")나 목록을 처음부터 다시 반복하는 경우가 있었다(항목이
+        len(evidence)보다 훨씬 많이 잡힘). 목록을 n개까지만 쓰고 그 뒤는 전부 버린다."""
+        lines, out, count = text.splitlines(), [], 0
+        for line in lines:
+            if re.match(r"\s*\d+\.\s", line):
+                count += 1
+                if count > n:
+                    break
+            out.append(line)
+        return "\n".join(out).strip()
+
+    def _cache_put(self, key: str, text: str) -> None:
+        if len(self._cache) >= _CACHE_MAX:
+            self._cache.pop(next(iter(self._cache)))
+        self._cache[key] = text
+
+    def _format_advice_fallback(self, injury_top: str, top_percent: float, evidence: list) -> str:
+        """LLM이 목록을 다 못 채웠을 때 쓰는 결정적 안전망 — 새 문장을 짓지 않고 원문
+        대책 끝에 종결어미만 기계적으로 붙인다. 항상 노트북/advisor.py가 원래 보장하려던
+        '■ 핵심 위험 / ■ 안전 조치사항 1. ~하십시오.' 형식 그대로 나오게 한다."""
+        lines = [
+            "■ 핵심 위험",
+            f"{injury_top} 위험 발생 시 치명 위험 상위 {top_percent:.0f}%입니다.",
+            "",
+            "■ 안전 조치사항",
+        ]
+        for i, r in enumerate(evidence, 1):
+            본 = r["대책"].strip().rstrip(". ()")
+            if not 본.endswith(("하십시오", "하세요", "바랍니다", "주십시오")):
+                본 = f"{본}하십시오"
+            lines.append(f"{i}. {본}. (사례 #{r['출처']['id']})")
+        return "\n".join(lines)
+
     def generate_ex(self, 현장: str, injury_top: str, top_percent: float,
                     evidence: list) -> Tuple[str, Optional[str], Optional[str]]:
-        """(안전수칙 문장, 실제로 쓴 모델 'exaone'|'gemini'|None, 실패 사유|None)"""
+        """(안전수칙 문장, 실제로 쓴 모델 'exaone'|'gemini'|'template'|None, 실패 사유|None)"""
         if not evidence:
             return "", None, "근거 사례가 없어 생성하지 않았습니다"
         사례 = "\n".join(f"{n}. {r['대책']}  [사례 #{r['출처']['id']}]"
@@ -268,6 +318,9 @@ class SafetyAdvisor:
         if user in self._cache:
             return self._cache[user], self.llm_backend, None
 
+        def 항목수(t: str) -> int:
+            return len(re.findall(r"^\s*\d+\.\s*\S", t, re.M))
+
         errors = []
         order = ["exaone", "gemini"] if self.llm_backend == "exaone" else ["gemini"]
         for name in order:
@@ -275,19 +328,40 @@ class SafetyAdvisor:
                 errors.append("gemini: GEMINI_API_KEY 미설정")
                 continue
             try:
-                raw = self._generate_exaone(user) if name == "exaone" else self._generate_gemini(user)
+                if name == "exaone":
+                    # 항목당 대략 40~50토큰 잡고, "핵심 위험" 한 줄만 쓰고 멈추지 않도록 최소치를 강제
+                    min_tokens = min(EXAONE_MAX_NEW_TOKENS - 20, 60 + len(evidence) * 45)
+                    raw = self._generate_exaone(user, min_new_tokens=min_tokens)
+                    text = self._truncate_to_n_items(_정리(raw), len(evidence))
+                    if 항목수(text) < len(evidence):
+                        print(f"[advisor.py] ⚠️ EXAONE 1차 생성이 목록을 다 못 채워({항목수(text)}/{len(evidence)}) "
+                              f"재시도합니다")
+                        raw2 = self._generate_exaone(user, min_new_tokens=min_tokens, force_sample=True)
+                        text2 = self._truncate_to_n_items(_정리(raw2), len(evidence))
+                        if 항목수(text2) > 항목수(text):
+                            text = text2
+                else:
+                    raw = self._generate_gemini(user)
+                    text = self._truncate_to_n_items(_정리(raw), len(evidence))
             except Exception as e:
                 print(f"[advisor.py] ⚠️ {name} 생성 실패: {e}")
                 errors.append(f"{name}: {type(e).__name__}: {e}")
                 continue
-            text = _정리(raw)
-            if text:
-                if len(self._cache) >= _CACHE_MAX:
-                    self._cache.pop(next(iter(self._cache)))
-                self._cache[user] = text
+
+            # 목록을 (거의) 다 채웠을 때만 성공으로 본다 — 1개 정도 누락은 허용하되,
+            # "핵심 위험" 한 줄만 쓰고 멈춘 경우(0개)는 절대 그대로 내보내지 않는다.
+            if text and 항목수(text) >= max(1, len(evidence) - 1):
+                self._cache_put(user, text)
                 return text, name, None
-            errors.append(f"{name}: 빈 응답")
-        return "", None, " | ".join(errors)
+            errors.append(f"{name}: 목록 {항목수(text)}/{len(evidence)}개만 생성됨" if text else f"{name}: 빈 응답")
+
+        # 모든 백엔드가 실패했거나 목록을 못 채웠다 — 형식은 항상 보장하는 결정적 안전망으로 대체.
+        # (LLM 재작성이 아니라 원문 그대로라 verify()가 항상 깨끗하게 통과한다.)
+        print(f"[advisor.py] ⚠️ LLM 생성이 모두 불완전해 원문 대책을 그대로 정리한 문장으로 대체합니다 "
+              f"({' | '.join(errors)})")
+        fallback = self._format_advice_fallback(injury_top, top_percent, evidence)
+        self._cache_put(user, fallback)
+        return fallback, "template", None
 
     def generate(self, 현장: str, injury_top: str, top_percent: float, evidence: list) -> str:
         return self.generate_ex(현장, injury_top, top_percent, evidence)[0]

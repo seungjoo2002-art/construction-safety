@@ -190,7 +190,9 @@ def get_advisor_service() -> Optional["SafetyAdvisor"]:
             from advisor import SafetyAdvisor
 
             advisor_service = SafetyAdvisor(gemini_api_key=os.environ.get("GEMINI_API_KEY", ""))
-            print("[app.py] 해결방안 서비스(advisor.py) 초기화 완료")
+            backend = advisor_service.llm_backend
+            warn = " ⚠️ GEMINI_API_KEY도 없어 예방 조치 생성이 전부 실패합니다" if backend == "gemini" and not GEMINI_API_KEY else ""
+            print(f"[app.py] 해결방안 서비스(advisor.py) 초기화 완료 — ADVISOR_LLM={backend}{warn}")
         except Exception as e:
             print(f"[app.py] ⚠️ 해결방안 서비스 초기화 실패: {e}")
     return advisor_service
@@ -448,6 +450,18 @@ GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_M
 #      비현실적이라 판단해 강제하지 않았다 — 로컬 실행(run_server.bat)에서만 켠다.
 CHAT_LLM_BACKEND = os.environ.get("CHAT_LLM", "gemini").strip().lower()
 
+# ── 진단용 부팅 로그 — "챗봇이 왜 안 되지?"를 터미널만 보고 바로 알 수 있게.
+#    CHAT_LLM을 안 정했으면 기본값 gemini인데, GEMINI_API_KEY도 없으면 /api/chat은
+#    100% 실패한다(요청마다 조용히 실패하는 게 아니라 여기서 미리 크게 경고한다).
+if CHAT_LLM_BACKEND == "exaone":
+    print("[app.py] 🤖 챗봇(/api/chat) 백엔드: exaone (로컬 EXAONE-4.0-1.2B, advisor.py와 모델 공유)")
+elif GEMINI_API_KEY:
+    print("[app.py] 🤖 챗봇(/api/chat) 백엔드: gemini (GEMINI_API_KEY 설정됨)")
+else:
+    print("[app.py] ⚠️ 챗봇(/api/chat) 백엔드: gemini인데 GEMINI_API_KEY가 없습니다 — "
+          "모든 챗봇 요청이 실패합니다! 로컬에서 EXAONE을 쓰려면 run_server.bat으로 "
+          "실행하거나 환경변수 CHAT_LLM=exaone을 설정하세요.")
+
 SYSTEM_PROMPT = """당신은 'AI 건설현장 안전관리 시스템'의 AI 안전 어시스턴트입니다.
 건설현장 안전, 위험도 분석 결과 해석, 사고 예방 방법, 안전교육에 관해 친절하고
 간결하게 답변하세요. 확실하지 않은 법규나 수치는 단정하지 말고, 현장 안전관리자와
@@ -458,8 +472,8 @@ SYSTEM_PROMPT = """당신은 'AI 건설현장 안전관리 시스템'의 AI 안�
 # 프론트가 보내는 locale(ko/en/zh/vi/th/id/ne)에 맞춰 답변 언어를 지시한다.
 # UI만 번역되고 챗봇은 계속 한국어로 답하는 문제를 막기 위함(요구사항: 언어별 챗봇 응답).
 _CHAT_LANG_NAME = {
-    "ko": "한국어(Korean)", "en": "English", "zh": "중국어 간체(简体中文)",
-    "vi": "베트남어(Tiếng Việt)", "th": "태국어(ภาษาไทย)",
+    "ko": "한국어(Korean)", "en": "English", "ja": "일본어(日本語)",
+    "zh": "중국어 간체(简体中文)", "vi": "베트남어(Tiếng Việt)", "th": "태국어(ภาษาไทย)",
     "id": "인도네시아어(Bahasa Indonesia)", "ne": "네팔어(नेपाली)",
 }
 

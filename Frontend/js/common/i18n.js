@@ -21,7 +21,7 @@
 // "표시용" 매핑이고, API로 나가는 payload/모델 입력값은 항상 원래 한국어 문자열 그대로 씁니다.
 // ============================================================
 
-const I18N_SUPPORTED_LANGS = ["ko", "en", "zh", "vi", "th", "id", "ne"];
+const I18N_SUPPORTED_LANGS = ["ko", "en", "ja", "zh", "vi", "th", "id", "ne"];
 const I18N_DEFAULT_LANG = "ko";
 const I18N_STORAGE_KEY = "app_language"; // 비로그인(guest) 상태 폴백용 전역 키
 

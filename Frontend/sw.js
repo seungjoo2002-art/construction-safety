@@ -19,7 +19,8 @@
 // v7: 챗봇 EXAONE 연동 / i18n 7개 언어 / 접근성 강화 / site-setup 버그 수정 반영
 //     (accessibility.css, i18n.js, i18n/*.js, user-prefs.js 신규 + 기존 JS 다수 수정 —
 //     버전을 안 올리면 이미 설치된 사용자는 이 변경을 하나도 못 받는다).
-const SHELL_CACHE = "ai-safety-shell-v7";
+// v8: 일본어(ja) 추가 — lang-ja.js 신규, profile.js/i18n.js/status-labels.js 수정.
+const SHELL_CACHE = "ai-safety-shell-v8";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -65,6 +66,7 @@ const PRECACHE_URLS = [
   "js/common/i18n.js",
   "js/common/i18n/lang-en.js",
   "js/common/i18n/lang-id.js",
+  "js/common/i18n/lang-ja.js",
   "js/common/i18n/lang-ko.js",
   "js/common/i18n/lang-ne.js",
   "js/common/i18n/lang-th.js",

@@ -266,17 +266,21 @@ class SafetyAdvisor:
 
     @staticmethod
     def _truncate_to_n_items(text: str, n: int) -> str:
-        """번호 항목이 n개를 넘어가면 n번째 항목에서 자른다.
-        ⚠️ 실측: EXAONE-4.0은 추론(思考) 겸용 모델이라, min_new_tokens로 조기종료를
-        막으면 목록을 다 쓰고 나서도 멈추지 않고 내부 추론 문구("stopping instruction
-        immediately after...")나 목록을 처음부터 다시 반복하는 경우가 있었다(항목이
-        len(evidence)보다 훨씬 많이 잡힘). 목록을 n개까지만 쓰고 그 뒤는 전부 버린다."""
-        lines, out, count = text.splitlines(), [], 0
+        """번호 항목 n개까지만 남기고 그 뒤는 전부 버린다.
+        ⚠️ 실측: EXAONE-4.0은 추론(思考) 겸용 모델이라, min_new_tokens로 조기종료를 막으면
+        (1) 목록을 처음부터 다시 반복하거나 (2) 목록을 다 쓰고도 멈추지 않고
+        "지침종료지침종료..." 같은 내부 추론 군더더기를 계속 이어붙이는 경우가 있었다.
+        (1)은 n+1번째 "숫자." 항목이 나오는 시점에 끊고, (2)는 n번째 항목 뒤 첫 빈 줄에서
+        끊는다 — 그 뒤에 오는 내용은 숫자로 시작하지 않는 군더더기이기 때문."""
+        lines, out, count, last_item_done = text.splitlines(), [], 0, False
         for line in lines:
             if re.match(r"\s*\d+\.\s", line):
                 count += 1
                 if count > n:
                     break
+                last_item_done = (count == n)
+            elif last_item_done and line.strip() == "":
+                break  # n번째 항목 뒤 첫 빈 줄 — 그 뒤는 버린다
             out.append(line)
         return "\n".join(out).strip()
 

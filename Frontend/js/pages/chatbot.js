@@ -95,6 +95,12 @@ document.addEventListener("DOMContentLoaded", () => {
     sendBtn.disabled = true;
 
     const typingRow = appendBubble("model", escapeHtml(t("chatbot.generating")), { typing: true });
+    // 로컬 EXAONE(CPU)은 답변 생성에 1~3분 걸릴 수 있다 — 8초 넘게 기다리는 중이면
+    // "느린 게 아니라 멈춘 것"으로 오해하지 않도록 안내 문구를 덧붙인다.
+    const slowHintTimer = setTimeout(() => {
+      const bubble = typingRow.querySelector(".chat-bubble");
+      if (bubble) bubble.textContent = t("chatbot.generatingSlow");
+    }, 8000);
 
     try {
       const reply = await chatWithAI(trimmed, history, buildContext(), getLanguage());
@@ -107,9 +113,14 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       console.error("[chatbot.js] /api/chat 호출 실패:", err);
       typingRow.remove();
-      appendBubble("model", escapeHtml(t("chatbot.connectionError")), { isError: true });
+      // 타임아웃(응답이 너무 오래 걸려 중단됨)과 그 외 연결 실패를 구분해서 보여준다 —
+      // 로컬 EXAONE(CPU)은 /api/advise와 모델을 공유해서, 방금 위험도 분석을 했다면
+      // 그 생성이 끝날 때까지 챗봇 요청이 대기열에 걸려 타임아웃 날 수 있다.
+      const msg = err.isTimeout ? t("chatbot.timeoutError") : t("chatbot.connectionError");
+      appendBubble("model", escapeHtml(msg), { isError: true });
       // 실패한 턴은 이력에 남기지 않는다 — 다음 요청에서 다시 자연스럽게 이어지도록
     } finally {
+      clearTimeout(slowHintTimer);
       sendBtn.disabled = false;
     }
   }

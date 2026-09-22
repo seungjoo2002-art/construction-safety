@@ -278,4 +278,7 @@ window.I18N_DICT.ko = {
   "predictInput.weatherLoadFailed": "날씨 정보를 불러오지 못했어요. 아래에서 직접 입력해주세요.",
   "predictInput.manualBadge": "직접 입력",
   "predictInput.manualDescription": "사용자 직접 입력",
+
+  "chatbot.generatingSlow": "로컬 AI가 답변을 만드는 중이에요. CPU라 최대 몇 분 걸릴 수 있어요, 잠시만 기다려주세요...",
+  "chatbot.timeoutError": "응답 생성이 너무 오래 걸려서 중단됐어요. 방금 위험도 분석을 했다면 그 처리가 끝난 뒤 다시 시도해주세요.",
 };

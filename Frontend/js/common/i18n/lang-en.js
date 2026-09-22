@@ -263,4 +263,7 @@ window.I18N_DICT.en = {
   "predictInput.weatherLoadFailed": "Couldn't load weather info. Please enter it manually below.",
   "predictInput.manualBadge": "Manual entry",
   "predictInput.manualDescription": "Entered manually by user",
+
+  "chatbot.generatingSlow": "The local AI is working on a reply. This can take a few minutes on CPU — please hold on...",
+  "chatbot.timeoutError": "The response took too long and was cancelled. If you just ran a risk analysis, please wait for it to finish and try again.",
 };

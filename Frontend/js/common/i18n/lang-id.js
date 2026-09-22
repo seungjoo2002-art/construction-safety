@@ -263,4 +263,7 @@ window.I18N_DICT.id = {
   "predictInput.weatherLoadFailed": "Gagal memuat info cuaca. Silakan isi manual di bawah.",
   "predictInput.manualBadge": "Input manual",
   "predictInput.manualDescription": "Diisi manual oleh pengguna",
+
+  "chatbot.generatingSlow": "AI lokal sedang membuat jawaban. Ini bisa memakan waktu beberapa menit di CPU, mohon tunggu...",
+  "chatbot.timeoutError": "Pembuatan jawaban memakan waktu terlalu lama dan dibatalkan. Jika Anda baru saja menjalankan analisis risiko, tunggu sampai selesai lalu coba lagi.",
 };

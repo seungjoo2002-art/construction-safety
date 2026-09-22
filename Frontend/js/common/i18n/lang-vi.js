@@ -263,4 +263,7 @@ window.I18N_DICT.vi = {
   "predictInput.weatherLoadFailed": "Không thể tải thông tin thời tiết. Vui lòng nhập thủ công bên dưới.",
   "predictInput.manualBadge": "Nhập thủ công",
   "predictInput.manualDescription": "Người dùng nhập thủ công",
+
+  "chatbot.generatingSlow": "AI cục bộ đang tạo câu trả lời. Trên CPU có thể mất vài phút, vui lòng đợi...",
+  "chatbot.timeoutError": "Việc tạo câu trả lời mất quá nhiều thời gian nên đã bị hủy. Nếu bạn vừa chạy phân tích rủi ro, vui lòng đợi nó hoàn tất rồi thử lại.",
 };

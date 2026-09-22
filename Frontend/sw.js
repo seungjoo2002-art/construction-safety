@@ -23,7 +23,9 @@
 // v9: 예방조치 생성 신뢰성 수정(advisor.py) + "AI 맞춤 안전수칙" 카드를
 //     "예방 조치" 섹션에 통합(predict-result.html/js).
 // v10: 대시보드 "오늘 시간별 위험도 추이" 섹션 제거(dashboard.html/js, Chart.js 의존 제거).
-const SHELL_CACHE = "ai-safety-shell-v10";
+// v11: 챗봇 타임아웃 연장(280초) + 느릴 때 안내 문구 + 생성 길이 단축(400→220 토큰)로
+//      "AI 연결이 원활하지 않습니다" 조기 타임아웃 완화.
+const SHELL_CACHE = "ai-safety-shell-v11";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 

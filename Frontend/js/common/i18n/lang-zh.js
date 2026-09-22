@@ -263,4 +263,7 @@ window.I18N_DICT.zh = {
   "predictInput.weatherLoadFailed": "未能获取天气信息。请在下方手动输入。",
   "predictInput.manualBadge": "手动输入",
   "predictInput.manualDescription": "用户手动输入",
+
+  "chatbot.generatingSlow": "本地AI正在生成回答，CPU运行可能需要几分钟，请稍候...",
+  "chatbot.timeoutError": "生成回答耗时过长已中断。如果您刚进行了风险分析，请等其完成后再试一次。",
 };

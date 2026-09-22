@@ -263,4 +263,7 @@ window.I18N_DICT.ja = {
   "predictInput.weatherLoadFailed": "天気情報を取得できませんでした。下記で手動入力してください。",
   "predictInput.manualBadge": "手動入力",
   "predictInput.manualDescription": "ユーザーによる手動入力",
+
+  "chatbot.generatingSlow": "ローカルAIが回答を作成中です。CPUのため数分かかることがあります。少々お待ちください...",
+  "chatbot.timeoutError": "応答の生成に時間がかかりすぎて中断されました。直前にリスク分析を実行した場合は、それが終わってからもう一度お試しください。",
 };

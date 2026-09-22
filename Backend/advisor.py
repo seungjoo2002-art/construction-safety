@@ -229,7 +229,7 @@ class SafetyAdvisor:
             out = model.generate(**enc, **gen_kwargs)
         return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
-    def generate_chat(self, system_prompt: str, turns: list, max_new_tokens: int = 400) -> str:
+    def generate_chat(self, system_prompt: str, turns: list, max_new_tokens: int = 220) -> str:
         """범용 대화 생성 (app.py의 /api/chat이 CHAT_LLM=exaone일 때 재사용).
         advise()의 _generate_exaone()과 달리 안전수칙 전용 SYSTEM이 아니라 호출자가 준
         system_prompt(페르소나 + 언어 지시)를 그대로 쓰고, 자유 대화 이력(turns)을 받는다.

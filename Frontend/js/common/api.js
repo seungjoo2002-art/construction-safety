@@ -93,12 +93,23 @@ function mockAccidentTypeResult() {
  *         (predictRisk()와 동일한 원칙 — 실패를 숨기지 않는다).
  */
 async function chatWithAI(message, history = [], context = null, locale = "ko") {
-  const res = await fetch(`${API_BASE_URL}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, history, context, locale }),
-    signal: AbortSignal.timeout(180000), // 로컬 EXAONE(CPU) 생성은 느릴 수 있어 넉넉히 3분까지 기다린다
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history, context, locale }),
+      // 로컬 EXAONE(CPU) 생성은 느릴 수 있고, /api/advise와 모델(및 락)을 공유하므로
+      // 위험도 분석 직후 곧바로 챗봇을 쓰면 그 생성이 끝날 때까지 대기열에 걸릴 수 있다
+      // (advisor.py의 self._gen_lock 참고) — 넉넉히 4분 40초까지 기다린다.
+      signal: AbortSignal.timeout(280000),
+    });
+  } catch (err) {
+    // AbortSignal.timeout()이 실제로 끊었으면 TimeoutError — 호출자가 "응답이 너무
+    // 오래 걸렸다"와 "서버에 연결 자체가 안 된다"를 구분해서 보여줄 수 있게 표시해둔다.
+    if (err.name === "TimeoutError") err.isTimeout = true;
+    throw err;
+  }
   if (!res.ok) throw new Error(`챗봇 요청 실패 (${res.status})`);
   const data = await res.json();
   if (data.error) throw new Error(data.reply || "챗봇 응답 오류");

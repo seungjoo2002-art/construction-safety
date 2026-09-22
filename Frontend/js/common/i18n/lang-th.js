@@ -263,4 +263,7 @@ window.I18N_DICT.th = {
   "predictInput.weatherLoadFailed": "ไม่สามารถโหลดข้อมูลสภาพอากาศได้ กรุณากรอกด้วยตนเองด้านล่าง",
   "predictInput.manualBadge": "กรอกด้วยตนเอง",
   "predictInput.manualDescription": "ผู้ใช้กรอกด้วยตนเอง",
+
+  "chatbot.generatingSlow": "AI ในเครื่องกำลังสร้างคำตอบ อาจใช้เวลาหลายนาทีบน CPU กรุณารอสักครู่...",
+  "chatbot.timeoutError": "การสร้างคำตอบใช้เวลานานเกินไปจึงถูกยกเลิก หากคุณเพิ่งวิเคราะห์ความเสี่ยงไป กรุณารอให้เสร็จก่อนแล้วลองใหม่",
 };

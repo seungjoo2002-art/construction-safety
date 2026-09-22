@@ -19,7 +19,6 @@ window.I18N_DICT.id = {
   "nav.predict": "Analisis Risiko",
   "nav.photo": "Analisis Foto",
   "nav.cases": "Cari Kasus",
-  "nav.chatbot": "Asisten AI",
   "nav.profile": "Profil Saya",
 
   "header.aria.back": "Kembali",
@@ -45,7 +44,6 @@ window.I18N_DICT.id = {
   "dashboard.viewAll": "Lihat semua →",
   "dashboard.trendTitle": "Tren Risiko per Jam Hari Ini",
   "dashboard.bannerPhoto": "📷 Periksa bahaya dengan foto lokasi",
-  "dashboard.bannerChat": "🤖 Konsultasi dengan asisten AI",
   "dashboard.noAnalysisYet": "Belum ada hasil analisis",
   "dashboard.startAnalysisCta": "Mulai analisis risiko sekarang",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.id = {
   "notifications.summaryLabel": "Notifikasi yang perlu diperiksa hari ini",
   "notifications.unit": "",
   "notifications.endNote": "— Anda telah melihat semua notifikasi —",
-
-  "chatbot.headerTitle": "Asisten Keselamatan AI",
-  "chatbot.headerStatus": "Online · Tersedia 24 Jam",
-  "chatbot.aria.reset": "Atur ulang percakapan",
-  "chatbot.aria.send": "Kirim",
-  "chatbot.inputPlaceholder": "Ketik pesan...",
-  "chatbot.greeting": "Halo! Saya asisten AI dari Sistem Manajemen Keselamatan Proyek Konstruksi AI. 😊\n\nTanyakan apa saja tentang keselamatan lokasi, analisis risiko, atau pencegahan kecelakaan!",
-  "chatbot.generating": "Sedang membuat jawaban...",
-  "chatbot.connectionError": "Koneksi AI saat ini tidak stabil. Silakan coba lagi sebentar lagi.",
-  "chatbot.resetConfirm": "Atur ulang percakapan ini?",
-  "chatbot.quick1": "Bagaimana risiko lokasi hari ini?",
-  "chatbot.quick2": "Cara mencegah jatuh",
-  "chatbot.quick3": "Jadwal pelatihan keselamatan",
-  "chatbot.quick4": "Cari kasus kecelakaan",
 
   "profile.title": "Profil Saya",
   "profile.defaultName": "Pengguna",
@@ -263,7 +247,4 @@ window.I18N_DICT.id = {
   "predictInput.weatherLoadFailed": "Gagal memuat info cuaca. Silakan isi manual di bawah.",
   "predictInput.manualBadge": "Input manual",
   "predictInput.manualDescription": "Diisi manual oleh pengguna",
-
-  "chatbot.generatingSlow": "AI lokal sedang membuat jawaban. Ini bisa memakan waktu beberapa menit di CPU, mohon tunggu...",
-  "chatbot.timeoutError": "Pembuatan jawaban memakan waktu terlalu lama dan dibatalkan. Jika Anda baru saja menjalankan analisis risiko, tunggu sampai selesai lalu coba lagi.",
 };

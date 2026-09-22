@@ -11,8 +11,7 @@ GPU 없는 Render 소형 Web Service엔 못 올립니다(그냥 로딩만으로 
     **로컬 TF-IDF(문자 2~3gram)** 유사도를 씁니다. 외부 의존·비용이 전혀 없고,
     카테고리 필터(공종+작업+재해)가 이미 후보를 좁혀주므로 순위만 다듬는
     역할로는 충분합니다.
-  - 생성: app.py의 /api/chat과 동일한 Gemini REST API를 재사용합니다
-    (같은 GEMINI_API_KEY, 새 모델을 띄우지 않음).
+  - 생성: Gemini REST API(같은 GEMINI_API_KEY)를 사용합니다.
 
 예측 자체(위험도·사고유형)는 이 모듈이 하지 않습니다 — app.py가 이미 갖고 있는
 severity_predictor/accident_type_predictor 결과를 그대로 받아서(advise()의
@@ -227,28 +226,6 @@ class SafetyAdvisor:
             gen_kwargs["do_sample"] = False
         with self._gen_lock, torch.no_grad():
             out = model.generate(**enc, **gen_kwargs)
-        return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
-
-    def generate_chat(self, system_prompt: str, turns: list, max_new_tokens: int = 220) -> str:
-        """범용 대화 생성 (app.py의 /api/chat이 CHAT_LLM=exaone일 때 재사용).
-        advise()의 _generate_exaone()과 달리 안전수칙 전용 SYSTEM이 아니라 호출자가 준
-        system_prompt(페르소나 + 언어 지시)를 그대로 쓰고, 자유 대화 이력(turns)을 받는다.
-        같은 self._exaone(모델 1개)과 self._gen_lock을 공유해 이중 로드를 피한다.
-
-        turns: [{"role": "user"|"assistant", "content": str}, ...] (마지막이 이번 사용자 메시지)
-        """
-        import torch
-
-        tok, model = self.load_exaone()
-        msgs = [{"role": "system", "content": system_prompt}, *turns]
-        enc = tok.apply_chat_template(msgs, add_generation_prompt=True,
-                                      return_tensors="pt", return_dict=True).to(model.device)
-        with self._gen_lock, torch.no_grad():
-            out = model.generate(**enc, max_new_tokens=max_new_tokens,
-                                 do_sample=True, temperature=0.6, top_p=0.9,  # 잡담형 대화 → 약간의 다양성 허용
-                                 repetition_penalty=1.12,
-                                 no_repeat_ngram_size=8,
-                                 pad_token_id=tok.eos_token_id)
         return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
     def _generate_gemini(self, user: str) -> str:

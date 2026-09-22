@@ -19,7 +19,6 @@ window.I18N_DICT.en = {
   "nav.predict": "Risk Analysis",
   "nav.photo": "Photo Analysis",
   "nav.cases": "Case Search",
-  "nav.chatbot": "AI Assistant",
   "nav.profile": "My Profile",
 
   "header.aria.back": "Back",
@@ -45,7 +44,6 @@ window.I18N_DICT.en = {
   "dashboard.viewAll": "View all →",
   "dashboard.trendTitle": "Today's Hourly Risk Trend",
   "dashboard.bannerPhoto": "📷 Check hazards with a site photo",
-  "dashboard.bannerChat": "🤖 Chat with the AI assistant",
   "dashboard.noAnalysisYet": "No analysis yet",
   "dashboard.startAnalysisCta": "Start a risk analysis",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.en = {
   "notifications.summaryLabel": "Notifications needing attention today",
   "notifications.unit": "",
   "notifications.endNote": "— You've seen all notifications —",
-
-  "chatbot.headerTitle": "AI Safety Assistant",
-  "chatbot.headerStatus": "Online · Available 24/7",
-  "chatbot.aria.reset": "Reset conversation",
-  "chatbot.aria.send": "Send",
-  "chatbot.inputPlaceholder": "Type a message...",
-  "chatbot.greeting": "Hello! I'm the AI assistant for the AI Construction Safety Management System. 😊\n\nAsk me anything about site safety, risk analysis, or accident prevention!",
-  "chatbot.generating": "Generating a response...",
-  "chatbot.connectionError": "The AI connection isn't working right now. Please try again in a moment.",
-  "chatbot.resetConfirm": "Reset the conversation?",
-  "chatbot.quick1": "What's today's site risk?",
-  "chatbot.quick2": "Fall prevention methods",
-  "chatbot.quick3": "Safety training schedule",
-  "chatbot.quick4": "Search accident cases",
 
   "profile.title": "My Profile",
   "profile.defaultName": "User",
@@ -263,7 +247,4 @@ window.I18N_DICT.en = {
   "predictInput.weatherLoadFailed": "Couldn't load weather info. Please enter it manually below.",
   "predictInput.manualBadge": "Manual entry",
   "predictInput.manualDescription": "Entered manually by user",
-
-  "chatbot.generatingSlow": "The local AI is working on a reply. This can take a few minutes on CPU — please hold on...",
-  "chatbot.timeoutError": "The response took too long and was cancelled. If you just ran a risk analysis, please wait for it to finish and try again.",
 };

@@ -19,7 +19,6 @@ window.I18N_DICT.ja = {
   "nav.predict": "リスク分析",
   "nav.photo": "写真分析",
   "nav.cases": "事例検索",
-  "nav.chatbot": "AIアシスタント",
   "nav.profile": "マイページ",
 
   "header.aria.back": "戻る",
@@ -45,7 +44,6 @@ window.I18N_DICT.ja = {
   "dashboard.viewAll": "すべて見る →",
   "dashboard.trendTitle": "本日の時間別リスク推移",
   "dashboard.bannerPhoto": "📷 現場写真で危険要素を確認",
-  "dashboard.bannerChat": "🤖 AIアシスタントに相談",
   "dashboard.noAnalysisYet": "まだ分析結果がありません",
   "dashboard.startAnalysisCta": "リスク分析を始めましょう",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.ja = {
   "notifications.summaryLabel": "本日確認が必要な通知",
   "notifications.unit": "件",
   "notifications.endNote": "— すべての通知を確認しました —",
-
-  "chatbot.headerTitle": "AI安全アシスタント",
-  "chatbot.headerStatus": "オンライン・24時間対応",
-  "chatbot.aria.reset": "会話をリセット",
-  "chatbot.aria.send": "送信",
-  "chatbot.inputPlaceholder": "メッセージを入力してください...",
-  "chatbot.greeting": "こんにちは！私はAI建設現場安全管理システムのAIアシスタントです。😊\n\n現場の安全、リスク分析、事故予防について何でもお尋ねください！",
-  "chatbot.generating": "回答を生成しています...",
-  "chatbot.connectionError": "現在AI接続が不安定です。しばらくしてからもう一度お試しください。",
-  "chatbot.resetConfirm": "会話内容をリセットしますか？",
-  "chatbot.quick1": "今日の現場リスクは？",
-  "chatbot.quick2": "墜落防止の方法",
-  "chatbot.quick3": "安全教育のスケジュール",
-  "chatbot.quick4": "事故事例を検索",
 
   "profile.title": "マイページ",
   "profile.defaultName": "ユーザー",
@@ -263,7 +247,4 @@ window.I18N_DICT.ja = {
   "predictInput.weatherLoadFailed": "天気情報を取得できませんでした。下記で手動入力してください。",
   "predictInput.manualBadge": "手動入力",
   "predictInput.manualDescription": "ユーザーによる手動入力",
-
-  "chatbot.generatingSlow": "ローカルAIが回答を作成中です。CPUのため数分かかることがあります。少々お待ちください...",
-  "chatbot.timeoutError": "応答の生成に時間がかかりすぎて中断されました。直前にリスク分析を実行した場合は、それが終わってからもう一度お試しください。",
 };

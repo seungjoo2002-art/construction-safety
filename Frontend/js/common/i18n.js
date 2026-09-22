@@ -10,7 +10,7 @@
 //   2) 정적 텍스트: <span data-i18n="nav.dashboard">대시보드</span>
 //      → 페이지 로드 시 applyI18n()이 textContent를 자동으로 바꿔치기.
 //      속성 번역: data-i18n-placeholder / data-i18n-aria-label / data-i18n-title
-//   3) 동적 텍스트(JS가 만드는 문자열): t("chatbot.generating") 형태로 직접 호출.
+//   3) 동적 텍스트(JS가 만드는 문자열): t("predictInput.weatherLoadFailed") 형태로 직접 호출.
 //   4) 언어를 바꿀 때는 항상 setLanguage(code)를 사용 — 저장 + 즉시 재적용 +
 //      "i18n:change" 이벤트 발행까지 한 번에 처리합니다. 각 페이지 JS는 그 이벤트를
 //      구독해서 動적으로 그려둔 텍스트(카드, 목록 등)를 다시 그리면 됩니다.

@@ -19,7 +19,6 @@ window.I18N_DICT.zh = {
   "nav.predict": "风险分析",
   "nav.photo": "照片分析",
   "nav.cases": "案例检索",
-  "nav.chatbot": "AI聊天助手",
   "nav.profile": "我的信息",
 
   "header.aria.back": "返回",
@@ -45,7 +44,6 @@ window.I18N_DICT.zh = {
   "dashboard.viewAll": "查看全部 →",
   "dashboard.trendTitle": "今日分时风险趋势",
   "dashboard.bannerPhoto": "📷 拍摄现场照片检查危险因素",
-  "dashboard.bannerChat": "🤖 AI聊天助手咨询",
   "dashboard.noAnalysisYet": "暂无分析结果",
   "dashboard.startAnalysisCta": "开始进行风险分析吧",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.zh = {
   "notifications.summaryLabel": "今日需要确认的通知",
   "notifications.unit": "条",
   "notifications.endNote": "— 已查看全部通知 —",
-
-  "chatbot.headerTitle": "AI安全助手",
-  "chatbot.headerStatus": "在线 · 24小时运行",
-  "chatbot.aria.reset": "重置对话",
-  "chatbot.aria.send": "发送",
-  "chatbot.inputPlaceholder": "请输入消息...",
-  "chatbot.greeting": "您好！我是AI建筑工地安全管理系统的AI助手。😊\n\n关于现场安全、风险分析、事故预防，欢迎随时提问！",
-  "chatbot.generating": "正在生成回答...",
-  "chatbot.connectionError": "目前AI连接不稳定，请稍后重试。",
-  "chatbot.resetConfirm": "要重置对话内容吗？",
-  "chatbot.quick1": "今天现场风险如何？",
-  "chatbot.quick2": "坠落预防方法",
-  "chatbot.quick3": "安全教育日程",
-  "chatbot.quick4": "事故案例检索",
 
   "profile.title": "我的信息",
   "profile.defaultName": "用户",
@@ -263,7 +247,4 @@ window.I18N_DICT.zh = {
   "predictInput.weatherLoadFailed": "未能获取天气信息。请在下方手动输入。",
   "predictInput.manualBadge": "手动输入",
   "predictInput.manualDescription": "用户手动输入",
-
-  "chatbot.generatingSlow": "本地AI正在生成回答，CPU运行可能需要几分钟，请稍候...",
-  "chatbot.timeoutError": "生成回答耗时过长已中断。如果您刚进行了风险分析，请等其完成后再试一次。",
 };

@@ -15,7 +15,7 @@
 
 ## 무엇이 바뀌지 않았나 (그대로 Render Web Service에 남음)
 
-아래 4개는 **실제 서버 연산**이라 Hugging Face Dataset Viewer API(행 조회 전용)로
+아래 3개는 **실제 서버 연산**이라 Hugging Face Dataset Viewer API(행 조회 전용)로
 대체할 수 없습니다. `Backend/`는 계속 별도 Render Web Service로 배포해야 합니다.
 
 | 엔드포인트 | 이유 |
@@ -23,11 +23,10 @@
 | `POST /api/predict` | 학습된 ML 모델(joblib) 실시간 추론 |
 | `POST /api/analyze` | 임베딩 기반 코사인 유사도 계산 + MDS 산점도 렌더링 + 재발방지대책 생성 |
 | `POST /api/analyze-photo` | YOLO 객체탐지 모델 추론 |
-| `POST /api/chat` | Gemini API 키를 서버에서만 보관(브라우저에 노출 금지) |
 
 `similarity_service.py`(`/api/analyze`)는 `assets/df_db.csv`를 독자적으로 계속
 사용합니다 — 사고 사례 검색 기능과는 별개의 코드 경로라 이번 마이그레이션 대상이
-아닙니다. **이 4개 엔드포인트의 입출력/동작은 전혀 바뀌지 않았습니다** — 단,
+아닙니다. **이 3개 엔드포인트의 입출력/동작은 전혀 바뀌지 않았습니다** — 단,
 Render 무료 Web Service(512MB)에서 실제로 돌아가도록 `similarity_service.py`와
 `app.py`의 **메모리 수명 관리**만 고쳤습니다(2번 섹션 참고). 결과값은 기존과
 100% 동일합니다.
@@ -96,9 +95,8 @@ Command에서 상대경로 `requirements.txt`만으로 정확히 그 파일을 �
 | 이름 | 필수 | 비밀값? | 설명 |
 |---|---|---|---|
 | `OPENAI_API_KEY` | 선택 | ✅ 비밀 | 있으면 `/api/analyze`가 임베딩 기반 정밀 유사도 사용. 없으면 카테고리 근사 유사도로 자동 대체(에러 아님) |
-| `GEMINI_API_KEY` | 선택 | ✅ 비밀 | 없으면 `/api/chat`이 "설정 안 됨" 안내만 반환(서버는 안 죽음) |
-| `CHAT_LLM` | 선택 | 공개 정보 | 기본값 `gemini`. `exaone`으로 설정하면 `/api/chat`이 로컬 EXAONE-4.0-1.2B를 씁니다(advisor.py와 모델 공유) — Render 무료 인스턴스(512MB)에는 못 올리므로 로컬 실행 전용입니다(`Backend/run_server.bat` 참고) |
-| `ADVISOR_LLM` | 선택 | 공개 정보 | 기본값 `gemini`. `exaone`으로 설정하면 `/api/advise`(KOSHA 유사사례 기반 안전수칙 생성)가 로컬 EXAONE을 씁니다. 마찬가지로 로컬 실행 전용 |
+| `GEMINI_API_KEY` | 선택 | ✅ 비밀 | 없으면 `/api/advise`(안전수칙 생성)가 실패만 하고 서버는 안 죽음 |
+| `ADVISOR_LLM` | 선택 | 공개 정보 | 기본값 `gemini`. `exaone`으로 설정하면 `/api/advise`(KOSHA 유사사례 기반 안전수칙 생성)가 로컬 EXAONE을 씁니다. Render 무료 인스턴스(512MB)에는 못 올리므로 로컬 실행 전용입니다(`Backend/run_server.bat` 참고) |
 | `HF_TOKEN` | 선택 | ✅ 비밀 | 임베딩 자산(`db_v_*.npy`) 데이터셋을 비공개(gated)로 바꾼 경우에만 필요 |
 | `ALLOWED_ORIGINS` | 권장 | 공개 정보 | 프런트 Static Site 실제 URL. 쉼표로 여러 개 가능. 예: `https://ai-safety-frontend.onrender.com`. 비워두면 전체 허용(`*`)으로 동작(로컬 개발엔 편하지만 운영에선 좁히는 걸 권장) |
 

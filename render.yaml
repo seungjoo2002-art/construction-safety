@@ -1,8 +1,8 @@
 # Render Blueprint — 프런트엔드 Static Site 전용.
 #
-# Backend(FastAPI — /api/predict, /api/analyze, /api/analyze-photo, /api/chat)는
-# 여기서 관리하지 않습니다. 이 4개는 실제 서버 연산(ML 추론·임베딩 유사도·이미지
-# 분석·Gemini API 키 은닉)이 필요해서 Hugging Face Dataset Viewer API로 대체할 수
+# Backend(FastAPI — /api/predict, /api/analyze, /api/analyze-photo)는
+# 여기서 관리하지 않습니다. 이 3개는 실제 서버 연산(ML 추론·임베딩 유사도·이미지
+# 분석)이 필요해서 Hugging Face Dataset Viewer API로 대체할 수
 # 없고, 계속 별도 Render Web Service로 떠 있어야 합니다 — 대시보드에서 기존처럼
 # 수동으로 설정(또는 이미 설정되어 있는 상태를 유지)하세요. 자세한 내용은
 # README.md의 "무엇이 바뀌지 않았나" 섹션을 참고하세요.

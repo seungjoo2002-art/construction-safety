@@ -398,7 +398,7 @@
   flex-shrink: 0;
 }
 
-/* AI 챗봇 배너 */
+/* 대시보드 진입 배너 */
 .chatbot-banner {
   display: flex;
   align-items: center;
@@ -1216,134 +1216,6 @@
 .profile-stat-card__label { font-size: 10px; color: var(--color-text-secondary); margin-top: 2px; }
 
 /* ============================================================
-   [chatbot.html]
-   ============================================================ */
-.chat-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-.chat-header__avatar {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: #fff;
-  padding: 4px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-.chat-header__status {
-  font-size: 11px;
-  color: rgba(255,255,255,0.85);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.chat-header__status::before {
-  content: "";
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--color-safe);
-  display: inline-block;
-}
-
-.chat-date-divider {
-  text-align: center;
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  background: var(--color-border);
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-  margin: 0 auto var(--space-md);
-}
-.chat-date-divider-row { display:flex; justify-content:center; }
-
-.chat-msg-row { display: flex; gap: 8px; margin-bottom: var(--space-md); }
-.chat-msg-row.is-user { flex-direction: row-reverse; }
-.chat-msg-row__avatar {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  background: var(--color-primary-light);
-  padding: 4px;
-  object-fit: contain;
-  flex-shrink: 0;
-  align-self: flex-end;
-}
-.chat-bubble-col { display: flex; flex-direction: column; max-width: 78%; }
-.chat-msg-row.is-user .chat-bubble-col { align-items: flex-end; }
-.chat-bubble {
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  line-height: 1.55;
-  white-space: pre-line;
-}
-.chat-bubble.is-bot {
-  background: #fff;
-  border: 1px solid var(--color-border);
-  border-top-left-radius: 4px;
-}
-.chat-bubble.is-user {
-  background: var(--color-primary);
-  color: #fff;
-  border-top-right-radius: 4px;
-}
-.chat-bubble.is-typing { color: var(--color-text-placeholder); }
-.chat-msg-time {
-  font-size: 10px;
-  color: var(--color-text-placeholder);
-  margin-top: 4px;
-}
-
-.quick-reply-row {
-  display: flex;
-  gap: var(--space-sm);
-  overflow-x: auto;
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-bg-page);
-}
-.quick-reply-chip {
-  flex-shrink: 0;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-primary);
-  background: #fff;
-  color: var(--color-primary);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.chat-input-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: #fff;
-  border-top: 1px solid var(--color-border);
-}
-.chat-input-bar input {
-  flex: 1;
-  height: 44px;
-  padding: 0 var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  outline: none;
-}
-.chat-input-bar input:focus { border-color: var(--color-primary); }
-.chat-send-btn {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-.chat-send-btn:disabled { opacity: 0.5; }
-
-/* ============================================================
    [notifications.html]
    "지금 무엇을 확인/조치해야 하는가"에 집중 — 통계 재노출 대신 행동 중심 카드.
    ============================================================ */
@@ -1364,7 +1236,7 @@
 }
 .notif-summary__count span { font-size: var(--fs-2xl); }
 
-/* 알림 출처 구분 섹션 헤더 (위험도 분석 / 사진 분석 / AI 챗봇 / 기상 정보 / 교육 안내) */
+/* 알림 출처 구분 섹션 헤더 (위험도 분석 / 사진 분석 / 기상 정보 / 교육 안내) */
 .notif-source-header {
   display: flex;
   align-items: center;

@@ -21,7 +21,6 @@ window.I18N_DICT.ko = {
   "nav.predict": "위험도 분석",
   "nav.photo": "사진 분석",
   "nav.cases": "사례 검색",
-  "nav.chatbot": "AI 챗봇",
   "nav.profile": "내 정보",
 
   // header (공용)
@@ -49,7 +48,6 @@ window.I18N_DICT.ko = {
   "dashboard.viewAll": "전체 →",
   "dashboard.trendTitle": "오늘 시간별 위험도 추이",
   "dashboard.bannerPhoto": "📷 현장 촬영으로 위험요소 확인",
-  "dashboard.bannerChat": "🤖 AI 챗봇 상담",
   "dashboard.noAnalysisYet": "아직 분석 결과가 없어요",
   "dashboard.startAnalysisCta": "위험도 분석을 시작해보세요",
 
@@ -119,21 +117,6 @@ window.I18N_DICT.ko = {
   "notifications.summaryLabel": "오늘 확인이 필요한 알림",
   "notifications.unit": "건",
   "notifications.endNote": "— 모든 알림을 확인했습니다 —",
-
-  // chatbot
-  "chatbot.headerTitle": "AI 안전 어시스턴트",
-  "chatbot.headerStatus": "온라인 · 24시간 운영",
-  "chatbot.aria.reset": "대화 초기화",
-  "chatbot.aria.send": "전송",
-  "chatbot.inputPlaceholder": "메시지를 입력하세요...",
-  "chatbot.greeting": "안녕하세요! 저는 AI 건설현장 안전관리 시스템의 AI 어시스턴트입니다. 😊\n\n현장 안전, 위험도 분석, 사고 예방에 관해 무엇이든 질문해 주세요!",
-  "chatbot.generating": "답변을 생성하고 있습니다...",
-  "chatbot.connectionError": "현재 AI 연결이 원활하지 않습니다. 잠시 후 다시 시도해주세요.",
-  "chatbot.resetConfirm": "대화 내용을 초기화할까요?",
-  "chatbot.quick1": "오늘 현장 위험도는?",
-  "chatbot.quick2": "추락 예방 방법",
-  "chatbot.quick3": "안전교육 일정",
-  "chatbot.quick4": "사고 사례 검색",
 
   // profile
   "profile.title": "내 정보",
@@ -278,7 +261,4 @@ window.I18N_DICT.ko = {
   "predictInput.weatherLoadFailed": "날씨 정보를 불러오지 못했어요. 아래에서 직접 입력해주세요.",
   "predictInput.manualBadge": "직접 입력",
   "predictInput.manualDescription": "사용자 직접 입력",
-
-  "chatbot.generatingSlow": "로컬 AI가 답변을 만드는 중이에요. CPU라 최대 몇 분 걸릴 수 있어요, 잠시만 기다려주세요...",
-  "chatbot.timeoutError": "응답 생성이 너무 오래 걸려서 중단됐어요. 방금 위험도 분석을 했다면 그 처리가 끝난 뒤 다시 시도해주세요.",
 };

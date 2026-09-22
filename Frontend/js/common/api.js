@@ -80,43 +80,6 @@ function mockAccidentTypeResult() {
 }
 
 // ============================================================
-// 챗봇 (백엔드 /api/chat → EXAONE 로컬 모델 또는 Gemini, CHAT_LLM 환경변수로 선택)
-// ============================================================
-/**
- * @param {string} message 사용자가 이번에 입력한 메시지
- * @param {{role: "user"|"model", text: string}[]} history 이전 대화 기록
- * @param {object|null} context 현재 현장정보/최근 분석결과 (챗봇이 참고할 데이터, 없으면 null)
- * @param {string} [locale] 현재 앱 언어 코드(ko/en/zh/vi/th/id/ne) — 없으면 백엔드가 한국어로 답함
- * @returns {Promise<string>} 봇의 답변 텍스트
- * @throws 연결 실패 시 그대로 다시 던집니다 — 챗봇 화면은 이걸 mock으로 가리지 않고
- *         "AI 연결이 원활하지 않습니다" 같은 명확한 오류 문구를 직접 보여줘야 합니다
- *         (predictRisk()와 동일한 원칙 — 실패를 숨기지 않는다).
- */
-async function chatWithAI(message, history = [], context = null, locale = "ko") {
-  let res;
-  try {
-    res = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, context, locale }),
-      // 로컬 EXAONE(CPU) 생성은 느릴 수 있고, /api/advise와 모델(및 락)을 공유하므로
-      // 위험도 분석 직후 곧바로 챗봇을 쓰면 그 생성이 끝날 때까지 대기열에 걸릴 수 있다
-      // (advisor.py의 self._gen_lock 참고) — 넉넉히 4분 40초까지 기다린다.
-      signal: AbortSignal.timeout(280000),
-    });
-  } catch (err) {
-    // AbortSignal.timeout()이 실제로 끊었으면 TimeoutError — 호출자가 "응답이 너무
-    // 오래 걸렸다"와 "서버에 연결 자체가 안 된다"를 구분해서 보여줄 수 있게 표시해둔다.
-    if (err.name === "TimeoutError") err.isTimeout = true;
-    throw err;
-  }
-  if (!res.ok) throw new Error(`챗봇 요청 실패 (${res.status})`);
-  const data = await res.json();
-  if (data.error) throw new Error(data.reply || "챗봇 응답 오류");
-  return data.reply;
-}
-
-// ============================================================
 // 현장 사진 분석 (컴퓨터비전 객체탐지 — Backend/safety_yolo_pkg의 YOLO 모델 연동)
 // 백엔드가 켜져 있고 사진 분석 서비스(ultralytics/torch)가 정상 초기화되어 있으면
 // 실제 탐지 결과를 받고, 서버가 꺼져있거나 초기화 실패(503) 시에만 목업으로 대체합니다.

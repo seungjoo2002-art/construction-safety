@@ -19,7 +19,6 @@ window.I18N_DICT.ne = {
   "nav.predict": "जोखिम विश्लेषण",
   "nav.photo": "फोटो विश्लेषण",
   "nav.cases": "घटना खोजी",
-  "nav.chatbot": "AI सहायक",
   "nav.profile": "मेरो प्रोफाइल",
 
   "header.aria.back": "पछाडि",
@@ -45,7 +44,6 @@ window.I18N_DICT.ne = {
   "dashboard.viewAll": "सबै हेर्नुहोस् →",
   "dashboard.trendTitle": "आजको घण्टाको जोखिम प्रवृत्ति",
   "dashboard.bannerPhoto": "📷 साइट फोटोबाट जोखिम जाँच गर्नुहोस्",
-  "dashboard.bannerChat": "🤖 AI सहायकसँग कुरा गर्नुहोस्",
   "dashboard.noAnalysisYet": "अहिलेसम्म विश्लेषण परिणाम छैन",
   "dashboard.startAnalysisCta": "जोखिम विश्लेषण सुरु गर्नुहोस्",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.ne = {
   "notifications.summaryLabel": "आज जाँच गर्नुपर्ने सूचनाहरू",
   "notifications.unit": "",
   "notifications.endNote": "— तपाईंले सबै सूचनाहरू जाँच गर्नुभयो —",
-
-  "chatbot.headerTitle": "AI सुरक्षा सहायक",
-  "chatbot.headerStatus": "अनलाइन · २४ घण्टा उपलब्ध",
-  "chatbot.aria.reset": "कुराकानी रिसेट गर्नुहोस्",
-  "chatbot.aria.send": "पठाउनुहोस्",
-  "chatbot.inputPlaceholder": "सन्देश टाइप गर्नुहोस्...",
-  "chatbot.greeting": "नमस्ते! म AI निर्माण साइट सुरक्षा व्यवस्थापन प्रणालीको AI सहायक हुँ। 😊\n\nसाइट सुरक्षा, जोखिम विश्लेषण, वा दुर्घटना रोकथामको बारेमा मलाई जे पनि सोध्नुहोस्!",
-  "chatbot.generating": "जवाफ तयार गर्दैछ...",
-  "chatbot.connectionError": "अहिले AI जडान राम्रोसँग काम गरिरहेको छैन। कृपया केही बेरमा फेरि प्रयास गर्नुहोस्।",
-  "chatbot.resetConfirm": "कुराकानी रिसेट गर्ने हो?",
-  "chatbot.quick1": "आजको साइट जोखिम कस्तो छ?",
-  "chatbot.quick2": "लड्नबाट बच्ने उपायहरू",
-  "chatbot.quick3": "सुरक्षा तालिम तालिका",
-  "chatbot.quick4": "दुर्घटना घटना खोज्नुहोस्",
 
   "profile.title": "मेरो प्रोफाइल",
   "profile.defaultName": "प्रयोगकर्ता",
@@ -263,7 +247,4 @@ window.I18N_DICT.ne = {
   "predictInput.weatherLoadFailed": "मौसम जानकारी लोड गर्न सकिएन। कृपया तल म्यानुअल रूपमा हाल्नुहोस्।",
   "predictInput.manualBadge": "म्यानुअल",
   "predictInput.manualDescription": "प्रयोगकर्ताले म्यानुअल रूपमा हालेको",
-
-  "chatbot.generatingSlow": "स्थानीय AI ले जवाफ तयार गर्दैछ। CPU भएकाले केही मिनेट लाग्न सक्छ, कृपया पर्खनुहोस्...",
-  "chatbot.timeoutError": "जवाफ तयार गर्न धेरै समय लागेकाले रोकियो। तपाईंले भर्खरै जोखिम विश्लेषण गर्नुभएको छ भने, त्यो सकिएपछि फेरि प्रयास गर्नुहोस्।",
 };

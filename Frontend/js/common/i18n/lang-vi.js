@@ -19,7 +19,6 @@ window.I18N_DICT.vi = {
   "nav.predict": "Phân tích rủi ro",
   "nav.photo": "Phân tích ảnh",
   "nav.cases": "Tìm ca sự cố",
-  "nav.chatbot": "Trợ lý AI",
   "nav.profile": "Hồ sơ của tôi",
 
   "header.aria.back": "Quay lại",
@@ -45,7 +44,6 @@ window.I18N_DICT.vi = {
   "dashboard.viewAll": "Xem tất cả →",
   "dashboard.trendTitle": "Xu hướng rủi ro theo giờ hôm nay",
   "dashboard.bannerPhoto": "📷 Kiểm tra nguy cơ bằng ảnh công trường",
-  "dashboard.bannerChat": "🤖 Trò chuyện với trợ lý AI",
   "dashboard.noAnalysisYet": "Chưa có kết quả phân tích",
   "dashboard.startAnalysisCta": "Hãy bắt đầu phân tích rủi ro",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.vi = {
   "notifications.summaryLabel": "Thông báo cần xác nhận hôm nay",
   "notifications.unit": "",
   "notifications.endNote": "— Bạn đã xem tất cả thông báo —",
-
-  "chatbot.headerTitle": "Trợ lý An toàn AI",
-  "chatbot.headerStatus": "Trực tuyến · Hoạt động 24/7",
-  "chatbot.aria.reset": "Đặt lại cuộc trò chuyện",
-  "chatbot.aria.send": "Gửi",
-  "chatbot.inputPlaceholder": "Nhập tin nhắn...",
-  "chatbot.greeting": "Xin chào! Tôi là trợ lý AI của Hệ thống Quản lý An toàn Công trường AI. 😊\n\nHãy hỏi tôi bất cứ điều gì về an toàn công trường, phân tích rủi ro hoặc phòng ngừa tai nạn!",
-  "chatbot.generating": "Đang tạo câu trả lời...",
-  "chatbot.connectionError": "Kết nối AI hiện không ổn định. Vui lòng thử lại sau.",
-  "chatbot.resetConfirm": "Bạn có muốn đặt lại cuộc trò chuyện không?",
-  "chatbot.quick1": "Rủi ro công trường hôm nay?",
-  "chatbot.quick2": "Cách phòng ngừa té ngã",
-  "chatbot.quick3": "Lịch đào tạo an toàn",
-  "chatbot.quick4": "Tìm ca sự cố",
 
   "profile.title": "Hồ sơ của tôi",
   "profile.defaultName": "Người dùng",
@@ -263,7 +247,4 @@ window.I18N_DICT.vi = {
   "predictInput.weatherLoadFailed": "Không thể tải thông tin thời tiết. Vui lòng nhập thủ công bên dưới.",
   "predictInput.manualBadge": "Nhập thủ công",
   "predictInput.manualDescription": "Người dùng nhập thủ công",
-
-  "chatbot.generatingSlow": "AI cục bộ đang tạo câu trả lời. Trên CPU có thể mất vài phút, vui lòng đợi...",
-  "chatbot.timeoutError": "Việc tạo câu trả lời mất quá nhiều thời gian nên đã bị hủy. Nếu bạn vừa chạy phân tích rủi ro, vui lòng đợi nó hoàn tất rồi thử lại.",
 };

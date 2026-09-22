@@ -3,7 +3,7 @@
 // ============================================================
 // 캐시하는 것: 앱 화면(HTML/CSS/JS), 아이콘, manifest, 오프라인 안내 화면 (Cache First)
 // 캐시하되 갱신 우선: /api/ 중 남은 검색류 GET 응답 (Network First, 실패 시 캐시 폴백)
-// 절대 캐시하지 않는 것: /api/ 중 쓰기·분석성 POST(predict/analyze/analyze-photo/chat),
+// 절대 캐시하지 않는 것: /api/ 중 쓰기·분석성 POST(predict/analyze/analyze-photo),
 //   그리고 대용량 원본 데이터(huggingface.co 직접 URL, *.npy, *.csv, *.xlsx, *.db 등).
 //   사고 사례 검색(similar-cases.html, case-detail.html)은 이제 이 서버가 아니라
 //   Hugging Face Dataset Viewer API(datasets-server.huggingface.co)를 브라우저가
@@ -25,7 +25,8 @@
 // v10: 대시보드 "오늘 시간별 위험도 추이" 섹션 제거(dashboard.html/js, Chart.js 의존 제거).
 // v11: 챗봇 타임아웃 연장(280초) + 느릴 때 안내 문구 + 생성 길이 단축(400→220 토큰)로
 //      "AI 연결이 원활하지 않습니다" 조기 타임아웃 완화.
-const SHELL_CACHE = "ai-safety-shell-v11";
+// v12: AI 챗봇 기능 제거(chatbot.html/js, /api/chat 및 관련 UI/i18n 정리).
+const SHELL_CACHE = "ai-safety-shell-v12";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -37,7 +38,6 @@ const PRECACHE_URLS = [
   // HTML 화면
   "html/analysis-history.html",
   "html/case-detail.html",
-  "html/chatbot.html",
   "html/dashboard.html",
   "html/login.html",
   "html/notifications.html",
@@ -91,7 +91,6 @@ const PRECACHE_URLS = [
   // JS 화면별
   "js/pages/analysis-history.js",
   "js/pages/case-detail.js",
-  "js/pages/chatbot.js",
   "js/pages/dashboard.js",
   "js/pages/login.js",
   "js/pages/notifications.js",
@@ -115,8 +114,8 @@ const PRECACHE_URLS = [
 
 // 이 백엔드(Render Web Service)에는 더 이상 "검색 결과"성 GET 엔드포인트가 없다
 // (구 /api/cases, /api/incidents는 Hugging Face Dataset Viewer API 직접 호출로
-// 대체되어 제거됨 — 위 주석 참고). /api/predict, /api/analyze, /api/analyze-photo,
-// /api/chat은 전부 매번 새로 계산되는 POST 결과라 애초에 캐싱 대상이 아니었다.
+// 대체되어 제거됨 — 위 주석 참고). /api/predict, /api/analyze, /api/analyze-photo는
+// 전부 매번 새로 계산되는 POST 결과라 애초에 캐싱 대상이 아니었다.
 const CACHEABLE_API_PREFIXES = [];
 
 // 원본 대용량 데이터는 어떤 경우에도 캐시하지 않는다 (요구사항: 캐시 금지).

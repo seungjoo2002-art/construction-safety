@@ -207,7 +207,7 @@ body {
 }
 
 /* ============================================================
-   하단 탭바 — 5개 고정 (대시보드/위험도분석/사례검색/AI챗봇/알림)
+   하단 탭바 — 5개 고정 (대시보드/위험도분석/사진분석/사례검색/내정보)
    ============================================================ */
 .bottom-nav {
   position: sticky;
@@ -218,7 +218,7 @@ body {
   background: #fff;
   border-top: 1px solid var(--color-border);
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: center;
   z-index: var(--z-bottom-nav);
 }

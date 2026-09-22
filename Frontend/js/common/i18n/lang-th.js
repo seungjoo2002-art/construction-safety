@@ -19,7 +19,6 @@ window.I18N_DICT.th = {
   "nav.predict": "วิเคราะห์ความเสี่ยง",
   "nav.photo": "วิเคราะห์ภาพถ่าย",
   "nav.cases": "ค้นหากรณีศึกษา",
-  "nav.chatbot": "ผู้ช่วย AI",
   "nav.profile": "ข้อมูลของฉัน",
 
   "header.aria.back": "ย้อนกลับ",
@@ -45,7 +44,6 @@ window.I18N_DICT.th = {
   "dashboard.viewAll": "ดูทั้งหมด →",
   "dashboard.trendTitle": "แนวโน้มความเสี่ยงรายชั่วโมงวันนี้",
   "dashboard.bannerPhoto": "📷 ตรวจสอบความเสี่ยงด้วยภาพถ่ายหน้างาน",
-  "dashboard.bannerChat": "🤖 ปรึกษาผู้ช่วย AI",
   "dashboard.noAnalysisYet": "ยังไม่มีผลการวิเคราะห์",
   "dashboard.startAnalysisCta": "เริ่มวิเคราะห์ความเสี่ยงกันเลย",
 
@@ -109,20 +107,6 @@ window.I18N_DICT.th = {
   "notifications.summaryLabel": "การแจ้งเตือนที่ต้องตรวจสอบวันนี้",
   "notifications.unit": " รายการ",
   "notifications.endNote": "— คุณตรวจสอบการแจ้งเตือนทั้งหมดแล้ว —",
-
-  "chatbot.headerTitle": "ผู้ช่วยความปลอดภัย AI",
-  "chatbot.headerStatus": "ออนไลน์ · ให้บริการตลอด 24 ชั่วโมง",
-  "chatbot.aria.reset": "รีเซ็ตการสนทนา",
-  "chatbot.aria.send": "ส่ง",
-  "chatbot.inputPlaceholder": "พิมพ์ข้อความ...",
-  "chatbot.greeting": "สวัสดีค่ะ/ครับ! ฉันคือผู้ช่วย AI ของระบบจัดการความปลอดภัยไซต์ก่อสร้าง AI 😊\n\nสอบถามเกี่ยวกับความปลอดภัยหน้างาน การวิเคราะห์ความเสี่ยง หรือการป้องกันอุบัติเหตุได้เลย!",
-  "chatbot.generating": "กำลังสร้างคำตอบ...",
-  "chatbot.connectionError": "ขณะนี้การเชื่อมต่อ AI ไม่เสถียร กรุณาลองใหม่อีกครั้งในภายหลัง",
-  "chatbot.resetConfirm": "ต้องการรีเซ็ตบทสนทนาหรือไม่?",
-  "chatbot.quick1": "วันนี้ความเสี่ยงหน้างานเป็นอย่างไร?",
-  "chatbot.quick2": "วิธีป้องกันการตกจากที่สูง",
-  "chatbot.quick3": "ตารางอบรมความปลอดภัย",
-  "chatbot.quick4": "ค้นหากรณีอุบัติเหตุ",
 
   "profile.title": "ข้อมูลของฉัน",
   "profile.defaultName": "ผู้ใช้",
@@ -263,7 +247,4 @@ window.I18N_DICT.th = {
   "predictInput.weatherLoadFailed": "ไม่สามารถโหลดข้อมูลสภาพอากาศได้ กรุณากรอกด้วยตนเองด้านล่าง",
   "predictInput.manualBadge": "กรอกด้วยตนเอง",
   "predictInput.manualDescription": "ผู้ใช้กรอกด้วยตนเอง",
-
-  "chatbot.generatingSlow": "AI ในเครื่องกำลังสร้างคำตอบ อาจใช้เวลาหลายนาทีบน CPU กรุณารอสักครู่...",
-  "chatbot.timeoutError": "การสร้างคำตอบใช้เวลานานเกินไปจึงถูกยกเลิก หากคุณเพิ่งวิเคราะห์ความเสี่ยงไป กรุณารอให้เสร็จก่อนแล้วลองใหม่",
 };

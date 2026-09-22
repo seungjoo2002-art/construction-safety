@@ -56,13 +56,12 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleModeTag("cases-mock-tag", sim);
     renderScatterImage(sim.mds_chart_image);
     renderSimilarCases(sim.similar_cases);
-    renderPrevention(result.accident_type, sim.prevention_guidelines);
+    renderPrevention(result.accident_type, sim.prevention_guidelines, advise);
   } else {
     renderScatterImage(null); // 유사도 결과 없음 → "불러오지 못했어요" 안내 + 확대 버튼 숨김
-    renderPrevention(result.accident_type, null);
+    renderPrevention(result.accident_type, null, advise);
   }
 
-  renderAiAdvice(advise);
   renderAnalysisMeta(input);
   bindActions(result, input);
 });
@@ -180,10 +179,91 @@ function splitPreventionGuideline(text) {
     .filter(Boolean);
 }
 
-// ── 예방 조치: similarity_service.py의 prevention_guidelines(SIF 기반 실제 대책) 우선 사용,
-//    없으면 예측 TOP1 사고유형 기반 일반 예방수칙(ACCIDENT_TYPE_TIPS)으로 대체
-function renderPrevention(accidentType, guidelines) {
+// "N. 문장 (사례 #123)" 형태의 번호 목록에서 머리말(핵심 위험 설명)과 항목 텍스트만 뽑아낸다.
+// advisor.py generate_ex()가 항상 "■ 핵심 위험\n설명\n\n■ 안전 조치사항\n1. ...\n2. ..." 형태로
+// 준다(실패 시에도 템플릿 안전망이 같은 형식을 보장) — 그 구조를 그대로 파싱한다.
+function parseAdviceText(text) {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  let intro = "";
+  const items = [];
+  for (const line of lines) {
+    const m = line.match(/^(\d+)\.\s*(.+)$/);
+    if (m) {
+      items.push(m[2]);
+    } else if (!line.startsWith("■") && items.length === 0 && !intro) {
+      intro = line; // "■ 핵심 위험" 다음의 설명 한 줄
+    }
+  }
+  return { intro, items };
+}
+
+// ── 예방 조치: 아래 우선순위로 한 곳에 모아서 보여준다(EXAONE/Gemini 생성문을 별도
+//    카드로 분리하지 않고 이 섹션 안에 통합 — 화면을 두 번 보여줄 필요가 없다는 요청 반영).
+//    1순위: advisor.py가 생성한 맞춤 안전수칙(advise.advice) — 근거 KOSHA 사례 원문 포함
+//    2순위: similarity_service.py의 prevention_guidelines(SIF 기반 실제 대책)
+//    3순위: 예측 TOP1 사고유형 기반 일반 예방수칙(ACCIDENT_TYPE_TIPS)
+function renderPrevention(accidentType, guidelines, advise) {
   const gridEl = document.getElementById("tip-grid");
+
+  if (advise && advise.advice) {
+    gridEl.style.gridTemplateColumns = "1fr";
+    const { intro, items } = parseAdviceText(advise.advice);
+    const v = advise.verification;
+    const issues = [];
+    if (v?.지어낸수치?.length) issues.push(`원문에 없는 수치가 섞였을 수 있어요: ${v.지어낸수치.join(", ")}`);
+    if (v?.가짜출처?.length) issues.push(`존재하지 않는 사례 번호가 인용됐어요: #${v.가짜출처.join(", #")}`);
+    if (v?.과다재작성?.length) issues.push(`${v.과다재작성.length}개 항목이 원문과 많이 달라졌어요 — 아래 근거 사례 원문과 대조해보세요.`);
+
+    gridEl.innerHTML = `
+      <div class="card" style="background: var(--color-safe-bg); padding: var(--space-md);">
+        ${intro ? `<p style="font-size: var(--fs-xs); color: var(--color-text-secondary); margin-bottom: var(--space-sm);">🤖 ${escapeHtml(intro)}</p>` : ""}
+        ${items
+          .map(
+            (item) => `
+          <div class="prevention-list__item">
+            <span class="prevention-list__check">✓</span>
+            <span class="prevention-list__text">${escapeHtml(item)}</span>
+          </div>
+        `
+          )
+          .join("")}
+        ${
+          issues.length
+            ? `<div style="margin-top: var(--space-sm); font-size: var(--fs-xs); color: var(--color-caution); background: var(--color-caution-bg); padding: var(--space-sm); border-radius: 8px;">
+                 ⚠️ AI 생성문 자동 검증<br>${issues.map((t) => `· ${escapeHtml(t)}`).join("<br>")}
+               </div>`
+            : ""
+        }
+        ${
+          advise.evidence?.length
+            ? `<details style="margin-top: var(--space-sm);">
+                 <summary style="cursor:pointer; font-size: var(--fs-xs); color: var(--color-text-secondary);">📋 근거가 된 KOSHA 사례 원문 보기</summary>
+                 <div style="margin-top: var(--space-sm);">
+                   ${advise.evidence
+                     .map((e) => {
+                       const lowSim = e.점수 < 0.3;
+                       return `
+                         <div class="prevention-list__item" style="align-items:flex-start;">
+                           <span class="prevention-list__check">📋</span>
+                           <span class="prevention-list__text">
+                             ${escapeHtml(e.대책)}
+                             <span style="display:block; font-size:11px; color:var(--color-text-placeholder); margin-top:2px;">
+                               KOSHA 사례 #${e.출처.id} · ${escapeHtml(e.출처.공종)}/${escapeHtml(e.출처.작업명)} · ${escapeHtml(e.출처.재해종류)}
+                               ${lowSim ? " · <span style=\"color:var(--color-caution);\">참고용(유사도 낮음)</span>" : ""}
+                             </span>
+                           </span>
+                         </div>
+                       `;
+                     })
+                     .join("")}
+                 </div>
+               </details>`
+            : ""
+        }
+      </div>
+    `;
+    return;
+  }
 
   if (guidelines && guidelines.length > 0) {
     gridEl.style.gridTemplateColumns = "1fr";
@@ -219,64 +299,6 @@ function renderPrevention(accidentType, guidelines) {
       </div>
     `
     )
-    .join("");
-}
-
-// ── AI 안전수칙 (advisor.py: KOSHA 유사사례 검색 + Gemini 생성)
-//    advise가 null이면(백엔드 연결 실패 등) 섹션 자체를 숨긴다 — 목업 텍스트를
-//    실제 AI 답변처럼 보여주는 건 부적절하기 때문.
-function renderAiAdvice(advise) {
-  const section = document.getElementById("ai-advice-section");
-  if (!advise || !advise.evidence || advise.evidence.length === 0) {
-    section.style.display = "none";
-    return;
-  }
-  section.style.display = "";
-
-  const textEl = document.getElementById("ai-advice-text");
-  const warnEl = document.getElementById("ai-advice-warning");
-  const evidenceEl = document.getElementById("ai-advice-evidence");
-
-  if (advise.advice) {
-    // AI가 생성한 문장을 그대로 표시 (줄바꿈만 <br>로 치환)
-    textEl.innerHTML = escapeHtml(advise.advice).replace(/\n/g, "<br>");
-
-    const v = advise.verification;
-    const issues = [];
-    if (v?.지어낸수치?.length) issues.push(`원문에 없는 수치가 섞였을 수 있어요: ${v.지어낸수치.join(", ")}`);
-    if (v?.가짜출처?.length) issues.push(`존재하지 않는 사례 번호가 인용됐어요: #${v.가짜출처.join(", #")}`);
-    if (v?.과다재작성?.length) issues.push(`${v.과다재작성.length}개 항목이 원문과 많이 달라졌어요 — 아래 근거 사례 원문과 대조해보세요.`);
-
-    if (issues.length) {
-      warnEl.style.display = "";
-      warnEl.innerHTML = `⚠️ AI 생성문 자동 검증 결과<br>${issues.map((t) => `· ${escapeHtml(t)}`).join("<br>")}`;
-    } else {
-      warnEl.style.display = "none";
-    }
-  } else {
-    // LLM 미사용/실패 시: KOSHA 원문 대책을 그대로 노출 (README 권장 폴백)
-    textEl.innerHTML =
-      `<span style="color:var(--color-text-secondary); font-size:var(--fs-sm);">AI 생성 요약 없이, 유사 사례의 KOSHA 원문 대책을 그대로 보여드려요.</span>`;
-    warnEl.style.display = "none";
-  }
-
-  // 근거 사례 (접이식) — 안전 정보는 사람이 원문과 대조할 수 있어야 하므로 항상 같이 노출
-  evidenceEl.innerHTML = advise.evidence
-    .map((e) => {
-      const lowSim = e.점수 < 0.3; // 로컬 TF-IDF 기준 근사 임계치 — 낮으면 "참고용"으로 표시
-      return `
-        <div class="prevention-list__item" style="align-items:flex-start;">
-          <span class="prevention-list__check">📋</span>
-          <span class="prevention-list__text">
-            ${escapeHtml(e.대책)}
-            <span style="display:block; font-size:11px; color:var(--color-text-placeholder); margin-top:2px;">
-              KOSHA 사례 #${e.출처.id} · ${escapeHtml(e.출처.공종)}/${escapeHtml(e.출처.작업명)} · ${escapeHtml(e.출처.재해종류)}
-              ${lowSim ? " · <span style=\"color:var(--color-caution);\">참고용(유사도 낮음)</span>" : ""}
-            </span>
-          </span>
-        </div>
-      `;
-    })
     .join("");
 }
 

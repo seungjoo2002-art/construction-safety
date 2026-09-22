@@ -217,6 +217,28 @@ class SafetyAdvisor:
                                  pad_token_id=tok.eos_token_id)
         return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
+    def generate_chat(self, system_prompt: str, turns: list, max_new_tokens: int = 400) -> str:
+        """범용 대화 생성 (app.py의 /api/chat이 CHAT_LLM=exaone일 때 재사용).
+        advise()의 _generate_exaone()과 달리 안전수칙 전용 SYSTEM이 아니라 호출자가 준
+        system_prompt(페르소나 + 언어 지시)를 그대로 쓰고, 자유 대화 이력(turns)을 받는다.
+        같은 self._exaone(모델 1개)과 self._gen_lock을 공유해 이중 로드를 피한다.
+
+        turns: [{"role": "user"|"assistant", "content": str}, ...] (마지막이 이번 사용자 메시지)
+        """
+        import torch
+
+        tok, model = self.load_exaone()
+        msgs = [{"role": "system", "content": system_prompt}, *turns]
+        enc = tok.apply_chat_template(msgs, add_generation_prompt=True,
+                                      return_tensors="pt", return_dict=True).to(model.device)
+        with self._gen_lock, torch.no_grad():
+            out = model.generate(**enc, max_new_tokens=max_new_tokens,
+                                 do_sample=True, temperature=0.6, top_p=0.9,  # 잡담형 대화 → 약간의 다양성 허용
+                                 repetition_penalty=1.12,
+                                 no_repeat_ngram_size=8,
+                                 pad_token_id=tok.eos_token_id)
+        return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+
     def _generate_gemini(self, user: str) -> str:
         res = requests.post(
             GEMINI_URL,

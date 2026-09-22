@@ -1,7 +1,7 @@
 // ============================================================
 // dashboard.js — 대시보드 화면
-// session-store.js, constants.js, notification-center.js, weather.js, api.js
-// 보다 나중에 로드되어야 합니다.
+// session-store.js, constants.js, notification-center.js, weather.js, api.js,
+// i18n.js 보다 나중에 로드되어야 합니다.
 //
 // 정보 우선순위(위→아래): 현재 상태 → 가장 위험한 사고유형 → 지금 할 일 →
 // 세부 위험 분석 → 유사 사례 → 시간별 위험도 → 진입 배너
@@ -13,7 +13,15 @@
 //  - 유사사례 TOP3                    → MOCK_CASES (목업, 분석 전엔 빈 상태)
 //  - 오늘 시간별 위험도 추이           → 오늘 남은 시간대 실제 날씨 + predictRisk() 실제 호출
 //  - 헤더 알림 배지                    → notification-center.js (알림 화면과 동일한 데이터)
+//
+// i18n: renderHero/renderFocus/renderStats/renderSimilarCases/renderTrendInsight는
+// 화면에 보여줄 값(등급/유형명/문구)만 매번 새로 그리므로, 언어가 바뀌면(i18n:change)
+// 서버를 다시 호출하지 않고 캐시해둔 데이터로 그대로 다시 그린다.
 // ============================================================
+
+let _cachedResult = null;
+let _cachedSimilarity = null;
+let _cachedTrendScores = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   renderHeaderWeatherMini();
@@ -24,24 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const lastSimilarity = getLastSimilarity();
   const siteSetup = hasSiteSetup() ? getSiteSetup() : null;
 
-  // ── 핵심 정보(종합위험도/가장위험한유형/지금할일/세부분석): 실제 위험도
-  //    분석을 한 번이라도 해야 채워짐
-  if (!lastResult) {
-    renderHeroEmpty();
-    renderFocusEmpty();
-    renderStatsEmpty();
-    renderSimilarEmpty();
-  } else {
-    renderHero(lastResult);
-    renderFocus(lastResult.accident_type);
-    renderStats(lastResult);
+  _cachedResult = lastResult;
+  _cachedSimilarity = lastSimilarity;
 
-    if (lastSimilarity && lastSimilarity.similar_cases && lastSimilarity.similar_cases.length > 0) {
-      renderSimilarCases(lastSimilarity.similar_cases.slice(0, 3), lastSimilarity);
-    } else {
-      renderSimilarEmpty("유사사례 데이터를 불러오지 못했어요.");
-    }
-  }
+  renderLocalizedParts();
 
   // ── 오늘 시간별 위험도 추이: 날씨는 분석 여부와 무관하게 매시간 바뀌므로,
   //    "위험도 분석"까지는 안 해도 되고 "현장 설정"(로그인 직후 필수)만 있으면 바로 계산함.
@@ -61,12 +55,35 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("trend-section-body").innerHTML = `
       <div class="dashboard-empty">
         <div class="dashboard-empty__icon">🏗️</div>
-        <p class="dashboard-empty__text">현장 정보가 없어요.<br>현장 설정을 먼저 완료해주세요.</p>
-        <a href="site-setup.html" class="dashboard-empty__btn">현장 설정하러 가기</a>
+        <p class="dashboard-empty__text">${t("dashboard.noSiteInfoLine1")}<br>${t("dashboard.noSiteInfoLine2")}</p>
+        <a href="site-setup.html" class="dashboard-empty__btn">${t("dashboard.goSiteSetup")}</a>
       </div>
     `;
   }
+
+  document.addEventListener("i18n:change", renderLocalizedParts);
 });
+
+// 언어가 바뀌거나 최초 로드될 때, 캐시된 데이터만 가지고 다시 그리는 부분들
+function renderLocalizedParts() {
+  if (!_cachedResult) {
+    renderHeroEmpty();
+    renderFocusEmpty();
+    renderStatsEmpty();
+    renderSimilarEmpty();
+  } else {
+    renderHero(_cachedResult);
+    renderFocus(_cachedResult.accident_type);
+    renderStats(_cachedResult);
+
+    if (_cachedSimilarity && _cachedSimilarity.similar_cases && _cachedSimilarity.similar_cases.length > 0) {
+      renderSimilarCases(_cachedSimilarity.similar_cases.slice(0, 3), _cachedSimilarity);
+    } else {
+      renderSimilarEmpty(t("dashboard.similarLoadFailed"));
+    }
+  }
+  if (_cachedTrendScores) renderTrendInsight(_cachedTrendScores);
+}
 
 function emptyStateHtml(text, href, linkText) {
   return `
@@ -80,9 +97,9 @@ function emptyStateHtml(text, href, linkText) {
 
 function renderHeroEmpty() {
   document.getElementById("dash-hero-body").innerHTML = emptyStateHtml(
-    "아직 위험도 분석 결과가 없어요.<br>분석을 진행하면 오늘의 안전 상태가 여기에 표시돼요.",
+    `${t("dashboard.noResultLine1")}<br>${t("dashboard.noResultLine2")}`,
     "predict-input.html",
-    "위험도 분석하러 가기"
+    t("dashboard.goAnalyze")
   );
   document.getElementById("dash-hero-focus-line").style.display = "none";
 }
@@ -93,17 +110,17 @@ function renderFocusEmpty() {
 
 function renderStatsEmpty() {
   document.getElementById("stat-grid-wrapper").innerHTML = emptyStateHtml(
-    "아직 위험도 분석 결과가 없어요.<br>분석을 진행하면 여기에 수치가 채워져요.",
+    `${t("dashboard.noResultLine1")}<br>${t("dashboard.noResultStatsLine2")}`,
     "predict-input.html",
-    "위험도 분석하러 가기"
+    t("dashboard.goAnalyze")
   );
 }
 
 function renderSimilarEmpty(text) {
   document.getElementById("similar-case-list").innerHTML = emptyStateHtml(
-    text || "위험도 분석을 하면 그 결과 기준 유사사례를 보여드려요.",
+    text || t("dashboard.similarEmpty"),
     "predict-input.html",
-    "위험도 분석하러 가기"
+    t("dashboard.goAnalyze")
   );
 }
 
@@ -118,7 +135,7 @@ async function renderHeaderWeatherMini() {
   } catch (err) {
     console.error(err);
     iconEl.textContent = "⚠️";
-    tempEl.textContent = "날씨 오류";
+    tempEl.textContent = t("dashboard.weatherError");
   }
 }
 
@@ -154,6 +171,8 @@ function gradeToBadgeClass(grade) {
 
 // ── ① 오늘의 현장 안전 상태 (종합 위험도 히어로 카드)
 // 실제 predict_severity.py fatal_risk 응답을 그대로 사용
+// ⚠️ i18n 주의: fr.grade("매우위험" 등)는 화면에 보여줄 때만 tStatus()로 번역한다.
+// gradeToBadgeClass() 같은 로직 비교, className 조립에는 항상 원래 한국어 값을 쓴다.
 function renderHero(result) {
   const fr = result.severity.fatal_risk;
   const pct = Math.round(fr.percentile);
@@ -166,22 +185,22 @@ function renderHero(result) {
   circle.style.stroke = riskColor(pct);
   document.getElementById("gauge-total-number").textContent = pct;
   const gaugeLabel = document.getElementById("gauge-total-label");
-  gaugeLabel.textContent = fr.grade;
+  gaugeLabel.textContent = tStatus(fr.grade);
   gaugeLabel.style.color = riskColor(pct);
 
   const badgeEl = document.getElementById("dash-hero-badge");
-  badgeEl.textContent = fr.grade;
+  badgeEl.textContent = tStatus(fr.grade);
   badgeEl.className = `badge ${gradeToBadgeClass(fr.grade)}`;
 
   document.getElementById("dash-hero-meta").innerHTML =
-    `최근 분석 기준 · 평균 사고 대비 <b>${fr.lift_vs_median}배</b>`;
+    `${t("dashboard.riskMeta")} · ${t("dashboard.liftDelta")} <b>${fr.lift_vs_median}${t("dashboard.timesUnit")}</b>`;
 
   // "현재 가장 주의가 필요한 위험: 끼임 (27%)" — 문장 형태로도 한 번 더 확인 가능하게
   const topType = result.accident_type.predicted_type;
-  const topShort = ACCIDENT_TYPE_SHORT_LABEL[topType] || topType;
+  const topShort = tStatus(ACCIDENT_TYPE_SHORT_LABEL[topType] || topType);
   const topPct = Math.round(result.accident_type.confidence * 100);
   const focusLineEl = document.getElementById("dash-hero-focus-line");
-  focusLineEl.innerHTML = `현재 가장 주의가 필요한 위험: <b>${topShort}</b> (${topPct}%)`;
+  focusLineEl.innerHTML = `${t("dashboard.focusLinePrefix")} <b>${topShort}</b> (${topPct}%)`;
   focusLineEl.style.display = "";
 }
 
@@ -199,8 +218,9 @@ function renderFocus(accidentType) {
 
   section.style.display = "";
   document.getElementById("dash-focus-icon").textContent = pct >= 30 ? "🔴" : pct >= 15 ? "🟠" : "🔵";
-  document.getElementById("dash-focus-type").textContent = ACCIDENT_TYPE_SHORT_LABEL[topType] || topType;
+  document.getElementById("dash-focus-type").textContent = tStatus(ACCIDENT_TYPE_SHORT_LABEL[topType] || topType);
   document.getElementById("dash-focus-pct").textContent = `${pct}%`;
+  // ⚠️ tip.desc(예방수칙 문구)는 아직 다국어 사전에 없어 한국어 원문 그대로 표시합니다.
   document.getElementById("dash-focus-tip").textContent = tip.desc;
 
   // 방금 본 lastResult가 어느 이력(id)에 대응하는지 찾아서 상세 화면으로 바로 이동
@@ -217,10 +237,10 @@ function renderFocus(accidentType) {
 function renderStats(result) {
   const fr = result.severity.fatal_risk;
 
-  document.getElementById("value-lift").textContent = `${fr.lift_vs_median}배`;
+  document.getElementById("value-lift").textContent = `${fr.lift_vs_median}${t("dashboard.timesUnit")}`;
   document.getElementById("bar-prob").style.width = `${Math.min(fr.lift_vs_median * 20, 100)}%`;
 
-  document.getElementById("value-severity-class").textContent = result.severity.predicted_class;
+  document.getElementById("value-severity-class").textContent = tStatus(result.severity.predicted_class);
   const severityBarPct = { "경+중등도": 20, "중상": 60, "치명": 100 }[result.severity.predicted_class] || 20;
   document.getElementById("bar-fatal").style.width = `${severityBarPct}%`;
 }
@@ -230,10 +250,10 @@ function renderSimilarCases(cases, sim) {
   const tagEl = document.getElementById("similar-cases-mock-tag");
   if (tagEl) {
     if (sim._mock) {
-      tagEl.textContent = "MOCK";
+      tagEl.textContent = t("common.mock");
       tagEl.style.display = "inline-block";
     } else if (sim.is_approximate) {
-      tagEl.textContent = "근사치";
+      tagEl.textContent = t("dashboard.approximate");
       tagEl.style.display = "inline-block";
     } else {
       tagEl.style.display = "none";
@@ -248,9 +268,9 @@ function renderSimilarCases(cases, sim) {
         <span class="similar-case-list__rank">${i + 1}</span>
         <div>
           <div class="similar-case-list__title">${c.title}</div>
-          <span class="badge" style="background:${color}22; color:${color}; margin-top:2px;">${c.hazard_type}</span>
+          <span class="badge" style="background:${color}22; color:${color}; margin-top:2px;">${tStatus(c.hazard_type)}</span>
         </div>
-        <span class="similar-case-list__pct">유사 ${c.similarity_percent}%</span>
+        <span class="similar-case-list__pct">${t("dashboard.similarPct", { n: c.similarity_percent })}</span>
       </a>
     `;
     })
@@ -265,7 +285,7 @@ async function renderHourlyRiskTrend(basePayload) {
   const wrap = canvas.closest(".chart-canvas-wrap");
   wrap.insertAdjacentHTML(
     "beforebegin",
-    `<p id="trend-loading-note" style="font-size:11px; color:var(--color-text-placeholder); margin-bottom:6px;">⏳ 오늘 시간별 위험도 계산 중...</p>`
+    `<p id="trend-loading-note" style="font-size:11px; color:var(--color-text-placeholder); margin-bottom:6px;">⏳ ${t("dashboard.trendCalculating")}</p>`
   );
 
   try {
@@ -275,7 +295,7 @@ async function renderHourlyRiskTrend(basePayload) {
       document.getElementById("trend-section-body").innerHTML = `
         <div class="dashboard-empty">
           <div class="dashboard-empty__icon">🌙</div>
-          <p class="dashboard-empty__text">오늘 남은 예보 시간대가 없어요.<br>내일 다시 확인해주세요.</p>
+          <p class="dashboard-empty__text">${t("dashboard.noForecastLine1")}<br>${t("dashboard.noForecastLine2")}</p>
         </div>
       `;
       return;
@@ -325,11 +345,12 @@ async function renderHourlyRiskTrend(basePayload) {
       },
     });
 
+    _cachedTrendScores = scores;
     renderTrendInsight(scores);
   } catch (err) {
     console.error("[dashboard.js] 시간별 위험도 추이 계산 실패:", err);
     document.getElementById("trend-loading-note")?.remove();
-    wrap.innerHTML = `<p style="text-align:center; padding-top:60px; font-size: var(--fs-sm); color: var(--color-text-secondary);">⚠️ 백엔드 서버에 연결되지 않아 시간별 위험도를 계산할 수 없어요.<br>서버(uvicorn)가 켜져 있는지 확인해주세요.</p>`;
+    wrap.innerHTML = `<p style="text-align:center; padding-top:60px; font-size: var(--fs-sm); color: var(--color-text-secondary);">⚠️ ${t("dashboard.trendFailedLine1")}<br>${t("dashboard.trendFailedLine2")}</p>`;
   }
 }
 
@@ -342,10 +363,10 @@ function renderTrendInsight(scores) {
   }
   const delta = scores[scores.length - 1] - scores[0];
   if (delta >= 3) {
-    el.textContent = "📈 오늘 남은 시간대의 위험도가 상승하는 추세입니다.";
+    el.textContent = `📈 ${t("dashboard.trendUp")}`;
     el.style.display = "";
   } else if (delta <= -3) {
-    el.textContent = "📉 오늘 남은 시간대의 위험도가 낮아지는 추세입니다.";
+    el.textContent = `📉 ${t("dashboard.trendDown")}`;
     el.style.display = "";
   } else {
     el.style.display = "none";

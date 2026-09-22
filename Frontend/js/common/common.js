@@ -47,7 +47,8 @@ function percentToProgressBucket(percent) {
  * @param {(value: string|null) => void} onSelect  선택/해제될 때마다 호출
  * @param {string} placeholder
  */
-function createSearchSelect(containerId, options, onSelect, placeholder = "검색해서 선택하세요") {
+function createSearchSelect(containerId, options, onSelect, placeholder) {
+  placeholder = placeholder || (typeof t === "function" ? t("predictInput.searchSelectPlaceholder") : "검색해서 선택하세요");
   const container = document.getElementById(containerId);
   container.classList.add("search-select");
   container.innerHTML = `
@@ -68,7 +69,8 @@ function createSearchSelect(containerId, options, onSelect, placeholder = "검�
       : options;
 
     if (filtered.length === 0) {
-      dropdown.innerHTML = `<div class="search-select__empty">일치하는 항목이 없어요</div>`;
+      const emptyText = typeof t === "function" ? t("predictInput.searchSelectEmpty") : "일치하는 항목이 없어요";
+      dropdown.innerHTML = `<div class="search-select__empty">${emptyText}</div>`;
     } else {
       dropdown.innerHTML = filtered
         .map((o) => `<div class="search-select__option" data-value="${o}">${o}</div>`)

@@ -67,17 +67,12 @@
 
 /* ============================================================
    접근성 설정 (profile.html에서 토글, accessibility.js가 페이지 로드 시 적용)
+   ------------------------------------------------------------
+   색상 토큰(고대비 모드)은 여기서 정의하고, 글자 크기 배율 + 하단
+   네비게이션/챗봇/알림 등 개별 컴포넌트의 세부 오버라이드는
+   accessibility.css(이 파일보다 뒤에 로드)에 모아뒀습니다 — 두 파일에
+   중복 정의하지 않기 위해서입니다.
    ============================================================ */
-html.a11y-large-font {
-  --fs-xs: 14px;
-  --fs-sm: 16px;
-  --fs-base: 17px;
-  --fs-lg: 20px;
-  --fs-xl: 25px;
-  --fs-2xl: 31px;
-  --fs-3xl: 40px;
-}
-
 html.a11y-high-contrast {
   --color-text-primary: #000000;
   --color-text-secondary: #202020;
@@ -85,4 +80,5 @@ html.a11y-high-contrast {
   --color-border: #3A3A3A;
   --color-primary: #0B3FCF;
   --color-primary-dark: #062A96;
+  --color-primary-darker: #041F73;
 }

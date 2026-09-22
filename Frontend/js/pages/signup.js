@@ -2,18 +2,10 @@
 // signup.js — 회원가입 화면 전용 로직
 // 서버 DB가 없어서 localStorage의 "registered_users" 배열에
 // 계정 목록을 저장하는 방식으로 구현합니다.
+// user-prefs.js, i18n.js 보다 나중에 로드되어야 합니다.
+// (REGISTERED_USERS_KEY / getRegisteredUsers() / saveRegisteredUsers()는
+//  user-prefs.js에 정의되어 있습니다 — 계정 저장소를 한 곳으로 유지하기 위함)
 // ============================================================
-
-const REGISTERED_USERS_KEY = "registered_users";
-
-function getRegisteredUsers() {
-  const raw = localStorage.getItem(REGISTERED_USERS_KEY);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function saveRegisteredUsers(users) {
-  localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(users));
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("signup-form");
@@ -46,25 +38,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const birthdate = birthdateInput.value;
 
     if (!username || !password || !passwordConfirm || !name || !birthdate) {
-      showError("모든 항목을 입력해주세요.");
+      showError(t("signup.errorEmpty"));
       return;
     }
 
     if (password !== passwordConfirm) {
-      showError("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+      showError(t("signup.errorMismatch"));
       return;
     }
 
     const users = getRegisteredUsers();
     if (users.some((u) => u.username === username)) {
-      showError("이미 존재하는 아이디입니다.");
+      showError(t("signup.errorDuplicate"));
       return;
     }
 
-    users.push({ username, password, name, birthdate });
+    // prefs: 가입 시점에 이미 골라둔(비로그인 guest 상태) 언어가 있으면 그대로 이어받는다.
+    // setupCompleted는 반드시 false로 시작 — 신규 가입자는 site-setup을 한 번은 거쳐야 한다.
+    users.push({
+      username,
+      password,
+      name,
+      birthdate,
+      prefs: { language: getLanguage(), largeText: false, highContrast: false, setupCompleted: false },
+    });
     saveRegisteredUsers(users);
 
-    alert("회원가입이 완료되었습니다. 로그인해주세요.");
+    alert(t("signup.success"));
     window.location.href = "login.html";
   });
 });

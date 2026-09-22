@@ -2,15 +2,10 @@
 // login.js — 로그인 화면 전용 로직
 // 서버 DB가 없어서 signup.js가 localStorage의 "registered_users"에
 // 저장해둔 계정 목록과 대조하는 방식으로 로그인을 검증합니다.
-// session-store.js 보다 나중에 로드되어야 합니다.
+// session-store.js, user-prefs.js, i18n.js 보다 나중에 로드되어야 합니다.
+// (REGISTERED_USERS_KEY / getRegisteredUsers()는 user-prefs.js에 정의되어 있습니다 —
+//  여기서 다시 선언하면 로그인 여부와 무관하게 계정 목록이 어긋날 수 있어 공유합니다.)
 // ============================================================
-
-const REGISTERED_USERS_KEY = "registered_users";
-
-function getRegisteredUsers() {
-  const raw = localStorage.getItem(REGISTERED_USERS_KEY);
-  return raw ? JSON.parse(raw) : [];
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("login-form");
@@ -56,24 +51,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const password = passwordInput.value;
 
     if (!username || !password) {
-      showError("아이디와 비밀번호를 모두 입력해주세요.");
+      showError(t("login.errorEmpty"));
       return;
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = "로그인 중...";
+    submitBtn.textContent = t("login.loggingIn");
 
     const users = getRegisteredUsers();
     const account = users.find((u) => u.username === username);
 
     if (!account) {
-      alert("가입되지 않은 아이디입니다. 회원가입을 먼저 진행해주세요.");
+      alert(t("login.errorNoAccount"));
       window.location.href = "signup.html";
       return;
     }
 
     if (account.password !== password) {
-      alert("아이디 또는 비밀번호가 일치하지 않습니다. 처음부터 다시 입력해주세요.");
+      alert(t("login.errorWrongPassword"));
       window.location.href = "signup.html";
       return;
     }
@@ -86,11 +81,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     localStorage.setItem("logged_in_username", username);
 
-    // 로그인 성공 시 현장 설정을 이미 마쳤으면 대시보드로, 아니면 현장 설정 화면으로 이동
-    window.location.href = hasSiteSetup() ? "dashboard.html" : "site-setup.html";
+    // 로그인 성공 시: 이 계정이 이미 현장 설정(setupCompleted)을 마쳤으면 대시보드로,
+    // 아니면(신규 가입 직후 등) 현장 설정 화면으로 이동. getUserPrefs()는 계정 레코드에
+    // 귀속된 값이라 로그아웃해도 지워지지 않는다 — 이게 site-setup 반복 버그의 수정 지점.
+    window.location.href = getUserPrefs().setupCompleted ? "dashboard.html" : "site-setup.html";
   });
 
   ssoBtn.addEventListener("click", () => {
-    alert("SSO 로그인은 아직 준비 중입니다.");
+    alert(t("login.ssoNotReady"));
   });
 });

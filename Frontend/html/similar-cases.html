@@ -6,6 +6,16 @@
 <title>유사 사고 사례 | AI 건설현장 안전관리 시스템</title>
 
 <script src="../js/common/accessibility.js"></script>
+<script src="../js/common/user-prefs.js"></script>
+<script src="../js/common/i18n/lang-ko.js"></script>
+<script src="../js/common/i18n/lang-en.js"></script>
+<script src="../js/common/i18n/lang-zh.js"></script>
+<script src="../js/common/i18n/lang-vi.js"></script>
+<script src="../js/common/i18n/lang-th.js"></script>
+<script src="../js/common/i18n/lang-id.js"></script>
+<script src="../js/common/i18n/lang-ne.js"></script>
+<script src="../js/common/i18n/status-labels.js"></script>
+<script src="../js/common/i18n.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2F5FE0">
 <link rel="apple-touch-icon" href="../../pictures/icon-192.png">
@@ -16,27 +26,28 @@
 <link rel="stylesheet" href="../css/layout.css">
 <link rel="stylesheet" href="../css/components.css">
 <link rel="stylesheet" href="../css/pages.css">
+<link rel="stylesheet" href="../css/accessibility.css">
 </head>
 <body>
 
 <div class="app-frame" data-has-nav="true">
 
   <header class="app-header app-header--back">
-    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
+    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기" data-i18n-aria-label="header.aria.back">&#8249;</a>
     <div>
-      <div class="app-header__title">유사 사고 사례</div>
+      <div class="app-header__title" data-i18n="similarCases.title">유사 사고 사례</div>
     </div>
   </header>
 
   <div class="app-content">
     <p style="font-size: var(--fs-xs); color: var(--color-text-placeholder); margin-top: -8px; margin-bottom: var(--space-md);">
-      <span id="db-total-note">불러오는 중...</span> <span class="mock-tag" id="cases-mock-tag" style="display:none;">MOCK</span>
-      <a href="similar-cases.html" id="analysis-mode-exit" style="display:none; margin-left:6px;">· 전체 사례 검색으로 보기</a>
+      <span id="db-total-note" data-i18n="similarCases.loading">불러오는 중...</span> <span class="mock-tag" id="cases-mock-tag" style="display:none;" data-i18n="common.mock">MOCK</span>
+      <a href="similar-cases.html" id="analysis-mode-exit" style="display:none; margin-left:6px;" data-i18n="similarCases.viewAllLink">· 전체 사례 검색으로 보기</a>
     </p>
 
     <div class="case-search" id="case-search-box">
       <span class="case-search__icon">🔍</span>
-      <input type="text" id="case-search-input" placeholder="사고 유형, 현장 검색...">
+      <input type="text" id="case-search-input" placeholder="사고 유형, 현장 검색..." data-i18n-placeholder="similarCases.searchPlaceholder">
     </div>
 
     <div class="filter-chip-row" id="filter-chip-row"></div>
@@ -47,19 +58,19 @@
     <div id="case-list"></div>
 
     <div class="case-pagination" id="case-pagination" style="display:none;">
-      <button type="button" id="case-prev" class="btn btn-outline" disabled>← 이전</button>
+      <button type="button" id="case-prev" class="btn btn-outline" disabled data-i18n="similarCases.prevPage">← 이전</button>
       <span class="case-pagination__page" id="case-page-indicator">1 페이지</span>
-      <button type="button" id="case-next" class="btn btn-outline">다음 →</button>
+      <button type="button" id="case-next" class="btn btn-outline" data-i18n="similarCases.nextPage">다음 →</button>
     </div>
   </div>
 
   <nav class="bottom-nav">
-    <a href="dashboard.html" class="bottom-nav__item">대시보드</a>
-    <a href="predict-input.html" class="bottom-nav__item">위험도 분석</a>
-    <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
-    <a href="similar-cases.html" class="bottom-nav__item is-active">사례 검색</a>
-    <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
-    <a href="profile.html" class="bottom-nav__item">내 정보</a>
+    <a href="dashboard.html" class="bottom-nav__item" data-i18n="nav.dashboard">대시보드</a>
+    <a href="predict-input.html" class="bottom-nav__item" data-i18n="nav.predict">위험도 분석</a>
+    <a href="photo-capture.html" class="bottom-nav__item" data-i18n="nav.photo">사진 분석</a>
+    <a href="similar-cases.html" class="bottom-nav__item is-active" data-i18n="nav.cases">사례 검색</a>
+    <a href="chatbot.html" class="bottom-nav__item" data-i18n="nav.chatbot">AI 챗봇</a>
+    <a href="profile.html" class="bottom-nav__item" data-i18n="nav.profile">내 정보</a>
   </nav>
 
 </div>

@@ -6,6 +6,16 @@
 <title>사고 상세정보 | AI 건설현장 안전관리 시스템</title>
 
 <script src="../js/common/accessibility.js"></script>
+<script src="../js/common/user-prefs.js"></script>
+<script src="../js/common/i18n/lang-ko.js"></script>
+<script src="../js/common/i18n/lang-en.js"></script>
+<script src="../js/common/i18n/lang-zh.js"></script>
+<script src="../js/common/i18n/lang-vi.js"></script>
+<script src="../js/common/i18n/lang-th.js"></script>
+<script src="../js/common/i18n/lang-id.js"></script>
+<script src="../js/common/i18n/lang-ne.js"></script>
+<script src="../js/common/i18n/status-labels.js"></script>
+<script src="../js/common/i18n.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2F5FE0">
 <link rel="apple-touch-icon" href="../../pictures/icon-192.png">
@@ -16,6 +26,7 @@
 <link rel="stylesheet" href="../css/layout.css">
 <link rel="stylesheet" href="../css/components.css">
 <link rel="stylesheet" href="../css/pages.css">
+<link rel="stylesheet" href="../css/accessibility.css">
 </head>
 <body>
 
@@ -35,12 +46,12 @@
   </div>
 
   <nav class="bottom-nav">
-    <a href="dashboard.html" class="bottom-nav__item">대시보드</a>
-    <a href="predict-input.html" class="bottom-nav__item">위험도 분석</a>
-    <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
-    <a href="similar-cases.html" class="bottom-nav__item is-active">사례 검색</a>
-    <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
-    <a href="profile.html" class="bottom-nav__item">내 정보</a>
+    <a href="dashboard.html" class="bottom-nav__item" data-i18n="nav.dashboard">대시보드</a>
+    <a href="predict-input.html" class="bottom-nav__item" data-i18n="nav.predict">위험도 분석</a>
+    <a href="photo-capture.html" class="bottom-nav__item" data-i18n="nav.photo">사진 분석</a>
+    <a href="similar-cases.html" class="bottom-nav__item is-active" data-i18n="nav.cases">사례 검색</a>
+    <a href="chatbot.html" class="bottom-nav__item" data-i18n="nav.chatbot">AI 챗봇</a>
+    <a href="profile.html" class="bottom-nav__item" data-i18n="nav.profile">내 정보</a>
   </nav>
 
 </div>

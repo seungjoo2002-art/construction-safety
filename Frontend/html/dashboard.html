@@ -6,6 +6,16 @@
 <title>대시보드 | AI 건설현장 안전관리 시스템</title>
 
 <script src="../js/common/accessibility.js"></script>
+<script src="../js/common/user-prefs.js"></script>
+<script src="../js/common/i18n/lang-ko.js"></script>
+<script src="../js/common/i18n/lang-en.js"></script>
+<script src="../js/common/i18n/lang-zh.js"></script>
+<script src="../js/common/i18n/lang-vi.js"></script>
+<script src="../js/common/i18n/lang-th.js"></script>
+<script src="../js/common/i18n/lang-id.js"></script>
+<script src="../js/common/i18n/lang-ne.js"></script>
+<script src="../js/common/i18n/status-labels.js"></script>
+<script src="../js/common/i18n.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2F5FE0">
 <link rel="apple-touch-icon" href="../../pictures/icon-192.png">
@@ -16,6 +26,7 @@
 <link rel="stylesheet" href="../css/layout.css">
 <link rel="stylesheet" href="../css/components.css">
 <link rel="stylesheet" href="../css/pages.css">
+<link rel="stylesheet" href="../css/accessibility.css">
 </head>
 <body>
 
@@ -31,16 +42,16 @@
     <div class="app-header__center">
       <img src="../../pictures/logo.png" alt="" class="app-header__logo-icon">
       <div>
-        <div class="app-header__title">AI 건설현장</div>
-        <div class="app-header__subtitle">안전관리 시스템</div>
+        <div class="app-header__title" data-i18n="dashboard.brandTitle">AI 건설현장</div>
+        <div class="app-header__subtitle" data-i18n="dashboard.brandSubtitle">안전관리 시스템</div>
       </div>
     </div>
 
     <div class="app-header__actions">
-      <a href="notifications.html" class="app-header__icon-btn" aria-label="알림" id="header-notif-btn">
+      <a href="notifications.html" class="app-header__icon-btn" aria-label="알림" data-i18n-aria-label="header.aria.notif" id="header-notif-btn">
         🔔<span class="icon-badge" id="header-notif-badge" style="display:none;"></span>
       </a>
-      <a href="analysis-history.html" class="app-header__icon-btn" aria-label="분석 기록">📁</a>
+      <a href="analysis-history.html" class="app-header__icon-btn" aria-label="분석 기록" data-i18n-aria-label="header.aria.history">📁</a>
     </div>
   </header>
 
@@ -48,7 +59,7 @@
 
     <!-- ① 현재 현장의 종합 위험도 — 대시보드에서 가장 먼저 봐야 하는 정보 -->
     <section class="card dash-hero" id="dash-hero">
-      <div class="dash-hero__title">오늘의 현장 안전 상태</div>
+      <div class="dash-hero__title" data-i18n="dashboard.heroTitle">오늘의 현장 안전 상태</div>
       <div class="dash-hero__body" id="dash-hero-body">
         <div class="gauge">
           <svg viewBox="0 0 100 100">
@@ -57,13 +68,13 @@
           </svg>
           <div class="gauge__center">
             <div class="gauge__number" id="gauge-total-number">--</div>
-            <div class="gauge__label" id="gauge-total-label">위험</div>
+            <div class="gauge__label" id="gauge-total-label" data-i18n="dashboard.gaugeLabel">위험</div>
           </div>
         </div>
         <div class="dash-hero__info">
-          <div class="dash-hero__label">종합 위험도</div>
+          <div class="dash-hero__label" data-i18n="dashboard.riskLabel">종합 위험도</div>
           <span class="badge" id="dash-hero-badge">--</span>
-          <div class="dash-hero__meta" id="dash-hero-meta">최근 분석 기준</div>
+          <div class="dash-hero__meta" id="dash-hero-meta" data-i18n="dashboard.riskMeta">최근 분석 기준</div>
         </div>
       </div>
       <p class="dash-hero__focus-line" id="dash-hero-focus-line" style="display:none;"></p>
@@ -71,7 +82,7 @@
 
     <!-- ③ 지금 가장 먼저 확인해야 할 위험 — 실제 분석 결과 기반, 없으면 섹션 자체를 숨김 -->
     <section class="card dash-focus" id="dash-focus" style="display:none;">
-      <h2 class="card-section-title">지금 가장 주의할 위험</h2>
+      <h2 class="card-section-title" data-i18n="dashboard.focusTitle">지금 가장 주의할 위험</h2>
       <div class="dash-focus__row">
         <span class="dash-focus__icon" id="dash-focus-icon">🔴</span>
         <div>
@@ -80,25 +91,25 @@
         </div>
       </div>
       <p class="dash-focus__tip" id="dash-focus-tip"></p>
-      <a href="predict-input.html" class="btn btn-outline btn-block" id="dash-focus-btn">위험도 상세 보기</a>
+      <a href="predict-input.html" class="btn btn-outline btn-block" id="dash-focus-btn" data-i18n="dashboard.focusBtn">위험도 상세 보기</a>
     </section>
 
     <!-- ④ 세부 위험 분석 (보조 정보 — 카드를 작게) -->
-    <h2 class="card-section-title" style="margin: 0 0 var(--space-sm) 4px;">세부 위험 분석</h2>
+    <h2 class="card-section-title" style="margin: 0 0 var(--space-sm) 4px;" data-i18n="dashboard.detailTitle">세부 위험 분석</h2>
     <div id="stat-grid-wrapper">
       <div class="stat-grid stat-grid--secondary">
         <div class="card stat-card">
-          <div class="stat-card__title">평균 대비 위험도</div>
+          <div class="stat-card__title" data-i18n="dashboard.liftTitle">평균 대비 위험도</div>
           <div class="stat-card__value" id="value-lift">--배</div>
           <div class="progress-bar"><div class="progress-bar__fill" id="bar-prob"></div></div>
-          <div class="stat-card__delta" id="delta-prob">평균 사고 대비</div>
+          <div class="stat-card__delta" id="delta-prob" data-i18n="dashboard.liftDelta">평균 사고 대비</div>
         </div>
 
         <div class="card stat-card">
-          <div class="stat-card__title">예측 심각도</div>
+          <div class="stat-card__title" data-i18n="dashboard.severityTitle">예측 심각도</div>
           <div class="stat-card__value stat-card__value--caution" id="value-severity-class">--</div>
           <div class="progress-bar"><div class="progress-bar__fill progress-bar__fill--caution" id="bar-fatal"></div></div>
-          <div class="stat-card__delta" id="delta-fatal">경+중등도 / 중상 / 치명</div>
+          <div class="stat-card__delta" id="delta-fatal" data-i18n="dashboard.severityDelta">경+중등도 / 중상 / 치명</div>
         </div>
       </div>
     </div>
@@ -106,15 +117,15 @@
     <!-- ⑤ 유사 사례 (보조 정보 — 제목/유형/유사도 중심으로 가볍게) -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <div class="card-section-header">
-        <h2 class="card-section-title" style="margin-bottom:0;">유사사례 TOP3 <span class="mock-tag" id="similar-cases-mock-tag" style="display:none;">MOCK</span></h2>
-        <a href="similar-cases.html" class="card-section-link">전체 →</a>
+        <h2 class="card-section-title" style="margin-bottom:0;"><span data-i18n="dashboard.similarTitle">유사사례 TOP3</span> <span class="mock-tag" id="similar-cases-mock-tag" style="display:none;" data-i18n="common.mock">MOCK</span></h2>
+        <a href="similar-cases.html" class="card-section-link" data-i18n="dashboard.viewAll">전체 →</a>
       </div>
       <div id="similar-case-list"></div>
     </section>
 
     <!-- ⑥ 시간별 위험도 (보조 정보) -->
     <section class="card" style="margin-bottom: var(--space-md);">
-      <h2 class="card-section-title">오늘 시간별 위험도 추이</h2>
+      <h2 class="card-section-title" data-i18n="dashboard.trendTitle">오늘 시간별 위험도 추이</h2>
       <div id="trend-section-body">
         <div class="chart-canvas-wrap chart-canvas-wrap--line">
           <canvas id="trend-line-chart"></canvas>
@@ -125,23 +136,23 @@
 
     <!-- 진입 배너(액션) — 우선순위상 정보보다 아래, 화면 맨 끝 -->
     <a href="photo-capture.html" class="card chatbot-banner" style="background: linear-gradient(135deg, #1B3FB8, #2F5FE0); margin-bottom: var(--space-md);">
-      <span>📷 현장 촬영으로 위험요소 확인</span>
+      <span data-i18n="dashboard.bannerPhoto">📷 현장 촬영으로 위험요소 확인</span>
       <span class="chatbot-banner__chevron">›</span>
     </a>
     <a href="chatbot.html" class="card chatbot-banner">
-      <span>🤖 AI 챗봇 상담</span>
+      <span data-i18n="dashboard.bannerChat">🤖 AI 챗봇 상담</span>
       <span class="chatbot-banner__chevron">›</span>
     </a>
 
   </div>
 
   <nav class="bottom-nav">
-    <a href="dashboard.html" class="bottom-nav__item is-active">대시보드</a>
-    <a href="predict-input.html" class="bottom-nav__item">위험도 분석</a>
-    <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
-    <a href="similar-cases.html" class="bottom-nav__item">사례 검색</a>
-    <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
-    <a href="profile.html" class="bottom-nav__item">내 정보</a>
+    <a href="dashboard.html" class="bottom-nav__item is-active" data-i18n="nav.dashboard">대시보드</a>
+    <a href="predict-input.html" class="bottom-nav__item" data-i18n="nav.predict">위험도 분석</a>
+    <a href="photo-capture.html" class="bottom-nav__item" data-i18n="nav.photo">사진 분석</a>
+    <a href="similar-cases.html" class="bottom-nav__item" data-i18n="nav.cases">사례 검색</a>
+    <a href="chatbot.html" class="bottom-nav__item" data-i18n="nav.chatbot">AI 챗봇</a>
+    <a href="profile.html" class="bottom-nav__item" data-i18n="nav.profile">내 정보</a>
   </nav>
 
 </div>

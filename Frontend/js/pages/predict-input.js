@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       else delete answers["공종 - 중분류"];
       validateForm();
     },
-    "예: 철근콘크리트공사"
+    t("predictInput.categoryPlaceholder")
   );
 
   // ── 4. 작업프로세스 (검색형 드롭다운)
@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       else delete answers["작업프로세스"];
       validateForm();
     },
-    "예: 거푸집 설치작업"
+    t("predictInput.processPlaceholder")
   );
 
   // ── 5. 공정 진행률 자동계산 (site-setup의 공사시작일/종료일 기준)
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!siteSetupData || !siteSetupData["공사시작일"] || !siteSetupData["공사종료일"]) {
       infoEl.innerHTML = `<p style="font-size: var(--fs-sm); color: var(--color-text-secondary);">
-        현장 정보에 공사기간이 없어 계산할 수 없어요.
+        ${t("predictInput.progressNoDate")}
       </p>`;
       return;
     }
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const result = calcProgressBucket(siteSetupData["공사시작일"], siteSetupData["공사종료일"]);
     if (!result) {
       infoEl.innerHTML = `<p style="font-size: var(--fs-sm); color: var(--color-text-secondary);">
-        공사기간 값이 올바르지 않아 계산할 수 없어요.
+        ${t("predictInput.progressInvalidDate")}
       </p>`;
       return;
     }
@@ -129,14 +129,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     progressInfo = result;
     infoEl.innerHTML = `
       <div class="readonly-stat">
-        <span class="readonly-stat__label">오늘 기준 진행률</span>
+        <span class="readonly-stat__label">${t("predictInput.progressTodayLabel")}</span>
         <span class="readonly-stat__value">${result.percent}% (${result.bucket})</span>
       </div>
       <div class="readonly-stat__bar">
         <div class="readonly-stat__bar-fill" style="width:${result.percent}%"></div>
       </div>
       <p style="font-size: 11px; color: var(--color-text-placeholder); margin-top: var(--space-sm);">
-        공사시작일·종료일 기준으로 매일 자동 계산됩니다.
+        ${t("predictInput.progressAutoNote")}
       </p>
     `;
     validateForm();
@@ -157,19 +157,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       currentEl.innerHTML = `
         <div class="weather-current__item">
-          <div class="weather-current__label">기온</div>
+          <div class="weather-current__label">${t("predictInput.tempShort")}</div>
           <div class="weather-current__value">${Math.round(current.temp)}°C</div>
         </div>
         <div class="weather-current__item">
-          <div class="weather-current__label">습도</div>
+          <div class="weather-current__label">${t("predictInput.humidityShort")}</div>
           <div class="weather-current__value">${current.humidity}%</div>
         </div>
         <div class="weather-current__item">
-          <div class="weather-current__label">풍속</div>
+          <div class="weather-current__label">${t("predictInput.windShort")}</div>
           <div class="weather-current__value">${current.windSpeed}m/s</div>
         </div>
         <div class="weather-current__item">
-          <div class="weather-current__label">강수량</div>
+          <div class="weather-current__label">${t("predictInput.rainShort")}</div>
           <div class="weather-current__value">${weatherFields["일강수량(mm)"]}mm</div>
         </div>
       `;
@@ -179,8 +179,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error(err);
       stateEl.textContent =
         err && err.code === 1
-          ? "위치 권한이 거부되어 날씨를 불러올 수 없어요. 아래에서 직접 입력해주세요."
-          : "날씨 정보를 불러오지 못했어요. 아래에서 직접 입력해주세요.";
+          ? t("predictInput.locationDenied")
+          : t("predictInput.weatherLoadFailed");
       stateEl.classList.add("is-error");
     } finally {
       toggleBtn.style.display = "block"; // 성공/실패 관계없이 직접 입력 전환은 항상 가능
@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function enterManualWeatherMode() {
     weatherMode = "manual";
-    weatherModeBadge.textContent = "직접 입력";
+    weatherModeBadge.textContent = t("predictInput.manualBadge");
     weatherStateEl.style.display = "none";
     weatherBodyEl.style.display = "none";
     weatherToggleBtn.style.display = "none";
@@ -218,14 +218,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     weatherFields = readManualWeatherFields();
-    weatherDescription = "사용자 직접 입력";
+    weatherDescription = t("predictInput.manualDescription");
     validateForm();
   }
 
   function enterAutoWeatherMode() {
     weatherMode = "auto";
     weatherManualEl.style.display = "none";
-    weatherModeBadge.textContent = "자동 입력됨";
+    weatherModeBadge.textContent = t("predictInput.weatherAuto");
 
     if (autoWeatherFields) {
       weatherFields = { ...autoWeatherFields };
@@ -235,7 +235,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       // 자동 조회를 아직 못 했거나 실패했던 경우 → 다시 시도
       weatherFields = null;
-      weatherStateEl.textContent = "위치 확인 중...";
+      weatherStateEl.textContent = t("predictInput.weatherChecking");
       weatherStateEl.classList.remove("is-error");
       weatherStateEl.style.display = "block";
       weatherBodyEl.style.display = "none";
@@ -274,8 +274,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ready = filled && !!progressInfo;
 
     submitBtn.disabled = !ready;
-    submitBtn.textContent = ready ? "위험도 분석하기" : "모든 항목을 입력해주세요";
+    submitBtn.textContent = ready ? t("predictInput.submitBtn") : t("predictInput.submitIncomplete");
   }
+
+  document.addEventListener("i18n:change", () => {
+    renderProgressInfo();
+    validateForm();
+  });
 
   // ── 제출
   submitBtn.addEventListener("click", () => {

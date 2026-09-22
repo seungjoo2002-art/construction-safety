@@ -6,6 +6,16 @@
 <title>로그인 | AI 건설현장 안전관리 시스템</title>
 
 <script src="../js/common/accessibility.js"></script>
+<script src="../js/common/user-prefs.js"></script>
+<script src="../js/common/i18n/lang-ko.js"></script>
+<script src="../js/common/i18n/lang-en.js"></script>
+<script src="../js/common/i18n/lang-zh.js"></script>
+<script src="../js/common/i18n/lang-vi.js"></script>
+<script src="../js/common/i18n/lang-th.js"></script>
+<script src="../js/common/i18n/lang-id.js"></script>
+<script src="../js/common/i18n/lang-ne.js"></script>
+<script src="../js/common/i18n/status-labels.js"></script>
+<script src="../js/common/i18n.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2F5FE0">
 <link rel="apple-touch-icon" href="../../pictures/icon-192.png">
@@ -16,6 +26,7 @@
 <link rel="stylesheet" href="../css/layout.css">
 <link rel="stylesheet" href="../css/components.css">
 <link rel="stylesheet" href="../css/pages.css">
+<link rel="stylesheet" href="../css/accessibility.css">
 </head>
 <body>
 
@@ -24,30 +35,30 @@
   <!-- 상단 히어로: 로고 + 타이틀 -->
   <section class="login-hero">
     <img src="../../pictures/logo.png" alt="AI 건설현장 안전관리 시스템 로고" class="login-hero__logo">
-    <h1 class="login-hero__title">AI 건설현장</h1>
-    <p class="login-hero__subtitle">안전관리 시스템</p>
-    <p class="login-hero__tagline">데이터와 AI로 만드는 더 안전한 현장</p>
+    <h1 class="login-hero__title" data-i18n="login.brandTitle">AI 건설현장</h1>
+    <p class="login-hero__subtitle" data-i18n="login.brandSubtitle">안전관리 시스템</p>
+    <p class="login-hero__tagline" data-i18n="login.tagline">데이터와 AI로 만드는 더 안전한 현장</p>
   </section>
 
   <!-- 로그인 카드 -->
   <section class="login-card">
-    <h2 class="login-card__title">로그인</h2>
-    <p class="login-card__desc">아이디나 비밀번호를 입력해주세요</p>
+    <h2 class="login-card__title" data-i18n="login.cardTitle">로그인</h2>
+    <p class="login-card__desc" data-i18n="login.cardDesc">아이디나 비밀번호를 입력해주세요</p>
 
     <form id="login-form" novalidate>
       <div class="input-field">
         <span class="icon" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </span>
-        <input type="text" id="username" name="username" placeholder="아이디" autocomplete="username" required>
+        <input type="text" id="username" name="username" placeholder="아이디" data-i18n-placeholder="login.usernamePlaceholder" autocomplete="username" required>
       </div>
 
       <div class="input-field">
         <span class="icon" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </span>
-        <input type="password" id="password" name="password" placeholder="비밀번호" autocomplete="current-password" required>
-        <span class="icon-toggle" id="toggle-password" role="button" aria-label="비밀번호 표시/숨기기" aria-pressed="false">
+        <input type="password" id="password" name="password" placeholder="비밀번호" data-i18n-placeholder="login.passwordPlaceholder" autocomplete="current-password" required>
+        <span class="icon-toggle" id="toggle-password" role="button" aria-label="비밀번호 표시/숨기기" data-i18n-aria-label="login.aria.togglePassword" aria-pressed="false">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
         </span>
       </div>
@@ -57,26 +68,26 @@
       <div class="checkbox-row">
         <label class="checkbox-label">
           <input type="checkbox" id="remember-id">
-          아이디 저장
+          <span data-i18n="login.rememberId">아이디 저장</span>
         </label>
-        <a href="#" class="link-muted">비밀번호 찾기</a>
+        <a href="#" class="link-muted" data-i18n="login.forgotPassword">비밀번호 찾기</a>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-block" id="login-submit">로그인</button>
+      <button type="submit" class="btn btn-primary btn-block" id="login-submit" data-i18n="login.submit">로그인</button>
     </form>
 
-    <div class="divider"><span>또는</span></div>
+    <div class="divider"><span data-i18n="login.or">또는</span></div>
 
     <button type="button" class="btn btn-outline btn-block" id="sso-btn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      SSO로 로그인
+      <span data-i18n="login.sso">SSO로 로그인</span>
     </button>
 
     <p class="login-card__desc" style="text-align:center; margin-top: var(--space-lg); margin-bottom: 0;">
-      계정이 없으신가요? <a href="signup.html" class="link-muted">회원가입</a>
+      <span data-i18n="login.noAccount">계정이 없으신가요?</span> <a href="signup.html" class="link-muted" data-i18n="login.signup">회원가입</a>
     </p>
 
-    <p class="login-footer">© 2024 AI Construction Safety System v1.0.0</p>
+    <p class="login-footer" data-i18n="login.footer">© 2024 AI Construction Safety System v1.0.0</p>
   </section>
 
 </div>

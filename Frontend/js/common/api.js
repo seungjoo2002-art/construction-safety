@@ -80,40 +80,29 @@ function mockAccidentTypeResult() {
 }
 
 // ============================================================
-// 챗봇 (백엔드 /api/chat → Gemini API)
+// 챗봇 (백엔드 /api/chat → EXAONE 로컬 모델 또는 Gemini, CHAT_LLM 환경변수로 선택)
 // ============================================================
 /**
  * @param {string} message 사용자가 이번에 입력한 메시지
  * @param {{role: "user"|"model", text: string}[]} history 이전 대화 기록
- * @param {object|null} context 현재 현장정보/최근 분석결과 (챗봇이 참고할 데이터)
+ * @param {object|null} context 현재 현장정보/최근 분석결과 (챗봇이 참고할 데이터, 없으면 null)
+ * @param {string} [locale] 현재 앱 언어 코드(ko/en/zh/vi/th/id/ne) — 없으면 백엔드가 한국어로 답함
  * @returns {Promise<string>} 봇의 답변 텍스트
+ * @throws 연결 실패 시 그대로 다시 던집니다 — 챗봇 화면은 이걸 mock으로 가리지 않고
+ *         "AI 연결이 원활하지 않습니다" 같은 명확한 오류 문구를 직접 보여줘야 합니다
+ *         (predictRisk()와 동일한 원칙 — 실패를 숨기지 않는다).
  */
-async function chatWithAI(message, history = [], context = null) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, context }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) throw new Error(`챗봇 요청 실패 (${res.status})`);
-    const data = await res.json();
-    return data.reply;
-  } catch (err) {
-    console.warn(`[api.js] 챗봇 백엔드(${API_BASE_URL}) 연결 실패 → 목업 답변으로 대체합니다.`, err);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return mockChatReply(message);
-  }
-}
-
-function mockChatReply(message) {
-  if (message.includes("위험도")) {
-    return "현재는 백엔드 챗봇 서버가 연결되지 않아 목업 답변을 드리고 있어요. 서버가 연결되면 실제 현장 분석 결과를 바탕으로 답변드릴 수 있어요.";
-  }
-  if (message.includes("추락")) {
-    return "추락 예방을 위해서는 안전난간 설치, 안전대 착용, 강풍 시 고소작업 중단이 기본입니다. (목업 답변)";
-  }
-  return "죄송해요, 지금은 챗봇 서버가 연결되지 않아 정확한 답변을 드리기 어려워요. (목업 답변)";
+async function chatWithAI(message, history = [], context = null, locale = "ko") {
+  const res = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history, context, locale }),
+    signal: AbortSignal.timeout(180000), // 로컬 EXAONE(CPU) 생성은 느릴 수 있어 넉넉히 3분까지 기다린다
+  });
+  if (!res.ok) throw new Error(`챗봇 요청 실패 (${res.status})`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.reply || "챗봇 응답 오류");
+  return data.reply;
 }
 
 // ============================================================

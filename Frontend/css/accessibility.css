@@ -1,0 +1,269 @@
+/* ============================================================
+   accessibility.css — 큰 글씨 모드 / 고대비 모드 (전역 적용)
+   ------------------------------------------------------------
+   html.a11y-large-font / html.a11y-high-contrast 클래스는
+   accessibility.js(페이지 로드 시)와 profile.js(토글 즉시)가 붙입니다.
+   variables.css의 기본 토큰(--fs-*, --color-*) 오버라이드로 상당 부분
+   자동 적용되지만, 아래 요소들은 디자인상 고정 px/색상을 썼기 때문에
+   (하단 네비게이션, 챗봇 말풍선 시간, 알림 소분류 등) 여기서 명시적으로
+   다시 지정해야 실제로 커지고/대비가 올라갑니다.
+
+   이 파일은 pages.css보다 "뒤에" 로드되어야 우선순위를 이깁니다.
+   두 모드를 동시에 켜도(html.a11y-large-font.a11y-high-contrast) 서로
+   다른 속성(글자크기 vs 색상/테두리)만 건드리므로 충돌 없이 함께 동작합니다.
+   ============================================================ */
+
+/* ============================================================
+   1) 큰 글씨 모드 — variables.css의 기본 배율(약 13%)보다 훨씬 크게,
+      그리고 var(--fs-*)를 안 쓰는 고정 px 요소까지 명시적으로 키운다.
+   ============================================================ */
+html.a11y-large-font {
+  --fs-xs: 15px;
+  --fs-sm: 17px;
+  --fs-base: 19px;
+  --fs-lg: 23px;
+  --fs-xl: 28px;
+  --fs-2xl: 34px;
+  --fs-3xl: 44px;
+}
+
+/* 본문 줄간격도 함께 넉넉하게 — 글자만 커지고 줄간격이 그대로면 읽기 더 어려워짐 */
+html.a11y-large-font body {
+  line-height: 1.5;
+}
+
+/* ── 하단 네비게이션: 11px 고정값이라 기존엔 전혀 안 커졌던 부분 */
+html.a11y-large-font .bottom-nav {
+  height: auto;
+  min-height: var(--bottom-nav-height);
+  padding: 8px 2px;
+}
+html.a11y-large-font .bottom-nav__item {
+  font-size: 13px;
+  gap: 4px;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+/* ── 버튼: 텍스트가 늘어나도 안 잘리도록 높이 자동 + 줄바꿈 허용 */
+html.a11y-large-font .btn {
+  min-height: 52px;
+  height: auto;
+  padding: 12px var(--space-md);
+  white-space: normal;
+  line-height: 1.3;
+}
+html.a11y-large-font .quick-reply-chip {
+  height: auto;
+  min-height: 34px;
+  padding: 8px 14px;
+  white-space: normal;
+}
+
+/* ── 입력창 / 챗봇 입력창: 큰 글씨에 맞춰 여유 있게 */
+html.a11y-large-font .input-field,
+html.a11y-large-font .select-field select,
+html.a11y-large-font .chat-input-bar input {
+  min-height: 52px;
+  height: auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+html.a11y-large-font .chat-send-btn {
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+
+/* ── 챗봇 메시지: 말풍선 자체는 var(--fs-sm) 승계로 커지지만, 시간 표기(10px 고정)는 별도 확대 */
+html.a11y-large-font .chat-bubble {
+  line-height: 1.6;
+}
+html.a11y-large-font .chat-msg-time {
+  font-size: 13px;
+}
+html.a11y-large-font .chat-msg-row__avatar {
+  width: 34px;
+  height: 34px;
+}
+
+/* ── 알림 화면: 아이콘/소분류 라벨(고정 px)도 함께 확대 */
+html.a11y-large-font .notif-source-header__icon {
+  font-size: 19px;
+}
+html.a11y-large-font .notif-source-header__label,
+html.a11y-large-font .notif-source-header__count {
+  font-size: var(--fs-sm);
+}
+
+/* ── 설정 메뉴(프로필): 토글 스위치·설명문(11px 고정)도 함께 */
+html.a11y-large-font .settings-row {
+  padding: 14px 0;
+}
+html.a11y-large-font .settings-row__desc {
+  font-size: 13px;
+}
+html.a11y-large-font .toggle-switch {
+  width: 52px;
+  height: 30px;
+}
+html.a11y-large-font .toggle-switch__thumb {
+  width: 24px;
+  height: 24px;
+}
+html.a11y-large-font .settings-link-row__title {
+  font-size: var(--fs-base);
+}
+
+/* ── 헤더 제목: 화면 폭이 좁아 넘치면 ellipsis로 안전하게 처리(레이아웃 안 깨짐) */
+html.a11y-large-font .app-header__center .app-header__title,
+html.a11y-large-font .app-header__center .app-header__subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 카드/분석 결과: 제목·본문 여백을 조금 더 확보해 답답해지지 않게 */
+html.a11y-large-font .card {
+  padding: 18px var(--space-md);
+}
+html.a11y-large-font .card-section-title {
+  line-height: 1.3;
+}
+html.a11y-large-font .badge {
+  padding: 6px 12px;
+}
+
+/* ============================================================
+   2) 고대비 모드 — 텍스트/배경 대비만이 아니라 경계·상태 구분을 전반적으로 강화.
+      "색상만으로 정보 전달 금지" 원칙: 위험/주의/안전은 이미 배지 텍스트
+      (tStatus로 번역된 "위험"/"주의"/"안전" 등 단어) + 아이콘을 함께 쓰므로
+      여기서는 그 구분을 배경/테두리로 한 번 더 보강한다.
+   ============================================================ */
+html.a11y-high-contrast body {
+  background: #000;
+}
+html.a11y-high-contrast .app-frame {
+  background: #fff;
+}
+
+/* ── 카드 경계 명확화: 그림자만으로는 저시력 사용자에게 경계가 안 보임 */
+html.a11y-high-contrast .card,
+html.a11y-high-contrast .stat-card,
+html.a11y-high-contrast .profile-stat-card {
+  border: 2px solid var(--color-border);
+  box-shadow: none;
+}
+
+/* ── 버튼 대비 강화 */
+html.a11y-high-contrast .btn-outline {
+  border: 2px solid var(--color-text-primary);
+  color: var(--color-text-primary);
+}
+html.a11y-high-contrast .btn-primary {
+  background: var(--color-primary);
+  box-shadow: none;
+  border: 2px solid var(--color-primary-darker);
+}
+html.a11y-high-contrast .btn-danger-outline {
+  border-width: 2px;
+}
+html.a11y-high-contrast .btn:disabled,
+html.a11y-high-contrast .btn-primary:disabled {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+/* ── 입력창/드롭다운 테두리 명확화 */
+html.a11y-high-contrast .input-field,
+html.a11y-high-contrast .select-field select,
+html.a11y-high-contrast .chat-input-bar input,
+html.a11y-high-contrast .search-select input {
+  border: 2px solid var(--color-text-primary);
+}
+html.a11y-high-contrast .input-field:focus-within,
+html.a11y-high-contrast .chat-input-bar input:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* ── 위험/주의/안전 배지: 배경색만이 아니라 테두리로 한 번 더 구분(색맹/저시력 대응) */
+html.a11y-high-contrast .badge--danger { border: 2px solid var(--color-danger); }
+html.a11y-high-contrast .badge--caution { border: 2px solid var(--color-caution); }
+html.a11y-high-contrast .badge--safe { border: 2px solid var(--color-safe); }
+html.a11y-high-contrast .badge--info { border: 2px solid #3B82F6; }
+html.a11y-high-contrast .badge--purple { border: 2px solid #8B5CF6; }
+
+/* ── 위험 등급 텍스트 자체도 굵게 + 밑줄 없는 강조(색상 하나에만 의존하지 않도록) */
+html.a11y-high-contrast .dash-hero__badge,
+html.a11y-high-contrast [class*="stat-card__value--"] {
+  font-weight: 800;
+}
+
+/* ── 활성/비활성 상태 명확화: 버튼선택형(button-select) 옵션 */
+html.a11y-high-contrast .button-select__option {
+  border: 2px solid var(--color-border);
+}
+html.a11y-high-contrast .button-select__option.is-selected {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -4px;
+}
+
+/* ── 토글 스위치: on/off를 색상 외에 테두리로도 구분 */
+html.a11y-high-contrast .toggle-switch__track {
+  border: 2px solid var(--color-text-primary);
+}
+html.a11y-high-contrast .toggle-switch input:checked ~ .toggle-switch__track {
+  border-color: var(--color-primary-darker);
+}
+
+/* ── 하단 네비게이션: 활성 메뉴를 색상+배경으로 함께 강조 */
+html.a11y-high-contrast .bottom-nav {
+  border-top: 2px solid var(--color-text-primary);
+}
+html.a11y-high-contrast .bottom-nav__item {
+  color: var(--color-text-secondary);
+}
+html.a11y-high-contrast .bottom-nav__item.is-active {
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  font-weight: 800;
+}
+
+/* ── 링크/버튼 구분 강화: 텍스트 링크는 항상 밑줄 */
+html.a11y-high-contrast a:not(.btn):not(.bottom-nav__item):not(.card-section-link):not(.chatbot-banner) {
+  text-decoration: underline;
+}
+
+/* ── 챗봇 말풍선: 상대(봇) 말풍선 경계 강화, 내 말풍선은 이미 진한 배경(대비 충분) */
+html.a11y-high-contrast .chat-bubble.is-bot {
+  border: 2px solid var(--color-text-primary);
+}
+html.a11y-high-contrast .chat-bubble.is-error {
+  border: 2px solid var(--color-danger);
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+/* ── 키보드 포커스 표시(WCAG 2.4.7) — 저시력 사용자가 탭 이동 위치를 놓치지 않도록 */
+html.a11y-high-contrast a:focus-visible,
+html.a11y-high-contrast button:focus-visible,
+html.a11y-high-contrast input:focus-visible,
+html.a11y-high-contrast select:focus-visible {
+  outline: 3px solid var(--color-primary-darker);
+  outline-offset: 2px;
+}
+
+/* ── 헤더(그라데이션) 위 텍스트 대비 — 헤더 배경은 유지하되 텍스트를 순백으로 고정 */
+html.a11y-high-contrast .app-header,
+html.a11y-high-contrast .app-header--back .back-btn {
+  color: #fff;
+}
+html.a11y-high-contrast .app-header--back {
+  border-bottom: 2px solid var(--color-text-primary);
+}
+html.a11y-high-contrast .app-header--back .app-header__title {
+  color: var(--color-text-primary);
+}

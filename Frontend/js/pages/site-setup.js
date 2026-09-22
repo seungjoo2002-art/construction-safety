@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "button-select__option";
-      btn.textContent = label;
+      btn.textContent = tStatus(label); // 백엔드로 보내는 값(value/answers[fieldName])은 항상 원문 그대로
       btn.dataset.value = value;
 
       btn.addEventListener("click", () => {
@@ -61,8 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const select = document.getElementById(selectId);
     options.forEach((opt) => {
       const o = document.createElement("option");
-      o.value = opt;
-      o.textContent = opt;
+      o.value = opt; // 백엔드로 보내는 값은 항상 원문 그대로
+      o.textContent = tStatus(opt); // 화면 표시만 번역(매핑 없으면 원문 그대로 보임)
       select.appendChild(o);
     });
     select.addEventListener("change", () => {
@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (endDateInput.value && endDateInput.value < startDateInput.value) {
       endDateInput.value = "";
       delete answers["공사종료일"];
-      showDateError("공사 종료일이 시작일보다 빠를 수 없어 초기화했어요. 종료일을 다시 선택해주세요.");
+      showDateError(t("siteSetup.dateResetNotice"));
     }
 
     validateCurrentStep();
@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   endDateInput.addEventListener("change", () => {
     if (startDateInput.value && endDateInput.value < startDateInput.value) {
-      showDateError("공사 종료일은 시작일 이후여야 합니다.");
+      showDateError(t("siteSetup.dateOrderError"));
       endDateInput.value = "";
       delete answers["공사종료일"];
       validateCurrentStep();
@@ -141,9 +141,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const filled = required.every((f) => answers[f] !== undefined && answers[f] !== "");
     nextBtn.disabled = !filled;
     nextBtn.textContent = filled
-      ? (currentStep === TOTAL_STEPS ? "완료" : "다음")
-      : "모든 항목을 입력해주세요";
+      ? (currentStep === TOTAL_STEPS ? t("siteSetup.doneBtn") : t("siteSetup.nextBtn"))
+      : t("siteSetup.fillAllBtn");
   }
+
+  document.addEventListener("i18n:change", validateCurrentStep);
 
   // ── 스텝 전환
   function showStep(step) {
@@ -174,6 +176,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ── 마지막 스텝: 저장 후 대시보드로 이동 (대시보드는 분석 여부에 따라 알아서 빈 상태/채워진 상태로 보여줌)
     saveSiteSetup(answers);
+    // 계정 레코드에도 완료 표시 — 로그아웃해도 지워지지 않아서, 다음에 같은 계정으로
+    // 로그인하면 이 화면을 다시 보지 않는다(요구사항: site-setup은 계정당 최초 1회).
+    if (typeof setUserPrefs === "function") setUserPrefs({ setupCompleted: true });
     window.location.href = "dashboard.html";
   });
 

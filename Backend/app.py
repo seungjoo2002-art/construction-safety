@@ -198,9 +198,14 @@ def get_advisor_service() -> Optional["SafetyAdvisor"]:
 
 @app.on_event("startup")
 def _warm_up_advisor():
-    """ADVISOR_LLM=exaone 이면 서버가 뜰 때 백그라운드에서 모델을 미리 올린다
-    (첫 요청이 모델 로딩 ~20초까지 떠안지 않도록). 그 외(Gemini)에는 아무것도 하지 않는다."""
-    if os.environ.get("ADVISOR_LLM", "").strip().lower() != "exaone":
+    """ADVISOR_LLM=exaone 또는 CHAT_LLM=exaone 이면 서버가 뜰 때 백그라운드에서 모델을
+    미리 올린다(첫 요청이 모델 로딩 ~20초까지 떠안지 않도록). 두 기능이 같은 EXAONE
+    인스턴스를 공유하므로(advisor.py 참고) 어느 쪽이 exaone이어도 1번만 로드하면 된다.
+    둘 다 Gemini면 아무것도 하지 않는다."""
+    if "exaone" not in (
+        os.environ.get("ADVISOR_LLM", "").strip().lower(),
+        os.environ.get("CHAT_LLM", "").strip().lower(),
+    ):
         return
 
     def _load():
@@ -424,7 +429,7 @@ def analyze_photo(body: PhotoAnalyzeIn):
 
 
 # ============================================================
-# 챗봇 (Google Gemini API 연동)
+# 챗봇 (EXAONE 로컬 모델 또는 Google Gemini API — CHAT_LLM 환경변수로 선택)
 # ============================================================
 # 키는 환경변수로만 관리합니다. 코드에 직접 쓰지 마세요.
 #   Mac/Linux: export GEMINI_API_KEY="발급받은키"
@@ -434,10 +439,36 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = "gemini-2.0-flash"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
+# ── 생성 백엔드 선택 (advisor.py의 ADVISOR_LLM과 동일한 패턴) ─────────────
+#   CHAT_LLM=gemini (기본) : Gemini REST API. Render 소형 인스턴스에서도 동작.
+#   CHAT_LLM=exaone        : advisor.py가 이미 들고 있는 로컬 EXAONE-4.0-1.2B를
+#                            재사용한다(챗봇용으로 모델을 한 번 더 로드하지 않음).
+#                            실패하면 GEMINI_API_KEY가 있을 때 Gemini로 자동 폴백.
+#   ⚠️ EXAONE(bf16 2.4GB)을 Render 무료 Web Service(512MB)에 직접 올리는 것은
+#      비현실적이라 판단해 강제하지 않았다 — 로컬 실행(run_server.bat)에서만 켠다.
+CHAT_LLM_BACKEND = os.environ.get("CHAT_LLM", "gemini").strip().lower()
+
 SYSTEM_PROMPT = """당신은 'AI 건설현장 안전관리 시스템'의 AI 안전 어시스턴트입니다.
 건설현장 안전, 위험도 분석 결과 해석, 사고 예방 방법, 안전교육에 관해 친절하고
 간결하게 답변하세요. 확실하지 않은 법규나 수치는 단정하지 말고, 현장 안전관리자와
-상의하라고 안내하세요. 답변은 한국어로, 2~4문장 정도로 짧게 하세요."""
+상의하라고 안내하세요. 답변은 2~4문장 정도로 짧게 하세요.
+[참고용 현재 현장 데이터]로 실제 값이 주어지면 그 값만 근거로 답하고, 주어지지 않은
+현장 데이터(위험도 수치, 사고유형 등)는 절대 지어내지 마세요 — 모르면 모른다고 답하세요."""
+
+# 프론트가 보내는 locale(ko/en/zh/vi/th/id/ne)에 맞춰 답변 언어를 지시한다.
+# UI만 번역되고 챗봇은 계속 한국어로 답하는 문제를 막기 위함(요구사항: 언어별 챗봇 응답).
+_CHAT_LANG_NAME = {
+    "ko": "한국어(Korean)", "en": "English", "zh": "중국어 간체(简体中文)",
+    "vi": "베트남어(Tiếng Việt)", "th": "태국어(ภาษาไทย)",
+    "id": "인도네시아어(Bahasa Indonesia)", "ne": "네팔어(नेपाली)",
+}
+
+
+def _localized_system_prompt(locale: Optional[str]) -> str:
+    lang_name = _CHAT_LANG_NAME.get((locale or "ko").strip().lower(), _CHAT_LANG_NAME["ko"])
+    if lang_name == _CHAT_LANG_NAME["ko"]:
+        return SYSTEM_PROMPT
+    return f"{SYSTEM_PROMPT}\n\n반드시 {lang_name}로만 답변하세요. 다른 언어를 섞지 마세요."
 
 
 class ChatMessage(BaseModel):
@@ -449,41 +480,70 @@ class ChatIn(BaseModel):
     message: str
     history: List[ChatMessage] = []
     context: Optional[Dict[str, Any]] = None  # 현재 현장정보/최근 분석결과 (프론트에서 전달)
+    locale: Optional[str] = "ko"  # 프론트 현재 언어(i18n.js의 getLanguage()) — 챗봇 응답 언어 지정용
+
+
+def _chat_via_gemini(system_prompt: str, message: str, history: List[ChatMessage],
+                     context: Optional[Dict[str, Any]]) -> str:
+    contents = []
+    if context:
+        contents.append({
+            "role": "user",
+            "parts": [{"text": f"[참고용 현재 현장 데이터, 사용자에게 직접 보여주지 말고 답변에만 참고하세요]\n{context}"}],
+        })
+        contents.append({"role": "model", "parts": [{"text": "네, 참고하겠습니다."}]})
+    for m in history:
+        contents.append({"role": m.role, "parts": [{"text": m.text}]})
+    contents.append({"role": "user", "parts": [{"text": message}]})
+
+    res = requests.post(
+        GEMINI_URL,
+        params={"key": GEMINI_API_KEY},
+        json={"contents": contents, "systemInstruction": {"parts": [{"text": system_prompt}]}},
+        timeout=15,
+    )
+    res.raise_for_status()
+    return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def _chat_via_exaone(system_prompt: str, message: str, history: List[ChatMessage],
+                     context: Optional[Dict[str, Any]]) -> str:
+    service = get_advisor_service()  # advisor.py — EXAONE을 이미 로드했으면 재사용, 아니면 여기서 첫 로드
+    if service is None:
+        raise RuntimeError("해결방안 서비스(advisor.py)가 초기화되지 않아 EXAONE을 쓸 수 없습니다")
+
+    turns = []
+    if context:
+        turns.append({"role": "user", "content": f"[참고용 현재 현장 데이터, 답변에만 참고하고 그대로 옮겨 적지 마세요]\n{context}"})
+        turns.append({"role": "assistant", "content": "네, 참고하겠습니다."})
+    for m in history:
+        turns.append({"role": "user" if m.role == "user" else "assistant", "content": m.text})
+    turns.append({"role": "user", "content": message})
+
+    return service.generate_chat(system_prompt, turns)
 
 
 @app.post("/api/chat")
 def chat(body: ChatIn):
-    if not GEMINI_API_KEY:
-        return {"reply": "⚠️ 서버에 GEMINI_API_KEY가 설정되지 않았어요. 백엔드 환경변수를 확인해주세요.", "error": True}
+    system_prompt = _localized_system_prompt(body.locale)
+    order = ["exaone", "gemini"] if CHAT_LLM_BACKEND == "exaone" else ["gemini"]
+    errors = []
 
-    contents = []
+    for name in order:
+        if name == "gemini" and not GEMINI_API_KEY:
+            errors.append("gemini: GEMINI_API_KEY 미설정")
+            continue
+        try:
+            reply = (
+                _chat_via_exaone(system_prompt, body.message, body.history, body.context)
+                if name == "exaone"
+                else _chat_via_gemini(system_prompt, body.message, body.history, body.context)
+            )
+            if reply and reply.strip():
+                return {"reply": reply.strip(), "error": False, "backend": name}
+            errors.append(f"{name}: 빈 응답")
+        except Exception as e:
+            print(f"[app.py] ⚠️ 챗봇 {name} 생성 실패: {e}")
+            errors.append(f"{name}: {type(e).__name__}: {e}")
 
-    # 현재 현장정보/분석결과를 모델이 참고할 수 있도록 대화 맨 앞에 컨텍스트로 삽입
-    if body.context:
-        contents.append({
-            "role": "user",
-            "parts": [{"text": f"[참고용 현재 현장 데이터, 사용자에게 직접 보여주지 말고 답변에만 참고하세요]\n{body.context}"}],
-        })
-        contents.append({"role": "model", "parts": [{"text": "네, 참고하겠습니다."}]})
-
-    for m in body.history:
-        contents.append({"role": m.role, "parts": [{"text": m.text}]})
-
-    contents.append({"role": "user", "parts": [{"text": body.message}]})
-
-    try:
-        res = requests.post(
-            GEMINI_URL,
-            params={"key": GEMINI_API_KEY},
-            json={
-                "contents": contents,
-                "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-            },
-            timeout=15,
-        )
-        res.raise_for_status()
-        data = res.json()
-        reply = data["candidates"][0]["content"]["parts"][0]["text"]
-        return {"reply": reply, "error": False}
-    except Exception as e:
-        return {"reply": f"죄송해요, 답변을 가져오지 못했어요. ({e})", "error": True}
+    return {"reply": f"죄송해요, 답변을 가져오지 못했어요. ({' | '.join(errors)})", "error": True}

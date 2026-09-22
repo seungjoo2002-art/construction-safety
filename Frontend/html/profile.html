@@ -6,6 +6,16 @@
 <title>내 정보 | AI 건설현장 안전관리 시스템</title>
 
 <script src="../js/common/accessibility.js"></script>
+<script src="../js/common/user-prefs.js"></script>
+<script src="../js/common/i18n/lang-ko.js"></script>
+<script src="../js/common/i18n/lang-en.js"></script>
+<script src="../js/common/i18n/lang-zh.js"></script>
+<script src="../js/common/i18n/lang-vi.js"></script>
+<script src="../js/common/i18n/lang-th.js"></script>
+<script src="../js/common/i18n/lang-id.js"></script>
+<script src="../js/common/i18n/lang-ne.js"></script>
+<script src="../js/common/i18n/status-labels.js"></script>
+<script src="../js/common/i18n.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2F5FE0">
 <link rel="apple-touch-icon" href="../../pictures/icon-192.png">
@@ -16,14 +26,15 @@
 <link rel="stylesheet" href="../css/layout.css">
 <link rel="stylesheet" href="../css/components.css">
 <link rel="stylesheet" href="../css/pages.css">
+<link rel="stylesheet" href="../css/accessibility.css">
 </head>
 <body>
 
 <div class="app-frame" data-has-nav="true">
 
   <header class="app-header">
-    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기">&#8249;</a>
-    <div class="app-header__title">내 정보</div>
+    <a href="dashboard.html" class="back-btn" aria-label="뒤로가기" data-i18n-aria-label="header.aria.back">&#8249;</a>
+    <div class="app-header__title" data-i18n="profile.title">내 정보</div>
     <div style="width:32px;"></div>
   </header>
 
@@ -33,7 +44,7 @@
       <div class="profile-hero__name" id="profile-name">사용자</div>
       <div class="profile-hero__sub" id="profile-sub">현장 정보를 등록하면 여기에 표시돼요</div>
       <div class="profile-hero__badges">
-        <span class="profile-badge">🏆 안전리더</span>
+        <span class="profile-badge" data-i18n="profile.badgeLeader">🏆 안전리더</span>
         <span class="profile-badge" id="profile-dday">📅 D+-</span>
       </div>
     </div>
@@ -43,33 +54,33 @@
     <div class="profile-stat-card">
       <div class="profile-stat-card__icon">📊</div>
       <div class="profile-stat-card__value" id="stat-analysis-count">0</div>
-      <div class="profile-stat-card__label">분석 횟수</div>
+      <div class="profile-stat-card__label" data-i18n="profile.statAnalysis">분석 횟수</div>
     </div>
     <div class="profile-stat-card">
       <div class="profile-stat-card__icon">⚠️</div>
       <div class="profile-stat-card__value" id="stat-hazard-count">0</div>
-      <div class="profile-stat-card__label">위험 감지</div>
+      <div class="profile-stat-card__label" data-i18n="profile.statHazard">위험 감지</div>
     </div>
     <div class="profile-stat-card">
       <div class="profile-stat-card__icon">🏅</div>
       <div class="profile-stat-card__value" id="stat-grade">-</div>
-      <div class="profile-stat-card__label">안전 등급</div>
+      <div class="profile-stat-card__label" data-i18n="profile.statGrade">안전 등급</div>
     </div>
   </div>
 
   <div class="app-content" style="padding-top:0;">
 
     <section class="card" style="margin-bottom: var(--space-md);">
-      <h2 class="card-section-title">🌐 언어 설정</h2>
+      <h2 class="card-section-title" data-i18n="profile.languageTitle">🌐 언어 설정</h2>
       <div class="button-select" data-cols="2" id="language-select"></div>
     </section>
 
     <section class="card" style="margin-bottom: var(--space-md);">
-      <h2 class="card-section-title">👁 접근성 설정</h2>
+      <h2 class="card-section-title" data-i18n="profile.a11yTitle">👁 접근성 설정</h2>
       <div class="settings-row">
         <div>
-          <div class="settings-row__title">큰 글씨 모드</div>
-          <div class="settings-row__desc">고령 작업자를 위한 확대 폰트</div>
+          <div class="settings-row__title" data-i18n="profile.largeFontTitle">큰 글씨 모드</div>
+          <div class="settings-row__desc" data-i18n="profile.largeFontDesc">고령 작업자를 위한 확대 폰트</div>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-large-font">
@@ -79,8 +90,8 @@
       </div>
       <div class="settings-row">
         <div>
-          <div class="settings-row__title">고대비 모드</div>
-          <div class="settings-row__desc">시인성 향상을 위한 색상 강조</div>
+          <div class="settings-row__title" data-i18n="profile.highContrastTitle">고대비 모드</div>
+          <div class="settings-row__desc" data-i18n="profile.highContrastDesc">시인성 향상을 위한 색상 강조</div>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-high-contrast">
@@ -91,11 +102,11 @@
     </section>
 
     <section class="card" style="margin-bottom: var(--space-md);">
-      <h2 class="card-section-title">🔔 알림 설정</h2>
+      <h2 class="card-section-title" data-i18n="profile.notifTitle">🔔 알림 설정</h2>
       <div class="settings-row">
         <div>
-          <div class="settings-row__title">푸시 알림</div>
-          <div class="settings-row__desc">위험도 분석 결과 알림</div>
+          <div class="settings-row__title" data-i18n="profile.notifPush">푸시 알림</div>
+          <div class="settings-row__desc" data-i18n="profile.notifPushDesc">위험도 분석 결과 알림</div>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-notif-push">
@@ -105,8 +116,8 @@
       </div>
       <div class="settings-row">
         <div>
-          <div class="settings-row__title">위험 경보</div>
-          <div class="settings-row__desc">긴급 위험 상황 즉시 알림</div>
+          <div class="settings-row__title" data-i18n="profile.notifAlert">위험 경보</div>
+          <div class="settings-row__desc" data-i18n="profile.notifAlertDesc">긴급 위험 상황 즉시 알림</div>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-notif-alert">
@@ -114,44 +125,44 @@
           <span class="toggle-switch__thumb"></span>
         </label>
       </div>
-      <p style="font-size: 11px; color: var(--color-text-placeholder); margin-top: var(--space-sm);">
+      <p style="font-size: 11px; color: var(--color-text-placeholder); margin-top: var(--space-sm);" data-i18n="profile.notifNote">
         ⚠️ 실제 푸시 알림 발송 기능은 아직 없어요. 지금은 설정값만 저장됩니다.
       </p>
     </section>
 
     <section class="card" style="margin-bottom: var(--space-md); padding: 4px var(--space-md);">
-      <button type="button" class="settings-link-row" data-name="안전 인증 관리">
+      <button type="button" class="settings-link-row" data-name="안전 인증 관리" data-i18n-name="profile.certMgmt">
         <span class="settings-link-row__icon">🛡</span>
-        <span class="settings-link-row__title">안전 인증 관리</span>
+        <span class="settings-link-row__title" data-i18n="profile.certMgmt">안전 인증 관리</span>
         <span class="settings-link-row__chevron">›</span>
       </button>
-      <button type="button" class="settings-link-row" data-name="앱 평가하기">
+      <button type="button" class="settings-link-row" data-name="앱 평가하기" data-i18n-name="profile.appRate">
         <span class="settings-link-row__icon">⭐</span>
-        <span class="settings-link-row__title">앱 평가하기</span>
+        <span class="settings-link-row__title" data-i18n="profile.appRate">앱 평가하기</span>
         <span class="settings-link-row__chevron">›</span>
       </button>
-      <button type="button" class="settings-link-row" data-name="고객 지원" style="border-bottom:none;">
+      <button type="button" class="settings-link-row" data-name="고객 지원" data-i18n-name="profile.support" style="border-bottom:none;">
         <span class="settings-link-row__icon">⚙️</span>
-        <span class="settings-link-row__title">고객 지원</span>
+        <span class="settings-link-row__title" data-i18n="profile.support">고객 지원</span>
         <span class="settings-link-row__chevron">›</span>
       </button>
     </section>
 
-    <button type="button" class="btn btn-danger-outline btn-block" id="logout-btn">⎋ 로그아웃</button>
+    <button type="button" class="btn btn-danger-outline btn-block" id="logout-btn" data-i18n="profile.logout">⎋ 로그아웃</button>
 
-    <p style="text-align:center; font-size: 11px; color: var(--color-text-placeholder); margin: var(--space-lg) 0;">
+    <p style="text-align:center; font-size: 11px; color: var(--color-text-placeholder); margin: var(--space-lg) 0;" data-i18n="profile.version">
       AI 건설현장 안전관리 시스템 v1.0.0
     </p>
 
   </div>
 
   <nav class="bottom-nav">
-    <a href="dashboard.html" class="bottom-nav__item">대시보드</a>
-    <a href="predict-input.html" class="bottom-nav__item">위험도 분석</a>
-    <a href="photo-capture.html" class="bottom-nav__item">사진 분석</a>
-    <a href="similar-cases.html" class="bottom-nav__item">사례 검색</a>
-    <a href="chatbot.html" class="bottom-nav__item">AI 챗봇</a>
-    <a href="profile.html" class="bottom-nav__item is-active">내 정보</a>
+    <a href="dashboard.html" class="bottom-nav__item" data-i18n="nav.dashboard">대시보드</a>
+    <a href="predict-input.html" class="bottom-nav__item" data-i18n="nav.predict">위험도 분석</a>
+    <a href="photo-capture.html" class="bottom-nav__item" data-i18n="nav.photo">사진 분석</a>
+    <a href="similar-cases.html" class="bottom-nav__item" data-i18n="nav.cases">사례 검색</a>
+    <a href="chatbot.html" class="bottom-nav__item" data-i18n="nav.chatbot">AI 챗봇</a>
+    <a href="profile.html" class="bottom-nav__item is-active" data-i18n="nav.profile">내 정보</a>
   </nav>
 
 </div>

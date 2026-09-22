@@ -97,6 +97,8 @@ Command에서 상대경로 `requirements.txt`만으로 정확히 그 파일을 �
 |---|---|---|---|
 | `OPENAI_API_KEY` | 선택 | ✅ 비밀 | 있으면 `/api/analyze`가 임베딩 기반 정밀 유사도 사용. 없으면 카테고리 근사 유사도로 자동 대체(에러 아님) |
 | `GEMINI_API_KEY` | 선택 | ✅ 비밀 | 없으면 `/api/chat`이 "설정 안 됨" 안내만 반환(서버는 안 죽음) |
+| `CHAT_LLM` | 선택 | 공개 정보 | 기본값 `gemini`. `exaone`으로 설정하면 `/api/chat`이 로컬 EXAONE-4.0-1.2B를 씁니다(advisor.py와 모델 공유) — Render 무료 인스턴스(512MB)에는 못 올리므로 로컬 실행 전용입니다(`Backend/run_server.bat` 참고) |
+| `ADVISOR_LLM` | 선택 | 공개 정보 | 기본값 `gemini`. `exaone`으로 설정하면 `/api/advise`(KOSHA 유사사례 기반 안전수칙 생성)가 로컬 EXAONE을 씁니다. 마찬가지로 로컬 실행 전용 |
 | `HF_TOKEN` | 선택 | ✅ 비밀 | 임베딩 자산(`db_v_*.npy`) 데이터셋을 비공개(gated)로 바꾼 경우에만 필요 |
 | `ALLOWED_ORIGINS` | 권장 | 공개 정보 | 프런트 Static Site 실제 URL. 쉼표로 여러 개 가능. 예: `https://ai-safety-frontend.onrender.com`. 비워두면 전체 허용(`*`)으로 동작(로컬 개발엔 편하지만 운영에선 좁히는 걸 권장) |
 

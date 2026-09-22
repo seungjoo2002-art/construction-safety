@@ -16,7 +16,10 @@
 
 // ⚠️ 화면(HTML/CSS/JS)을 고치면 이 버전을 올려야 이미 설치된 PWA가 새 파일을 받는다
 //    (앱 셸이 Cache First 라서, 안 올리면 배포해도 예전 CSS/JS 가 계속 쓰인다).
-const SHELL_CACHE = "ai-safety-shell-v6";
+// v7: 챗봇 EXAONE 연동 / i18n 7개 언어 / 접근성 강화 / site-setup 버그 수정 반영
+//     (accessibility.css, i18n.js, i18n/*.js, user-prefs.js 신규 + 기존 JS 다수 수정 —
+//     버전을 안 올리면 이미 설치된 사용자는 이 변경을 하나도 못 받는다).
+const SHELL_CACHE = "ai-safety-shell-v7";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -48,6 +51,7 @@ const PRECACHE_URLS = [
   "html/weather-hourly.html",
   "html/manifest.json",
   // CSS
+  "css/accessibility.css",
   "css/components.css",
   "css/layout.css",
   "css/pages.css",
@@ -58,6 +62,15 @@ const PRECACHE_URLS = [
   "js/common/api.js",
   "js/common/common.js",
   "js/common/constants.js",
+  "js/common/i18n.js",
+  "js/common/i18n/lang-en.js",
+  "js/common/i18n/lang-id.js",
+  "js/common/i18n/lang-ko.js",
+  "js/common/i18n/lang-ne.js",
+  "js/common/i18n/lang-th.js",
+  "js/common/i18n/lang-vi.js",
+  "js/common/i18n/lang-zh.js",
+  "js/common/i18n/status-labels.js",
   "js/common/idb-store.js",
   "js/common/image-viewer.js",
   "js/common/mock-cases.js",
@@ -66,6 +79,7 @@ const PRECACHE_URLS = [
   "js/common/notification-center.js",
   "js/common/notifications-realtime.js",
   "js/common/session-store.js",
+  "js/common/user-prefs.js",
   "js/common/weather.js",
   // JS 화면별
   "js/pages/analysis-history.js",

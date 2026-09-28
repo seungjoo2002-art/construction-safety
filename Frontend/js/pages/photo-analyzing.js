@@ -91,13 +91,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     await wait(400);
     window.location.href = "photo-result.html";
   } catch (err) {
-    console.error(err);
-    step3Desc.textContent = "분석 중 오류가 발생했어요. 다시 시도해주세요.";
+    // 실패하면 목업 결과로 대체하지 않는다 — 원인을 구분해서 보여주고 촬영 화면으로 돌려보낸다.
+    console.error(`[photo-analyzing.js] 사진 분석 실패: ${err.kind || err.name} — ${err.message}`, err);
+    const reason = {
+      timeout: "서버 응답이 너무 늦어요(서버가 막 깨어나는 중일 수 있어요). 잠시 후 다시 시도해주세요.",
+      network: "백엔드 서버에 연결할 수 없어요. 네트워크 상태를 확인해주세요.",
+      client: `사진을 분석할 수 없어요: ${err.message}`,
+      server: `서버에서 사진 분석에 실패했어요: ${err.message}`,
+    }[err.kind] || "분석 중 오류가 발생했어요. 다시 시도해주세요.";
+    step3Desc.textContent = reason;
     step3.classList.remove("is-active");
     step3.style.borderColor = "var(--color-danger)";
     step3.style.background = "var(--color-danger-bg)";
 
-    await wait(1800);
+    await wait(4000);
     window.location.href = "photo-capture.html";
   }
 });

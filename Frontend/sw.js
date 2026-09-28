@@ -1,7 +1,8 @@
 // ============================================================
 // sw.js — PWA 캐시 정책
 // ============================================================
-// 캐시하는 것: 앱 화면(HTML/CSS/JS), 아이콘, manifest, 오프라인 안내 화면 (Cache First)
+// 캐시하는 것: 앱 화면(HTML/CSS/JS), 아이콘, manifest, 오프라인 안내 화면
+//   → Network First(항상 최신 배포본을 받고, 네트워크가 안 될 때만 캐시로 폴백)
 // 캐시하되 갱신 우선: /api/ 중 남은 검색류 GET 응답 (Network First, 실패 시 캐시 폴백)
 // 절대 캐시하지 않는 것: /api/ 중 쓰기·분석성 POST(predict/analyze/analyze-photo),
 //   그리고 대용량 원본 데이터(huggingface.co 직접 URL, *.npy, *.csv, *.xlsx, *.db 등).
@@ -14,8 +15,9 @@
 //   레벨(api.js)에서 구현되고, 서비스워커는 여기 관여하지 않는다.
 // ============================================================
 
-// ⚠️ 화면(HTML/CSS/JS)을 고치면 이 버전을 올려야 이미 설치된 PWA가 새 파일을 받는다
-//    (앱 셸이 Cache First 라서, 안 올리면 배포해도 예전 CSS/JS 가 계속 쓰인다).
+// 앱 셸은 v13부터 Network First라서, 버전을 안 올려도 온라인이면 항상 최신 배포 파일을 받는다.
+// (v12까지는 Cache First라 버전을 안 올리면 예전 CSS/JS가 계속 쓰였고, 올리더라도 사용자가
+//  한 번 더 새로고침해야 반영됐다.) 버전은 오프라인용 캐시를 통째로 비우고 싶을 때만 올리면 된다.
 // v7: 챗봇 EXAONE 연동 / i18n 7개 언어 / 접근성 강화 / site-setup 버그 수정 반영
 //     (accessibility.css, i18n.js, i18n/*.js, user-prefs.js 신규 + 기존 JS 다수 수정 —
 //     버전을 안 올리면 이미 설치된 사용자는 이 변경을 하나도 못 받는다).
@@ -26,7 +28,9 @@
 // v11: 챗봇 타임아웃 연장(280초) + 느릴 때 안내 문구 + 생성 길이 단축(400→220 토큰)로
 //      "AI 연결이 원활하지 않습니다" 조기 타임아웃 완화.
 // v12: AI 챗봇 기능 제거(chatbot.html/js, /api/chat 및 관련 UI/i18n 정리).
-const SHELL_CACHE = "ai-safety-shell-v12";
+// v13: 앱 셸 Cache First → Network First(새 배포가 즉시 반영) + 예방대책 5개(items) 통일,
+//      사진분석/유사도 목업 폴백 제거(api.js, predict-result.js, scatter-detail.js, photo-*.js).
+const SHELL_CACHE = "ai-safety-shell-v13";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -190,25 +194,30 @@ self.addEventListener("fetch", (e) => {
 
   if (url.pathname.includes("/api/")) return; // 그 외 API GET(/health 등)은 캐싱하지 않고 네트워크로
 
-  // 화면 이동(navigation) 요청 — 셸 캐시 우선, 실패하면 오프라인 안내 화면
+  // 화면 이동(navigation) 요청 — 네트워크 우선(최신 배포본), 실패하면 캐시, 그것도 없으면 오프라인 안내 화면
   if (e.request.mode === "navigate") {
-    e.respondWith(cacheFirstShell(e.request).catch(() => caches.match(OFFLINE_URL)));
+    e.respondWith(networkFirstShell(e.request).catch(() => caches.match(OFFLINE_URL)));
     return;
   }
 
-  // 그 외(CSS/JS/이미지 등 정적 자산) — Cache First
-  e.respondWith(cacheFirstShell(e.request));
+  // 그 외(CSS/JS/이미지 등 정적 자산) — 같은 출처는 네트워크 우선, 외부 CDN 등은 가로채지 않는다
+  if (url.origin !== self.location.origin) return;
+  e.respondWith(networkFirstShell(e.request));
 });
 
-async function cacheFirstShell(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const res = await fetch(request);
-  if (res.ok) {
-    const cache = await caches.open(SHELL_CACHE);
-    cache.put(request, res.clone());
+// 앱 셸 Network First — 온라인이면 항상 서버의 최신 파일을 쓰고(브라우저 HTTP 캐시도 우회),
+// 받은 파일로 캐시를 갱신해 둔다. 오프라인/서버 장애일 때만 마지막으로 받아둔 캐시를 쓴다.
+async function networkFirstShell(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  try {
+    const res = await fetch(request, { cache: "no-cache" });
+    if (res.ok && request.method === "GET") cache.put(request, res.clone());
+    return res;
+  } catch (err) {
+    const cached = await cache.match(request, { ignoreSearch: request.mode === "navigate" });
+    if (cached) return cached;
+    throw err;
   }
-  return res;
 }
 
 async function networkFirst(request) {

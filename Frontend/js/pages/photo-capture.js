@@ -4,6 +4,8 @@
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  wakeBackend(); // 촬영하는 동안 잠든 백엔드(Render)를 미리 깨워 둔다
+
   const video = document.getElementById("camera-video");
   const viewport = document.getElementById("camera-viewport");
   const shutterBtn = document.getElementById("shutter-btn");
@@ -74,11 +76,51 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => finishCapture(reader.result);
+    reader.onerror = () => alert("사진 파일을 읽지 못했어요. 다른 사진을 선택해주세요.");
     reader.readAsDataURL(file);
   }
 
-  function finishCapture(dataUrl) {
-    sessionStorage.setItem("captured_photo", dataUrl);
+  // ── 업로드 전 축소: 휴대폰 원본(4~12MB)을 그대로 base64로 만들면 sessionStorage 한도(~5MB)를
+  //    넘어 저장 단계에서 조용히 멈추고, 전송도 느려진다. YOLO 입력은 960px(classes.json imgsz)이라
+  //    긴 변 1600px JPEG로 줄여도 탐지 정확도에는 영향이 없다. 브라우저가 해석하지 못하는 형식
+  //    (예: 일부 PC 브라우저의 HEIC)은 여기서 명확히 안내한다 — 서버로 보내 500을 받지 않도록.
+  const MAX_SIDE = 1600;
+  function normalizeImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#fff"; // 투명 PNG → 검정 배경이 되지 않도록
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL("image/jpeg", 0.88));
+      };
+      img.onerror = () => reject(new Error("unsupported-image"));
+      img.src = dataUrl;
+    });
+  }
+
+  async function finishCapture(dataUrl) {
+    let normalized;
+    try {
+      normalized = await normalizeImage(dataUrl);
+    } catch (err) {
+      alert("이 사진 형식은 브라우저에서 열 수 없어요(HEIC 등). JPG 또는 PNG 사진으로 다시 선택해주세요.");
+      return;
+    }
+    try {
+      sessionStorage.setItem("captured_photo", normalized);
+    } catch (err) {
+      console.error("[photo-capture.js] 사진 임시 저장 실패", err);
+      alert("사진이 너무 커서 처리할 수 없어요. 다른 사진으로 다시 시도해주세요.");
+      return;
+    }
     stopCamera();
     window.location.href = "photo-analyzing.html";
   }

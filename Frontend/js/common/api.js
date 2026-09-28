@@ -20,14 +20,8 @@ const API_BASE_URL = (
 async function predictRisk(payload) {
   console.log("[api.js] /api/predict 호출 시작: " + API_BASE_URL);
   try {
-    const res = await fetch(`${API_BASE_URL}/api/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: payload }),
-      signal: AbortSignal.timeout(40000), // 40초 안에 응답 없으면 실패로 처리
-    });
-    if (!res.ok) throw new Error(`예측 요청 실패 (${res.status})`);
-    const data = await res.json();
+    // 콜드 스타트(수십 초)를 고려해 2분까지 기다린다
+    const data = await _postJson("/api/predict", { data: payload }, 120000);
     console.log("[api.js] /api/predict 성공");
     return data;
   } catch (err) {
@@ -36,141 +30,78 @@ async function predictRisk(payload) {
   }
 }
 
-function mockSeverityResult() {
-  return {
-    model_version: "severity-rus4-v2",
-    predicted_class: "치명",
-    probabilities: { "경+중등도": 0.367, "중상": 0.261, "치명": 0.372 },
-    fatal_risk: {
-      p_fatal: 0.372,
-      percentile: 79.77,
-      top_percent: 20.23,
-      grade: "보통",
-      grade_description: "평균 수준의 위험",
-      lift_vs_median: 2.17,
-      lift_vs_mean: 1.68,
-      reference_median: 0.171,
-      reference_mean: 0.221,
-      reference_n: 22445,
-      reference_source: "oof_train",
-    },
-    input_quality: { missing_fields: [], completeness: 1.0 },
-  };
+// ── 백엔드 깨우기: Render 인스턴스가 잠들어 있으면 첫 요청이 수십 초 걸린다(콜드 스타트).
+//    입력/촬영 화면에 들어오는 순간 /health를 한 번 찔러두면, 사용자가 입력하는 동안
+//    서버가 깨어나 실제 분석 요청이 타임아웃에 걸리지 않는다. 결과는 쓰지 않는다.
+function wakeBackend() {
+  fetch(`${API_BASE_URL}/health`, { cache: "no-store", signal: AbortSignal.timeout(120000) }).catch(() => {});
 }
 
-function mockAccidentTypeResult() {
-  const ranked = [
-    { type: "추락·압착(Falls)", type_index: 2, probability: 0.296, percentile: 75.8, top_percent: 24.2, lift_vs_mean: 1.27, reference_mean: 0.213, actual_prior: 0.239, likelihood: "높음", likelihood_description: "평균보다 뚜렷하게 높음" },
-    { type: "물체에 맞음(Struck-by)", type_index: 3, probability: 0.21, percentile: 58.4, top_percent: 41.6, lift_vs_mean: 1.06, reference_mean: 0.198, actual_prior: 0.162, likelihood: "보통", likelihood_description: "평균 수준" },
-    { type: "끼임(Caught-in)", type_index: 0, probability: 0.19, percentile: 52.1, top_percent: 47.9, lift_vs_mean: 0.97, reference_mean: 0.196, actual_prior: 0.123, likelihood: "보통", likelihood_description: "평균 수준" },
-    { type: "전도·충돌(Trips/Struck-against)", type_index: 4, probability: 0.184, percentile: 39.6, top_percent: 60.4, lift_vs_mean: 0.79, reference_mean: 0.234, actual_prior: 0.373, likelihood: "낮음", likelihood_description: "평균보다 낮음" },
-    { type: "절단·베임·찔림(Cut)", type_index: 1, probability: 0.12, percentile: 33.2, top_percent: 66.8, lift_vs_mean: 0.75, reference_mean: 0.160, actual_prior: 0.103, likelihood: "낮음", likelihood_description: "평균보다 낮음" },
-  ];
-
-  return {
-    model_version: "accident-type-stacking-v1",
-    predicted_type: ranked[0].type,
-    predicted_type_index: ranked[0].type_index,
-    confidence: ranked[0].probability,
-    probabilities: Object.fromEntries(ranked.map((r) => [r.type, r.probability])),
-    ranked_types: ranked,
-    elevated_types: ranked.filter((r) => r.percentile >= 70),
-    input_quality: { missing_fields: [], completeness: 1.0 },
-  };
-}
-
-// ============================================================
-// 현장 사진 분석 (컴퓨터비전 객체탐지 — Backend/safety_yolo_pkg의 YOLO 모델 연동)
-// 백엔드가 켜져 있고 사진 분석 서비스(ultralytics/torch)가 정상 초기화되어 있으면
-// 실제 탐지 결과를 받고, 서버가 꺼져있거나 초기화 실패(503) 시에만 목업으로 대체합니다.
-// ============================================================
-async function analyzePhoto(photoDataUrl) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/analyze-photo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: photoDataUrl }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) throw new Error(`사진 분석 요청 실패 (${res.status})`);
-    return await res.json();
-  } catch (err) {
-    console.warn(`[api.js] 사진분석 백엔드(${API_BASE_URL}) 연결 실패 → 목업 데이터로 대체합니다.`, err);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    return mockPhotoAnalysisResult();
+// 실패 원인을 사용자에게 구분해서 보여주기 위한 에러 (kind: timeout | network | server | client)
+class ApiError extends Error {
+  constructor(kind, message, status) {
+    super(message);
+    this.name = "ApiError";
+    this.kind = kind;
+    this.status = status || null;
   }
 }
 
-function mockPhotoAnalysisResult() {
-  return {
-    score: 87,
-    grade: "HIGH",
-    grade_label: "즉각 조치 필요",
-    boxes: [
-      { label: "추락위험", pct: 94, top: 8, left: 60, width: 30, height: 26, color: "danger" },
-      { label: "안전모 미착용", pct: 88, top: 38, left: 28, width: 24, height: 22, color: "caution" },
-    ],
-    hazards: [
-      { icon: "⬇️", title: "추락 위험", severity: "위험", desc: "비계 안전난간 미설치" },
-      { icon: "🪖", title: "안전모 미착용", severity: "위험", desc: "작업자 2명 안전모 미착용 감지" },
-      { icon: "📦", title: "자재 적치 불량", severity: "주의", desc: "자재 적치 규정 불량" },
-      { icon: "🪜", title: "사다리 높이 불량", severity: "주의", desc: "사다리 높이와 각도 불량으로 전도 위험" },
-    ],
-    _mock: true,
-  };
+async function _postJson(path, body, timeoutMs) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    if (err.name === "TimeoutError" || err.name === "AbortError") {
+      throw new ApiError("timeout", `서버 응답이 ${Math.round(timeoutMs / 1000)}초 안에 오지 않았어요.`);
+    }
+    throw new ApiError("network", "백엔드 서버에 연결할 수 없어요.");
+  }
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.json()).detail || "";
+    } catch (_) {
+      /* 본문이 JSON이 아니면 상태 코드만 보여준다 */
+    }
+    throw new ApiError(res.status < 500 ? "client" : "server", detail || `서버 오류 (${res.status})`, res.status);
+  }
+  return res.json();
 }
 
 // ============================================================
-// 유사도 분석 (similarity_service.py 연동 — 유사사례 + MDS 산점도 + 재발방지대책)
+// 현장 사진 분석 (YOLO 객체탐지 + rules.json 룰 판정 — Backend/safety_yolo_pkg)
+// 실패하면 목업으로 대체하지 않고 ApiError를 던진다 — 호출하는 쪽이 오류를 그대로 보여준다.
+// (예전에는 실패 시 "점수 87 / HIGH" 목업을 정상 결과처럼 보여줘서, 서버가 잠들어 있던
+//  다른 기기에서는 실제 분석이 아니라 고정된 가짜 결과가 나오는 문제가 있었다.)
+// ============================================================
+async function analyzePhoto(photoDataUrl) {
+  // 콜드 스타트 + YOLO 모델 첫 로딩까지 고려해 넉넉히 2분
+  return _postJson("/api/analyze-photo", { image: photoDataUrl }, 120000);
+}
+
+// ============================================================
+// 유사도 분석 (similarity_service.py 연동 — 유사사례 + MDS 산점도)
 // ============================================================
 /**
  * @param {object} payload predict-input.js에서 조립한 것과 동일한 RAW_INPUT_COLS 형태 객체
- * @returns {Promise<{similar_cases, mds_chart_image, prevention_guidelines}>}
+ * @returns {Promise<{similar_cases, mds_chart_image, is_approximate}|null>} 실패 시 null
+ *          (목업으로 대체하지 않는다 — 결과 화면이 "불러오지 못했어요"를 보여준다)
  */
 async function getSimilarity(payload) {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: payload }),
-      signal: AbortSignal.timeout(40000), // 임베딩 호출이 껴서 넉넉히 40초
-    });
-    if (!res.ok) throw new Error(`유사도 분석 요청 실패 (${res.status})`);
-    return await res.json();
+    // 첫 호출은 서버가 임베딩 자산을 내려받느라 오래 걸릴 수 있어 3분까지 기다린다
+    return await _postJson("/api/analyze", { data: payload }, 180000);
   } catch (err) {
-    console.warn(`[api.js] 유사도 서비스(${API_BASE_URL}) 연결 실패 → 목업으로 대체합니다.`, err);
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    return mockSimilarityResult();
+    console.error(`[api.js] 유사도 분석 실패 (${API_BASE_URL}/api/analyze): ${err.kind} — ${err.message}`);
+    return null;
   }
-}
-
-// 목업용 산점도 이미지 (백엔드 /api/analyze는 실제로 서버에서 렌더링한 PNG를 base64로 내려줌)
-const MOCK_MDS_CHART_IMAGE =
-  "data:image/svg+xml;charset=utf-8," +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="400" height="200">
-      <rect width="400" height="200" fill="#F4F6FA"/>
-      <text x="200" y="104" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#9AA3B2">산점도 목업 이미지</text>
-    </svg>
-  `);
-
-function mockSimilarityResult() {
-  return {
-    _mock: true,
-    mds_chart_image: MOCK_MDS_CHART_IMAGE,
-    similar_cases: [
-      { id: "gangnam-2024-03", title: "강남 오피스텔 추락 사고", summary: "비계 위에서 작업 중 안전난간 미설치로 인한 추락", hazard_type: "추락", similarity_percent: 94 },
-      { id: "incheon-2023-11", title: "인천 물류창고 낙하 사고", summary: "상부 적재 자재 불량으로 낙하물 맞음", hazard_type: "낙하", similarity_percent: 87 },
-      { id: "busan-2024-01", title: "부산 아파트 추락 사고", summary: "사다리 불안정으로 인한 작업자 추락", hazard_type: "추락", similarity_percent: 81 },
-      { id: "daejeon-2024-02", title: "대전 상가 전도 사고", summary: "통로 자재 적치로 인한 전도", hazard_type: "전도", similarity_percent: 74 },
-      { id: "gyeonggi-2023-12", title: "경기 공장 끼임 사고", summary: "회전기계 방호장치 미설치로 끼임", hazard_type: "끼임", similarity_percent: 68 },
-    ],
-    prevention_guidelines: [
-      "▶ 추락위험 구역 안전난간 및 개구부 덮개 밀착 설치, 근로자 안전대 상시 체결 체계 감독",
-      "▶ 상하 동시 작업 원천 금지 및 하부 출입통제선 구성, 낙하물 방지망 정비 상태 정기 점검",
-      "▶ 자재 정리정돈 및 통로 유효 너비 확보, 바닥면 물기 및 기름 소거를 통한 미끄러짐 차단",
-    ],
-  };
 }
 
 // ============================================================
@@ -179,21 +110,21 @@ function mockSimilarityResult() {
 /**
  * @param {object} payload predict-input.js에서 조립한 것과 동일한 RAW_INPUT_COLS 형태 객체
  * @param {string} [상황] 자유 서술(예: "슬래브 콘크리트 타설 중 거푸집 붕괴 위험"). 없으면 서버가 예측 결과로 자동 생성.
- * @returns {Promise<{evidence, advice, verification, retrieval}|null>} 실패 시 null
+ * @returns {Promise<{items, intro, evidence, advice, verification, retrieval}|null>} 실패 시 null
  *          (AI 생성문이라 목업으로 대체하면 실제처럼 보여 부적절 — 실패하면 그냥 섹션을 숨긴다)
  */
 async function getSafetyAdvice(payload, 상황) {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/advise`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: payload, 상황: 상황 || null }),
-      signal: AbortSignal.timeout(300000), // 로컬 EXAONE(CPU) 생성은 1건에 ~2분 → 5분까지 기다린다 (Gemini면 수 초)
-    });
-    if (!res.ok) throw new Error(`해결방안 요청 실패 (${res.status})`);
-    return await res.json();
+    // 로컬 EXAONE(CPU) 생성은 1건에 ~2분 → 5분까지 기다린다 (템플릿/Gemini면 수 초)
+    const data = await _postJson("/api/advise", { data: payload, 상황: 상황 || null }, 300000);
+    if (!Array.isArray(data.items) || data.items.length !== 5) {
+      // 백엔드가 구버전(schema_version 없음)이거나 비정상 응답 — 이전 포맷을 섞어 보여주지 않는다
+      console.error("[api.js] /api/advise 응답 형식 오류 (items 5개 아님)", data);
+      return null;
+    }
+    return data;
   } catch (err) {
-    console.warn(`[api.js] 해결방안 서비스(${API_BASE_URL}) 연결 실패 → 섹션을 생략합니다.`, err);
+    console.error(`[api.js] 해결방안 실패 (${API_BASE_URL}/api/advise): ${err.kind} — ${err.message}`);
     return null;
   }
 }

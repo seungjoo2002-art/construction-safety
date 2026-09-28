@@ -27,6 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderHeaderWeatherMini();
   renderHeaderNotifBadge();
 
+  if (typeof wakeBackend === "function") wakeBackend(); // 로그인 직후 첫 화면에서 백엔드를 미리 깨워 둔다
+
   _cachedResult = getLastPredictResult();
   _cachedSimilarity = getLastSimilarity();
 

@@ -13,7 +13,9 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  const sim = JSON.parse(simRaw); // { similar_cases, mds_chart_image, prevention_guidelines, _mock?, is_approximate? }
+  const sim = JSON.parse(simRaw); // { similar_cases, mds_chart_image, is_approximate? }
+  const adviseRaw = sessionStorage.getItem("advise_result");
+  const advise = adviseRaw ? JSON.parse(adviseRaw) : null; // /api/advise — 핵심 예방대책 items 5개
 
   const tagEl = document.getElementById("header-mock-tag");
   if (sim._mock) {
@@ -28,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderScatterImage(sim.mds_chart_image);
   renderSimilarCases(sim.similar_cases);
-  renderPreventionList(sim.prevention_guidelines);
+  renderPreventionList(advise);
 });
 
 // ── 유사도 산점도 이미지 (백엔드 /api/analyze가 렌더링해서 내려주는 이미지)
@@ -81,32 +83,27 @@ function renderSimilarCases(cases) {
     .join("");
 }
 
-// ── "▶ A, B, C" 형태의 대책 한 줄을 짧은 체크리스트 항목 여러 개로 분리
-//    (맨 앞의 "▶ " 같은 기호는 제거) — predict-result.js와 동일한 로직
-function splitPreventionGuideline(text) {
-  return text
-    .replace(/^[▶►∙・\-–>\s]+/, "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-// ── 재발 방지 대책 (predict-result.js의 renderPrevention과 동일한 스타일)
-function renderPreventionList(guidelines) {
+// ── 재발 방지 대책 — 결과 화면(predict-result.js)과 같은 /api/advise 핵심 예방대책 5개를 그대로 보여준다.
+//    (예전에는 여기만 /api/analyze의 "▶ ..." 구 포맷 대책을 쉼표로 잘라 보여줘서 결과 화면과 내용·개수가 달랐다.)
+function renderPreventionList(advise) {
   const listEl = document.getElementById("prevention-list");
 
-  if (!guidelines || guidelines.length === 0) {
+  if (!advise || !Array.isArray(advise.items) || advise.items.length === 0) {
     listEl.innerHTML = `<p style="font-size: var(--fs-sm); color: var(--color-text-secondary);">재발 방지 대책을 불러오지 못했어요.</p>`;
     return;
   }
 
-  listEl.innerHTML = guidelines
-    .flatMap(splitPreventionGuideline)
+  const esc = (t) => {
+    const d = document.createElement("div");
+    d.textContent = t;
+    return d.innerHTML;
+  };
+  listEl.innerHTML = advise.items
     .map(
-      (item) => `
+      (item, i) => `
       <div class="prevention-list__item">
-        <span class="prevention-list__check">✓</span>
-        <span class="prevention-list__text">${item}</span>
+        <span class="prevention-list__check">${i + 1}</span>
+        <span class="prevention-list__text">${esc(item.text)}</span>
       </div>
     `
     )

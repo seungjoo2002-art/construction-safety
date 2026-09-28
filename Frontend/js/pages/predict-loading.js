@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     saveLastPredictResult(result, payload); // 대시보드가 읽어갈 "최근 분석" 갱신
     saveLastSimilarity(simResult); // 대시보드/유사사례가 읽어갈 "최근 유사도 분석" 갱신
-    saveAnalysisRecord(result, payload, simResult); // 알림 화면에서 다시 열어볼 수 있도록 분석 이력에 자동 기록
+    saveAnalysisRecord(result, payload, simResult, adviseResult); // 알림·기록 화면에서 다시 열어볼 수 있도록 분석 이력에 자동 기록(예방대책 5개 포함)
 
     // ── 위험/매우위험 등급이면 실제 브라우저 알림으로 즉시 안내
     const grade = result.severity.fatal_risk.grade;
@@ -92,7 +92,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // predict-result.html에서 읽을 수 있도록 결과 + 원본 입력값 저장
     sessionStorage.setItem("predict_result", JSON.stringify(result));
     sessionStorage.setItem("predict_result_input", JSON.stringify(payload));
-    sessionStorage.setItem("similarity_result", JSON.stringify(simResult));
+    if (simResult) sessionStorage.setItem("similarity_result", JSON.stringify(simResult));
+    else sessionStorage.removeItem("similarity_result");
     if (adviseResult) sessionStorage.setItem("advise_result", JSON.stringify(adviseResult));
     else sessionStorage.removeItem("advise_result");
 
@@ -101,10 +102,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error(err);
 
-    // fetch 자체가 실패(네트워크 단절, CORS 등)하면 TypeError, 5초 타임아웃이면 TimeoutError/AbortError.
+    // api.js의 ApiError.kind로 연결 실패(network/timeout)와 서버 오류(server/client)를 구분합니다.
     // 그 외는 서버가 응답은 했지만 에러를 준 경우(예: 500, JSON 파싱 실패 등)로 구분해서 안내합니다.
-    const isConnectionError =
-      err instanceof TypeError || err.name === "TimeoutError" || err.name === "AbortError";
+    const isConnectionError = err.kind === "network" || err.kind === "timeout" || err instanceof TypeError;
     step3Desc.textContent = isConnectionError
       ? "백엔드 서버에 연결할 수 없어요. 서버가 켜져 있는지 확인해주세요."
       : "분석 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.";

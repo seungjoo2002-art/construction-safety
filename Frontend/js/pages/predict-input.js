@@ -5,6 +5,8 @@
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
+  wakeBackend(); // 입력하는 동안 잠든 백엔드(Render)를 미리 깨워 둔다
+
   // 이 화면에서 채워지는 "동적" 답변들 (RAW_INPUT_COLS 필드명을 key로 사용)
   const answers = {};
   let weatherFields = null; // 백엔드로 보낼 날씨 필드 (숫자만)

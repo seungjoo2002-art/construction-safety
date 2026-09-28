@@ -41,12 +41,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
 import base64
+import binascii
+import hashlib
 import io
 import os
 import sys
 import threading
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 # ── Windows 콘솔(cp949 등 non-UTF-8 코드페이지)에서 이모지가 섞인 print()가
 #    UnicodeEncodeError로 서버 전체를 죽이는 걸 방지 (uvicorn 실행 시 흔히 발생).
@@ -138,6 +140,15 @@ def get_sim_service() -> Optional[SimilarityWebService]:
 sys.path.insert(0, str(Path(__file__).parent / "safety_yolo_pkg"))
 hazard_service = None
 _hazard_ref_cids: Dict[str, set] = {}
+_hazard_engine: Dict[str, Any] = {}  # 운영 서버가 실제로 어떤 가중치/룰 파일을 쓰는지 응답·로그로 확인하기 위한 지문
+
+
+def _sha12(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()[:12]
 
 
 def get_hazard_service():
@@ -148,7 +159,16 @@ def get_hazard_service():
             from hazard import Hazard
 
             hazard_service = Hazard()
-            print(f"[app.py] 사진 분석(YOLO) 서비스 초기화 완료 (클래스 {len(hazard_service.names)}개)")
+            from hazard import MODEL_DIR as _hz_dir
+            _hazard_engine.update({
+                "weights": "best.pt",
+                "weights_sha256": _sha12(_hz_dir / "best.pt"),
+                "rules_sha256": _sha12(_hz_dir / "rules.json"),
+                "imgsz": hazard_service.imgsz,
+                "conf": hazard_service.conf,
+                "classes": len(hazard_service.names),
+            })
+            print(f"[app.py] 사진 분석(YOLO) 서비스 초기화 완료 {_hazard_engine}")
 
             # rules.json의 각 위험 판정(ref)이 "어떤 탐지 객체(cid) 때문에" 걸렸는지
             # 역으로 찾기 위한 맵. combo_rules는 need 쪽만(=실제로 탐지된 원인) 표시하고,
@@ -244,6 +264,10 @@ def advise(body: AdviseIn):
         상황=body.상황,
     )
     result["risk"] = {"severity": severity, "accident_type": accident_type}
+    llm = result.get("llm") or {}
+    print(f"[app.py] /api/advise 공종={body.data.get('공종 - 중분류', '')!r} 작업={body.data.get('추출된_작업종류', '')!r} "
+          f"유형={risk['injury_top']} items={len(result.get('items', []))} "
+          f"stage={result['retrieval']['filter_stage']} llm={llm.get('used')} err={llm.get('error')}")
     return result
 
 
@@ -414,14 +438,32 @@ def analyze_photo(body: PhotoAnalyzeIn):
             status_code=503,
             detail="사진 분석 서비스가 초기화되지 않았어요. 서버에 ultralytics/torch가 설치되어 있는지 확인해주세요.",
         )
+
+    # 1) 이미지 해석 — 여기서 실패하면 서버 오류(500)가 아니라 잘못된 입력(400)으로 명확히 돌려준다
     try:
         b64 = body.image.split(",", 1)[1] if "," in body.image else body.image
-        img = Image.open(io.BytesIO(base64.b64decode(b64)))
+        raw_bytes = base64.b64decode(b64, validate=False)
+        img = Image.open(io.BytesIO(raw_bytes))
         img = ImageOps.exif_transpose(img)  # 폰 사진은 EXIF로 회전돼 있는 경우가 많음
-        raw = service.analyze(img.convert("RGB"))
-        return _photo_transform(raw)
-    except HTTPException:
-        raise
+        img = img.convert("RGB")
+    except (binascii.Error, UnidentifiedImageError, OSError, ValueError) as e:
+        print(f"[app.py] /api/analyze-photo 400 — 이미지 해석 실패 ({len(body.image)}자): {e}")
+        raise HTTPException(status_code=400, detail="이미지를 해석할 수 없어요. JPG 또는 PNG 사진을 보내주세요.")
+
+    # 2) YOLO 탐지 + 룰 판정
+    try:
+        raw = service.analyze(img)
     except Exception as e:
+        print(f"[app.py] /api/analyze-photo 500 — 추론 실패: {e}")
         raise HTTPException(status_code=500, detail=f"사진 분석 중 오류: {e}")
 
+    out = _photo_transform(raw)
+    # 탐지 객체 → 적용 룰 → 최종 판정이 서로 맞는지 운영 로그로 검증할 수 있게 한 줄로 남긴다
+    print(f"[app.py] /api/analyze-photo {img.size[0]}x{img.size[1]} {raw['elapsed_ms']}ms "
+          f"objects={[(o['cid'], o['conf']) for o in raw['objects']]} "
+          f"rules={[r['ref'] for r in raw['risks']]} verdict={raw['verdict']} score={out['score']}")
+    out["verdict"] = raw["verdict"]
+    out["detections"] = [{"cid": o["cid"], "name": o["name"], "conf": o["conf"]} for o in raw["objects"]]
+    out["applied_rules"] = [{"ref": r["ref"], "level": r["level"], "message": r["message"]} for r in raw["risks"]]
+    out["engine"] = dict(_hazard_engine, elapsed_ms=raw["elapsed_ms"], image_size=raw["image_size"])
+    return out

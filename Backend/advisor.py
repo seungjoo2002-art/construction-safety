@@ -83,16 +83,89 @@ def _injury_type_kr(predicted_type: str) -> str:
     return _영문타입.sub("", predicted_type or "").strip()
 
 
-def _키(대책: str) -> str:
-    """중복 판정용 지문 — 공백·기호를 지우고 앞 35자만 본다."""
-    return _공백.sub("", 대책)[:35]
-
-
 def _겹침(a: str, b: str) -> float:
     """두 문장의 2글자 조각이 겹치는 비율 (0~1). 과도한 재작성 탐지용."""
     A = {a[i:i + 2] for i in range(len(a) - 1)}
     B = {b[i:i + 2] for i in range(len(b) - 1)}
     return len(A & B) / max(len(A), 1)
+
+
+# ── 최종 예방대책 5개 정제 ──────────────────────────────────────
+N_ITEMS = 5  # /api/advise가 항상 돌려주는 핵심 예방대책 개수 (프론트에서 자르지 않는다)
+_무의미 = re.compile(r"^(원인\s*미상|해당\s*없음|없음|-+|기타)$")
+_사례표기 = re.compile(r"\s*[\(\[]?\s*사례\s*#?\s*(\d+)\s*[\)\]]?\s*\.?\s*$")
+
+
+_머리기호 = re.compile(r"^[\s\-–—·ㆍ•▶►※*>]+")
+_명령어미 = re.compile(r"(을|를)?\s*(철저히\s*)?(하십시오|시키십시오|하세요|바랍니다|주십시오)\.?$")
+
+
+def _원문정리(대책: str) -> str:
+    """원문 대책 앞의 '- ', '▶ ' 같은 목록 기호를 떼어낸다."""
+    return _머리기호.sub("", (대책 or "").strip()).strip()
+
+
+def _유효대책(대책: str) -> bool:
+    """빈 문장·'원인 미상' 같은 의미 없는 원문 대책, 잘린 조각(끝이 쉼표)을 걸러낸다."""
+    s = _원문정리(대책)
+    return len(_공백.sub("", s)) >= 8 and not _무의미.match(s) and not s.endswith(",")
+
+
+def _같은대책(a: str, b: str) -> bool:
+    """표현만 다른 같은 대책인지 — 2글자 조각이 짧은 쪽 기준 60% 이상 겹치면 중복으로 본다.
+    (예: '…작업발판(비계, 고소작업대 등)을 설치하여 안전하게 작업' vs '…작업발판 및 고소작업대 사용하여 작업')
+    원문('…착용')과 명령형('…착용하십시오.')·사례 표기가 섞여도 같은 기준이 되도록 어미를 떼고 비교한다."""
+    def 핵심(t: str) -> str:
+        t = re.sub(r"\([^()]*\)", "", _사례표기.sub("", _원문정리(t))).strip()
+        t = _명령형(t).rstrip(".")  # 원문이든 명령형이든 같은 모양으로 맞춘 뒤 어미를 뗀다
+        return _공백.sub("", _명령어미.sub("", t))
+    a, b = 핵심(a), 핵심(b)
+    if not a or not b:
+        return False
+    if a[:35] == b[:35]:
+        return True
+    A = {a[i:i + 2] for i in range(len(a) - 1)}
+    B = {b[i:i + 2] for i in range(len(b) - 1)}
+    return len(A & B) / max(min(len(A), len(B)), 1) >= 0.6
+
+
+def _을를(word: str) -> str:
+    """앞 글자 받침 유무로 목적격 조사를 고른다."""
+    ch = word[-1:] if word else ""
+    if "가" <= ch <= "힣":
+        return "을" if (ord(ch) - 0xAC00) % 28 else "를"
+    return "를"
+
+
+def _명령형(대책: str) -> str:
+    """KOSHA 원문 대책(명사형 종결: '…설치', '…착용철저', '…탑승금지', '…할 것')을
+    '…하십시오.' 현장 지시문으로 기계적으로 바꾼다 — 새 내용을 짓지 않고 어미만 바꾼다."""
+    s = _원문정리(대책).rstrip(".,; ")
+    꼬리 = ""
+    m = re.search(r"\s*(\([^()]*\))$", s)  # 끝의 '(턱끈 체결 등)' 같은 괄호 보충은 뒤로 뺀다
+    if m and len(s) - len(m.group(0)) >= 4:
+        꼬리, s = f" {m.group(1)}", s[: m.start()].rstrip()
+    if s.endswith(("하십시오", "하세요", "바랍니다", "주십시오")):
+        본 = s
+    elif re.search(r"\s?철저$", s):
+        앞 = re.sub(r"\s?철저$", "", s)
+        본 = f"{앞}{_을를(앞)} 철저히 하십시오"
+    elif re.search(r"\s?금지$", s) and len(s) > 2:
+        앞 = re.sub(r"\s?금지$", "", s)
+        본 = f"{앞}{_을를(앞)} 금지하십시오"
+    elif re.search(r"\s?필요$", s):
+        본 = re.sub(r"\s?필요$", "", s) + "하십시오"
+    elif re.search(r"(할|해야)\s?(것|함)$", s):
+        본 = re.sub(r"(할|해야)\s?(것|함)$", "하십시오", s)
+    elif re.search(r"(시킬|시켜야)\s?(것|함)$", s):
+        본 = re.sub(r"(시킬|시켜야)\s?(것|함)$", "시키십시오", s)
+    elif re.search(r"\s?(것|함)$", s):
+        본 = re.sub(r"\s?(것|함)$", "", s) + "하십시오"
+    elif re.search(r"\s등$", s):
+        본 = f"{s}의 조치를 하십시오"
+    else:
+        본 = f"{s}하십시오"
+    return f"{본}{꼬리}."
 
 
 def _정리(t: str) -> str:
@@ -136,8 +209,8 @@ class SafetyAdvisor:
         self._matrix = self._vectorizer.fit_transform([r["검색문장"] for r in self.recs])
 
     # ── 후보 좁히기 ────────────────────────────────────────────
-    def _candidates(self, 공종=None, 작업종류=None, 예측유형=None, 최소=10):
-        """번역표로 후보를 좁힌다. 10건 미만이면 조건을 단계적으로 푼다."""
+    def _stages(self, 공종=None, 작업종류=None, 예측유형=None):
+        """번역표로 좁힌 후보 집합을 '좁은 것 → 넓은 것' 순서로 돌려준다."""
         t공, t작, t재 = (공종_MAP.get(공종), 작업종류_MAP.get(작업종류),
                         재해종류_MAP.get(예측유형))
         m공 = (self._공종 == t공) if t공 else None
@@ -153,34 +226,37 @@ class SafetyAdvisor:
                 out &= m
             return out
 
-        for 이름, mask in [("공종+작업+재해", 합(m공, m작, m재)),
-                          ("공종+재해", 합(m공, m재)),
-                          ("공종+작업", 합(m공, m작)),
-                          ("재해만", 합(m재)),
-                          ("전체", 합())]:
-            idx = np.flatnonzero(mask)
-            if len(idx) >= 최소:
-                return idx, 이름
-        return np.arange(len(self.recs)), "전체"
+        return [("공종+작업+재해", np.flatnonzero(합(m공, m작, m재))),
+                ("공종+재해", np.flatnonzero(합(m공, m재))),
+                ("공종+작업", np.flatnonzero(합(m공, m작))),
+                ("재해만", np.flatnonzero(합(m재))),
+                ("전체", np.arange(len(self.recs)))]
 
-    def retrieve(self, 공종, 작업종류, 예측유형, 상황, k=5, 풀=40):
-        """후보 안에서 유사도 상위 대책 k개를 중복 없이 뽑는다."""
-        후보, 단계 = self._candidates(공종, 작업종류, 예측유형)
+    def retrieve(self, 공종, 작업종류, 예측유형, 상황, k=N_ITEMS):
+        """후보 안에서 유사도 상위 대책 k개를 뽑는다 — 빈/무의미 문장과 표현만 다른 중복은
+        제외하고, 좁은 후보에서 k개를 못 채우면 다음(더 넓은) 단계 후보로 넘어가 반드시 k개를 채운다."""
         q = self._vectorizer.transform([상황])
-        점수 = (self._matrix[후보] @ q.T).toarray().ravel()
+        stages = [(n, idx) for n, idx in self._stages(공종, 작업종류, 예측유형) if len(idx)]
+        # 기존과 같은 시작 단계(후보 10건 이상인 가장 좁은 단계)부터 시작
+        start = next((i for i, (_, idx) in enumerate(stages) if len(idx) >= 10), len(stages) - 1)
 
-        본, 결과 = set(), []
-        for j in np.argsort(-점수)[:풀]:
-            i, s = 후보[j], float(점수[j])
-            for 대책 in self.recs[i]["대책"]:
-                kk = _키(대책)
-                if kk in 본:
-                    continue
-                본.add(kk)
-                결과.append({"대책": 대책, "점수": round(s, 4), "출처": self.recs[i]})
-                if len(결과) >= k:
-                    return 결과, 단계, int(len(후보))
-        return 결과, 단계, int(len(후보))
+        결과, 본문서 = [], set()
+        첫단계, 첫후보수 = stages[start][0], int(len(stages[start][1]))
+        for 이름, 후보 in stages[start:]:
+            후보 = np.array([i for i in 후보 if i not in 본문서], dtype=int)
+            if not len(후보):
+                continue
+            점수 = (self._matrix[후보] @ q.T).toarray().ravel()
+            for j in np.argsort(-점수, kind="stable"):
+                i, s = int(후보[j]), float(점수[j])
+                본문서.add(i)
+                for 대책 in self.recs[i]["대책"]:
+                    if not _유효대책(대책) or any(_같은대책(대책, r["대책"]) for r in 결과):
+                        continue
+                    결과.append({"대책": _원문정리(대책), "점수": round(s, 4), "출처": self.recs[i]})
+                    if len(결과) >= k:
+                        return 결과, 첫단계 if 이름 == 첫단계 else f"{첫단계}→{이름}", 첫후보수
+        return 결과, 첫단계, 첫후보수
 
     # ── 생성 (EXAONE 로컬 / Gemini 폴백) ───────────────────────
     def load_exaone(self):
@@ -277,11 +353,22 @@ class SafetyAdvisor:
             "■ 안전 조치사항",
         ]
         for i, r in enumerate(evidence, 1):
-            본 = r["대책"].strip().rstrip(". ()")
-            if not 본.endswith(("하십시오", "하세요", "바랍니다", "주십시오")):
-                본 = f"{본}하십시오"
-            lines.append(f"{i}. {본}. (사례 #{r['출처']['id']})")
+            lines.append(f"{i}. {_명령형(r['대책'])} (사례 #{r['출처']['id']})")
         return "\n".join(lines)
+
+    @staticmethod
+    def _items_of(text: str) -> List[str]:
+        """'N. 문장' 번호 항목만 뽑는다."""
+        return [m.strip() for m in re.findall(r"^\s*\d+\.\s*(.+)$", text, re.M)]
+
+    @classmethod
+    def _llm_items_ok(cls, text: str, n: int) -> bool:
+        """LLM 결과를 그대로 쓸 수 있는지 — 항목이 정확히 n개이고, 빈/짧은 항목이나
+        같은 내용 반복이 없어야 한다(하나라도 어긋나면 원문 기반 템플릿으로 대체)."""
+        items = [_사례표기.sub("", t) for t in cls._items_of(text)]
+        if len(items) != n or any(len(_공백.sub("", t)) < 8 for t in items):
+            return False
+        return not any(_같은대책(items[i], items[j]) for i in range(n) for j in range(i + 1, n))
 
     def generate_ex(self, 현장: str, injury_top: str, top_percent: float,
                     evidence: list) -> Tuple[str, Optional[str], Optional[str]]:
@@ -329,20 +416,20 @@ class SafetyAdvisor:
                 errors.append(f"{name}: {type(e).__name__}: {e}")
                 continue
 
-            # 목록을 (거의) 다 채웠을 때만 성공으로 본다 — 1개 정도 누락은 허용하되,
-            # "핵심 위험" 한 줄만 쓰고 멈춘 경우(0개)는 절대 그대로 내보내지 않는다.
-            if text and 항목수(text) >= max(1, len(evidence) - 1):
+            # 근거 개수와 정확히 같은 수의 정상 항목을 썼을 때만 성공으로 본다 — 1개라도 빠지거나
+            # 빈/중복 항목이 섞이면 그대로 내보내지 않는다(최종 응답은 항상 정확히 N개).
+            if text and self._llm_items_ok(text, len(evidence)):
                 self._cache_put(user, text)
                 return text, name, None
-            errors.append(f"{name}: 목록 {항목수(text)}/{len(evidence)}개만 생성됨" if text else f"{name}: 빈 응답")
+            errors.append(f"{name}: 목록 {항목수(text)}/{len(evidence)}개(불완전/중복)" if text else f"{name}: 빈 응답")
 
         # 모든 백엔드가 실패했거나 목록을 못 채웠다 — 형식은 항상 보장하는 결정적 안전망으로 대체.
         # (LLM 재작성이 아니라 원문 그대로라 verify()가 항상 깨끗하게 통과한다.)
-        print(f"[advisor.py] ⚠️ LLM 생성이 모두 불완전해 원문 대책을 그대로 정리한 문장으로 대체합니다 "
-              f"({' | '.join(errors)})")
+        reason = " | ".join(errors)
+        print(f"[advisor.py] ⚠️ LLM 생성이 모두 불완전해 원문 대책을 그대로 정리한 문장으로 대체합니다 ({reason})")
         fallback = self._format_advice_fallback(injury_top, top_percent, evidence)
-        self._cache_put(user, fallback)
-        return fallback, "template", None
+        # 캐시는 하지 않는다 — 템플릿은 즉시 만들어지고, 다음 요청에서 LLM이 다시 시도할 수 있어야 한다.
+        return fallback, "template", reason or None
 
     def generate(self, 현장: str, injury_top: str, top_percent: float, evidence: list) -> str:
         return self.generate_ex(현장, injury_top, top_percent, evidence)[0]
@@ -384,10 +471,24 @@ class SafetyAdvisor:
         advice, llm_used, llm_error = self.generate_ex(
             f"{공종} / {작업종류} — {상황}", injury_top, top_percent, evidence)
 
+        # 최종 핵심 예방대책 — 프론트는 이 목록을 그대로 그린다(텍스트 재파싱·자르기 없음).
+        items = []
+        for n, 줄 in enumerate(self._items_of(advice)):
+            m = _사례표기.search(줄)
+            items.append({
+                "text": _사례표기.sub("", 줄).strip(),
+                "case_id": int(m.group(1)) if m else (evidence[n]["출처"]["id"] if n < len(evidence) else None),
+            })
+        intro = next((l.strip() for l in advice.splitlines()
+                      if l.strip() and not l.strip().startswith("■") and not re.match(r"\s*\d+\.", l)), "")
+
         return {
+            "schema_version": 2,
+            "items": items,
+            "intro": intro,
             "evidence": evidence,
             "advice": advice,
             "llm": {"backend": self.llm_backend, "used": llm_used, "error": llm_error},
             "verification": self.verify(advice, evidence, top_percent) if advice else None,
-            "retrieval": {"filter_stage": 단계, "candidates": n후보},
+            "retrieval": {"method": "tfidf-char-2~3gram", "filter_stage": 단계, "candidates": n후보},
         }

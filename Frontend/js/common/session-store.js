@@ -96,7 +96,11 @@ function getLastPredictInput() {
 const LAST_SIMILARITY_KEY = "last_similarity_result";
 
 function saveLastSimilarity(simResult) {
-  localStorage.setItem(_accountKey(LAST_SIMILARITY_KEY), JSON.stringify(simResult));
+  try {
+    localStorage.setItem(_accountKey(LAST_SIMILARITY_KEY), JSON.stringify(simResult));
+  } catch (err) {
+    console.warn("[session-store.js] 최근 유사도 결과 저장 실패 (저장 공간 부족)", err);
+  }
 }
 
 function getLastSimilarity() {
@@ -112,8 +116,49 @@ function getLastSimilarity() {
 // ============================================================
 const SAVED_RESULTS_KEY = "saved_results";
 
+/**
+ * /api/advise 응답에서 이력에 남길 부분만 추린다 — 근거 사례 원문 레코드(재해개요 등)는
+ * 크기가 커서 화면에 쓰는 필드만 남긴다. 다시 열어봤을 때 분석 당시와 똑같은 5개 예방대책을
+ * 보여주기 위해 저장한다(재생성하면 값이 바뀔 수 있어서 재요청하지 않는다).
+ */
+function compactAdvise(advise) {
+  if (!advise || !Array.isArray(advise.items)) return null;
+  return {
+    schema_version: advise.schema_version || 2,
+    items: advise.items,
+    intro: advise.intro || "",
+    llm: advise.llm || null,
+    verification: advise.verification || null,
+    evidence: (advise.evidence || []).map((e) => ({
+      대책: e.대책,
+      점수: e.점수,
+      출처: { id: e.출처.id, 공종: e.출처.공종, 작업명: e.출처.작업명, 재해종류: e.출처.재해종류 },
+    })),
+  };
+}
+
+/**
+ * localStorage 용량(브라우저별 ~5MB) 초과로 저장이 실패하면 오래된 기록부터 지우며 재시도한다.
+ * (유사도 산점도 이미지가 건당 ~200KB라, 예전엔 20건 남짓 쌓이면 QuotaExceededError가
+ *  분석 흐름 전체를 "분석 중 오류"로 끝내버렸다.)
+ */
+function setListWithQuota(key, list) {
+  let items = list;
+  while (items.length > 0) {
+    try {
+      localStorage.setItem(key, JSON.stringify(items));
+      return true;
+    } catch (err) {
+      if (items.length === 1) break;
+      items = items.slice(0, Math.ceil(items.length / 2));
+    }
+  }
+  console.warn(`[session-store.js] ${key} 저장 실패 (저장 공간 부족)`);
+  return false;
+}
+
 /** 분석 1건을 이력에 추가하고, 나중에 다시 찾아올 때 쓸 고유 id를 반환합니다. */
-function saveAnalysisRecord(result, input, sim) {
+function saveAnalysisRecord(result, input, sim, advise) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const saved = getSavedResults();
   saved.unshift({
@@ -125,8 +170,9 @@ function saveAnalysisRecord(result, input, sim) {
     result,
     input,
     sim: sim || null,
+    advise: compactAdvise(advise),
   });
-  localStorage.setItem(SAVED_RESULTS_KEY, JSON.stringify(saved.slice(0, 50))); // 최근 50건만 보관
+  setListWithQuota(SAVED_RESULTS_KEY, saved.slice(0, 50)); // 최근 50건만 보관
   return id;
 }
 
@@ -154,7 +200,7 @@ function savePhotoAnalysisRecord(result, thumbnail) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const saved = getSavedPhotoResults();
   saved.unshift({ id, savedAt: new Date().toISOString(), result, thumbnail: thumbnail || null });
-  localStorage.setItem(SAVED_PHOTO_RESULTS_KEY, JSON.stringify(saved.slice(0, 50))); // 최근 50건만 보관
+  setListWithQuota(SAVED_PHOTO_RESULTS_KEY, saved.slice(0, 50)); // 최근 50건만 보관
   return id;
 }
 

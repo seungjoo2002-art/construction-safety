@@ -30,6 +30,30 @@ async function predictRisk(payload) {
   }
 }
 
+/**
+ * 시간대별 위험도 예측 (작업 시작~종료 시각, 1시간 간격).
+ * 백엔드가 시각마다 위험도만 배치 예측하고, p_fatal 최대 시각(동점이면 가장 이른 시각)의
+ * 위험도 + 사고유형을 대표 결과로 돌려준다.
+ * @param {object} payload predict-input.js에서 조립한 RAW_INPUT_COLS 형태(발생일시/사고일시_x 제외)
+ * @param {{date: string, startHour: number, endHour: number}} workHours date는 KST "YYYY-MM-DD"
+ * @returns { severity, accident_type, hourly } — severity/accident_type은 /api/predict와 같은 형태
+ */
+async function predictHourlyRisk(payload, workHours) {
+  console.log("[api.js] /api/predict-hourly 호출 시작: " + API_BASE_URL);
+  try {
+    const data = await _postJson(
+      "/api/predict-hourly",
+      { data: payload, date: workHours.date, start_hour: workHours.startHour, end_hour: workHours.endHour },
+      120000
+    );
+    console.log("[api.js] /api/predict-hourly 성공");
+    return data;
+  } catch (err) {
+    console.error(`[api.js] 실제 백엔드(${API_BASE_URL}) 연결 실패`, err);
+    throw err;
+  }
+}
+
 // ── 백엔드 깨우기: Render 인스턴스가 잠들어 있으면 첫 요청이 수십 초 걸린다(콜드 스타트).
 //    입력/촬영 화면에 들어오는 순간 /health를 한 번 찔러두면, 사용자가 입력하는 동안
 //    서버가 깨어나 실제 분석 요청이 타임아웃에 걸리지 않는다. 결과는 쓰지 않는다.

@@ -23,6 +23,9 @@ function formatKstDateTime(date) {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
+const DEFAULT_WORK_START_HOUR = 8;
+const DEFAULT_WORK_END_HOUR = 18;
+
 document.addEventListener("DOMContentLoaded", async () => {
   wakeBackend(); // 입력하는 동안 잠든 백엔드(Render)를 미리 깨워 둔다
 
@@ -40,6 +43,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   const siteSetupData = getSiteSetup();
   if (!siteSetupData) {
     document.getElementById("site-setup-warning").style.display = "block";
+  }
+
+  // ── 0-1. 오늘 작업 시간 (00:00~23:00 정시, 종료는 시작 이상 — 당일 안에서만)
+  const workStartSel = document.getElementById("work-start-hour");
+  const workEndSel = document.getElementById("work-end-hour");
+  const workHoursErrorEl = document.getElementById("work-hours-error");
+  [workStartSel, workEndSel].forEach((sel) => {
+    for (let h = 0; h < 24; h++) {
+      const o = document.createElement("option");
+      o.value = String(h);
+      o.textContent = `${String(h).padStart(2, "0")}:00`;
+      sel.appendChild(o);
+    }
+    sel.addEventListener("change", validateForm);
+  });
+  workStartSel.value = String(DEFAULT_WORK_START_HOUR);
+  workEndSel.value = String(DEFAULT_WORK_END_HOUR);
+
+  function readWorkHours() {
+    return { startHour: Number(workStartSel.value), endHour: Number(workEndSel.value) };
   }
 
   // ── 1. 작업 대상물 (버튼선택형, 사고객체 - 대분류)
@@ -292,7 +315,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       "작업프로세스",
     ];
     const filled = required.every((f) => answers[f]);
-    const ready = filled && !!progressInfo;
+    const { startHour, endHour } = readWorkHours();
+    const hoursValid = endHour >= startHour;
+    workHoursErrorEl.style.display = hoursValid ? "none" : "block";
+    const ready = filled && !!progressInfo && hoursValid;
 
     submitBtn.disabled = !ready;
     submitBtn.textContent = ready ? t("predictInput.submitBtn") : t("predictInput.submitIncomplete");
@@ -307,21 +333,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   submitBtn.addEventListener("click", () => {
     if (submitBtn.disabled) return;
 
-    const now = formatKstDateTime(new Date()); // 분석 버튼 누른 시점의 KST "YYYY-MM-DD HH:MM"
+    const { startHour, endHour } = readWorkHours();
+    if (endHour < startHour) return; // validateForm이 이미 막지만 한 번 더 방어
+
+    // 분석 당일 = 분석 버튼 누른 시점의 KST 날짜. 발생일시/사고일시_x는 여기서 넣지 않고
+    // 백엔드(/api/predict-hourly)가 "{date} HH:00"으로 시각마다 채운다.
+    const workHours = {
+      date: formatKstDateTime(new Date()).slice(0, 10),
+      startHour,
+      endHour,
+    };
 
     const payload = {
       ...(siteSetupData || {}),
       ...answers,
       "공정률": progressInfo.bucket,
-      "발생일시": now,
-      "사고일시_x": now,
-      ...(weatherFields || {}), // 날씨 실패 시 비워둠 → 백엔드가 결측 처리
+      ...(weatherFields || {}), // 날씨 실패 시 비워둠 → 백엔드가 결측 처리. 모든 시각에 같은 값을 씀
       "_weather_description": weatherDescription, // UI 표시 전용 (백엔드 전송 시 제외 권장)
     };
+    // 예전 버전 현장설정에 남아 있을 수 있는 시각 필드는 제거 (시각은 백엔드가 시간별로 채움)
+    delete payload["발생일시"];
+    delete payload["사고일시_x"];
 
-    // TODO: 백엔드 /api/predict 연동되면 predict-loading.html에서
-    //       sessionStorage.getItem("predict_input_payload")를 읽어 fetch 요청으로 사용
     sessionStorage.setItem("predict_input_payload", JSON.stringify(payload));
+    sessionStorage.setItem("predict_work_hours", JSON.stringify(workHours));
     window.location.href = "predict-loading.html";
   });
 });

@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[predict-result.js] 유사도 분석 결과 (similar_cases + mds_chart_image):", sim);
   console.log("[predict-result.js] 예방대책 (/api/advise items):", advise);
 
+  renderPeakHour(result); // hourly가 없는 예전 기록이면 섹션을 숨긴 채로 둔다
   renderScore(result.severity);
 
   if (sim) {
@@ -72,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   renderPrevention(advise, legacyRecord);
 
-  renderAnalysisMeta(input);
+  renderAnalysisMeta(input, result.hourly);
   bindActions(result, input, sim, advise);
 });
 
@@ -117,6 +118,131 @@ function renderScatterImage(imageUrl) {
   img.src = imageUrl;
   ImageViewer.bindTrigger(img, openViewer);
   zoomBtn.addEventListener("click", openViewer);
+}
+
+// ── 오늘 가장 위험한 시간대 (/api/predict-hourly의 hourly — 분석 당시 값을 그대로 복원)
+function formatHour(h) {
+  return `${String(h).padStart(2, "0")}:00`;
+}
+function formatPct(p) {
+  return `${(p * 100).toFixed(1)}%`;
+}
+
+function renderPeakHour(result) {
+  const hourly = result.hourly;
+  if (!hourly || !Array.isArray(hourly.points) || hourly.points.length === 0) return;
+
+  const fr = result.severity.fatal_risk;
+  document.getElementById("peak-hour-section").style.display = "block";
+  document.getElementById("peak-hour-time").textContent = formatHour(hourly.peak_hour);
+  const gradeEl = document.getElementById("peak-hour-grade");
+  gradeEl.textContent = fr.grade;
+  gradeEl.className = `badge ${gradeToBadgeClass(fr.grade)}`;
+  document.getElementById("peak-hour-pfatal").textContent = formatPct(fr.p_fatal);
+  const type = result.accident_type?.predicted_type;
+  document.getElementById("peak-hour-type").textContent = type ? ACCIDENT_TYPE_SHORT_LABEL[type] || type : "--";
+
+  document.getElementById("hourly-chart-caption").textContent =
+    `${hourly.date} · ${formatHour(hourly.start_hour)}~${formatHour(hourly.end_hour)} · 1시간 간격 ${hourly.points.length}회 분석` +
+    (hourly.points.length > 1 ? " · 같은 값이면 이른 시간 우선" : "");
+
+  document.getElementById("hourly-table").innerHTML =
+    `<thead><tr><th>시간</th><th>치명 위험도</th><th>백분위</th><th>등급</th></tr></thead><tbody>` +
+    hourly.points
+      .map(
+        (p) => `<tr class="${p.hour === hourly.peak_hour ? "is-peak" : ""}">
+          <td>${formatHour(p.hour)}${p.hour === hourly.peak_hour ? " ▲" : ""}</td>
+          <td>${formatPct(p.p_fatal)}</td><td>${p.percentile.toFixed(1)}</td><td>${p.grade}</td></tr>`
+      )
+      .join("") +
+    `</tbody>`;
+
+  const chartEl = document.getElementById("hourly-chart");
+  renderHourlyChart(chartEl, hourly);
+  let lastWidth = chartEl.clientWidth;
+  window.addEventListener("resize", () => {
+    if (chartEl.clientWidth !== lastWidth) {
+      lastWidth = chartEl.clientWidth;
+      renderHourlyChart(chartEl, hourly);
+    }
+  });
+}
+
+// 시간대별 p_fatal 꺾은선 (단일 계열 — 범례 없음). 가장 위험한 시간은 빨간 점 + 값 라벨로 강조.
+// SVG 좌표를 실제 픽셀 폭에 맞춰 그려 글자 크기가 화면 폭에 따라 줄어들지 않게 한다.
+function renderHourlyChart(el, hourly) {
+  const pts = hourly.points;
+  const W = Math.max(el.clientWidth, 260);
+  const H = 180;
+  const m = { top: 26, right: 14, bottom: 24, left: 38 };
+  const iw = W - m.left - m.right;
+  const ih = H - m.top - m.bottom;
+
+  const maxP = Math.max(...pts.map((p) => p.p_fatal));
+  const yMax = Math.min(1, Math.max(0.1, Math.ceil((maxP * 1.1) * 10) / 10)); // 10% 단위로 올림
+  const x = (i) => m.left + (pts.length === 1 ? iw / 2 : (i / (pts.length - 1)) * iw);
+  const y = (v) => m.top + ih - (v / yMax) * ih;
+
+  const yTicks = [0, yMax / 2, yMax];
+  const labelEvery = Math.ceil(pts.length / Math.max(1, Math.floor(iw / 34))); // 라벨 간 최소 ~34px
+  const peakIdx = pts.findIndex((p) => p.hour === hourly.peak_hour);
+  const svgNs = "http://www.w3.org/2000/svg";
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="시간대별 치명 위험도. 가장 위험한 시간 ${formatHour(hourly.peak_hour)} ${formatPct(pts[peakIdx].p_fatal)}" xmlns="${svgNs}">`;
+  yTicks.forEach((v) => {
+    svg += `<line class="hourly-chart__grid" x1="${m.left}" x2="${W - m.right}" y1="${y(v)}" y2="${y(v)}"/>`;
+    svg += `<text class="hourly-chart__axis-text" x="${m.left - 6}" y="${y(v) + 4}" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  });
+  pts.forEach((p, i) => {
+    const isPeak = i === peakIdx;
+    // 간격(labelEvery)마다 + 마지막 시각 + 가장 위험한 시간은 항상. 강조 라벨과 24px 안쪽이면 겹치지 않게 생략
+    const wanted = i % labelEvery === 0 || i === pts.length - 1;
+    if (!isPeak && (!wanted || Math.abs(x(i) - x(peakIdx)) < 24)) return;
+    svg += `<text class="hourly-chart__axis-text" x="${x(i)}" y="${H - 6}" text-anchor="middle"${isPeak ? ' style="fill:var(--color-danger);font-weight:700"' : ""}>${String(p.hour).padStart(2, "0")}</text>`;
+  });
+  if (pts.length > 1) {
+    svg += `<polyline class="hourly-chart__line" points="${pts.map((p, i) => `${x(i)},${y(p.p_fatal)}`).join(" ")}"/>`;
+  }
+  svg += `<line class="hourly-chart__cursor" id="hourly-cursor" y1="${m.top}" y2="${m.top + ih}" x1="0" x2="0" style="display:none"/>`;
+  pts.forEach((p, i) => {
+    if (i !== peakIdx) svg += `<circle class="hourly-chart__dot" cx="${x(i)}" cy="${y(p.p_fatal)}" r="${pts.length > 16 ? 3 : 4}"/>`;
+  });
+  // 가장 위험한 시간: 큰 빨간 점 + 값 라벨 (가장자리에서 잘리지 않게 정렬 보정)
+  const px = x(peakIdx);
+  const py = y(pts[peakIdx].p_fatal);
+  const anchor = px > W - 50 ? "end" : px < m.left + 40 ? "start" : "middle";
+  svg += `<circle class="hourly-chart__dot hourly-chart__dot--peak" cx="${px}" cy="${py}" r="6"/>`;
+  svg += `<text class="hourly-chart__peak-text" x="${px}" y="${py - 11}" text-anchor="${anchor}">${formatHour(hourly.peak_hour)} ${formatPct(pts[peakIdx].p_fatal)}</text>`;
+  // 터치/호버 영역: 점보다 넓은 세로 띠
+  const band = pts.length === 1 ? iw : iw / (pts.length - 1);
+  pts.forEach((p, i) => {
+    svg += `<rect class="hourly-chart__hit" data-i="${i}" x="${x(i) - band / 2}" y="${m.top}" width="${band}" height="${ih}"/>`;
+  });
+  svg += `</svg><div class="hourly-chart__tip" id="hourly-tip" style="display:none"></div>`;
+  el.innerHTML = svg;
+
+  const tip = el.querySelector("#hourly-tip");
+  const cursor = el.querySelector("#hourly-cursor");
+  const show = (i) => {
+    const p = pts[i];
+    tip.textContent = `${formatHour(p.hour)} · ${formatPct(p.p_fatal)} · ${p.grade}`;
+    tip.style.display = "block";
+    tip.style.left = `${Math.min(Math.max(x(i), 60), W - 60)}px`;
+    tip.style.top = `${Math.max(0, y(p.p_fatal) - 44)}px`;
+    cursor.setAttribute("x1", x(i));
+    cursor.setAttribute("x2", x(i));
+    cursor.style.display = "block";
+  };
+  const hide = () => {
+    tip.style.display = "none";
+    cursor.style.display = "none";
+  };
+  el.querySelectorAll(".hourly-chart__hit").forEach((r) => {
+    const i = Number(r.dataset.i);
+    r.addEventListener("pointerenter", () => show(i));
+    r.addEventListener("pointerdown", () => show(i));
+  });
+  el.querySelector("svg").addEventListener("pointerleave", hide);
 }
 
 // ── 종합 위험도 (fatal_risk.percentile을 0~100 점수로 그대로 사용)
@@ -264,12 +390,17 @@ function escapeHtml(s) {
 }
 
 // ── 분석 정보 (실제 입력값 기반 — 위치는 역지오코딩 미보유로 생략)
-function renderAnalysisMeta(input) {
+function renderAnalysisMeta(input, hourly) {
   const metaEl = document.getElementById("analysis-meta");
   const items = [];
 
   if (input["발생일시"]) {
     items.push(`<span class="analysis-meta__item">🕐 ${input["발생일시"]}</span>`);
+  }
+  if (hourly) {
+    items.push(
+      `<span class="analysis-meta__item">⏰ 작업시간 ${formatHour(hourly.start_hour)}~${formatHour(hourly.end_hour)}</span>`
+    );
   }
   if (input["_weather_description"]) {
     items.push(`<span class="analysis-meta__item">☁️ 날씨: ${input["_weather_description"]}</span>`);

@@ -44,6 +44,36 @@
 
   <div class="app-content">
 
+    <!-- ── 오늘 가장 위험한 시간대 + 시간대별 위험도 추이 (/api/predict-hourly의 hourly).
+         hourly가 없는 예전 기록은 이 섹션을 숨긴다. 아래 모든 결과는 이 시간대 입력값 기준. -->
+    <section class="card" id="peak-hour-section" style="display:none; margin-bottom: var(--space-md);">
+      <div class="peak-hour__label">오늘 가장 위험한 시간대</div>
+      <div class="peak-hour__time" id="peak-hour-time">--:--</div>
+      <div class="peak-hour__stats">
+        <div class="peak-hour__stat">
+          <span class="peak-hour__stat-label">해당 시간 위험등급</span>
+          <span class="peak-hour__stat-value"><span class="badge" id="peak-hour-grade">--</span></span>
+        </div>
+        <div class="peak-hour__stat">
+          <span class="peak-hour__stat-label">치명 위험도</span>
+          <span class="peak-hour__stat-value" id="peak-hour-pfatal">--</span>
+        </div>
+        <div class="peak-hour__stat peak-hour__stat--wide">
+          <span class="peak-hour__stat-label">예상 주요 사고유형</span>
+          <span class="peak-hour__stat-value" id="peak-hour-type">--</span>
+        </div>
+      </div>
+
+      <h2 class="card-section-title" style="margin: var(--space-lg) 0 0;">시간대별 치명 위험도</h2>
+      <p style="font-size: 11px; color: var(--color-text-secondary);" id="hourly-chart-caption"></p>
+      <div class="hourly-chart" id="hourly-chart"></div>
+      <details>
+        <summary style="cursor:pointer; font-size: var(--fs-xs); color: var(--color-text-secondary); margin-top: var(--space-sm);">📋 시간대별 값 표로 보기</summary>
+        <table class="hourly-table" id="hourly-table"></table>
+      </details>
+      <p class="peak-hour__note">아래 위험도·유사사례·예방대책은 모두 가장 위험한 시간대 기준 결과예요. 기상값은 모든 시간대에 같은 값을 사용했어요.</p>
+    </section>
+
     <!-- ── 종합 위험도 (predict_severity.py의 fatal_risk 기반) -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <div class="result-score">

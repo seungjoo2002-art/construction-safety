@@ -88,6 +88,28 @@
       </div>
     </section>
 
+    <!-- ── 작업 시간 (오늘 KST 기준, 시작~종료를 1시간 간격으로 위험도 분석) -->
+    <section class="card" style="margin-bottom: var(--space-md);">
+      <h2 class="card-section-title" data-i18n="predictInput.workHoursTitle">⏰ 오늘 작업 시간</h2>
+      <p class="form-group__desc" data-i18n="predictInput.workHoursDesc">작업 시간 동안 1시간 간격으로 위험도를 분석해 가장 위험한 시간대를 찾아드려요</p>
+      <div class="work-hours">
+        <div class="form-group work-hours__field">
+          <label class="form-group__label" for="work-start-hour" data-i18n="predictInput.workStart">작업 시작</label>
+          <div class="select-field">
+            <select id="work-start-hour"></select>
+          </div>
+        </div>
+        <span class="work-hours__sep" aria-hidden="true">~</span>
+        <div class="form-group work-hours__field">
+          <label class="form-group__label" for="work-end-hour" data-i18n="predictInput.workEnd">작업 종료</label>
+          <div class="select-field">
+            <select id="work-end-hour"></select>
+          </div>
+        </div>
+      </div>
+      <p class="work-hours__error" id="work-hours-error" role="alert" style="display:none;" data-i18n="predictInput.workHoursInvalid">작업 종료 시간은 시작 시간보다 빠를 수 없어요.</p>
+    </section>
+
     <!-- ── 기상 정보 (기본: 자동 조회, 원하면 직접 입력으로 전환 가능) -->
     <section class="card weather-card" style="margin-bottom: var(--space-md);">
       <div class="weather-card__header">

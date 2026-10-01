@@ -45,8 +45,10 @@ import binascii
 import hashlib
 import io
 import os
+import re
 import sys
 import threading
+import pandas as pd
 import requests
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -58,6 +60,7 @@ try:
 except Exception:
     pass
 
+import preprocessing as P
 from predict_severity import SeverityPredictor
 from predict_accident_type import AccidentTypePredictor
 from similarity_service import SimilarityWebService
@@ -194,6 +197,69 @@ def predict(body: PredictIn):
     return {
         "severity": severity_predictor.predict_one(body.data),
         "accident_type": accident_type_predictor.predict_one(body.data),
+    }
+
+
+class PredictHourlyIn(BaseModel):
+    data: Dict[str, Any]  # /api/predict 와 동일한 필드 (발생일시/사고일시_x는 여기서 시간별로 덮어씀)
+    date: str             # 분석 당일 KST 날짜 "YYYY-MM-DD" (프론트가 Asia/Seoul 기준으로 생성)
+    start_hour: int       # 작업 시작 시각 (0~23, 정시)
+    end_hour: int         # 작업 종료 시각 (start_hour 이상, 당일 23시까지 — 포함)
+
+
+@app.post("/api/predict-hourly")
+def predict_hourly(body: PredictHourlyIn):
+    """작업 시작~종료 시각을 1시간 간격으로 위험도만 배치 예측 → p_fatal 최대 시각을 대표로 선정.
+    사고유형은 대표 시각 1건에 대해서만 계산한다(모든 시각에 대해 돌리지 않음).
+    현장·기상 조건은 모든 시각에 동일하고 발생일시/사고일시_x의 시각만 바뀐다.
+    동점(p_fatal 소수 6자리 기준 동일)이면 가장 이른 시각을 대표로 쓴다."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", body.date or ""):
+        raise HTTPException(status_code=400, detail="date는 YYYY-MM-DD 형식이어야 합니다")
+    if not (0 <= body.start_hour <= 23 and 0 <= body.end_hour <= 23):
+        raise HTTPException(status_code=400, detail="작업 시각은 0~23시 범위여야 합니다")
+    if body.end_hour < body.start_hour:
+        raise HTTPException(status_code=400, detail="작업 종료 시각이 시작 시각보다 이를 수 없습니다")
+
+    hours = list(range(body.start_hour, body.end_hour + 1))
+    rows = []
+    for h in hours:
+        dt = f"{body.date} {h:02d}:00"
+        rows.append({**body.data, "발생일시": dt, "사고일시_x": dt})
+
+    severities = severity_predictor.predict(rows)
+    # 실제 모델에 들어간 사고_시간(전처리 후 값) — 검증/로그용
+    model_hours = P.prepare(pd.DataFrame(rows), severity_predictor.meta)[0]["사고_시간"].tolist()
+
+    points = [
+        {
+            "hour": h,
+            "datetime": rows[i]["발생일시"],
+            "model_input_hour": int(model_hours[i]),
+            "p_fatal": s["fatal_risk"]["p_fatal"],
+            "percentile": s["fatal_risk"]["percentile"],
+            "grade": s["fatal_risk"]["grade"],
+        }
+        for i, (h, s) in enumerate(zip(hours, severities))
+    ]
+    # max()는 동점일 때 처음 나온(=가장 이른) 원소를 돌려준다
+    peak = max(range(len(points)), key=lambda i: points[i]["p_fatal"])
+
+    accident_type = accident_type_predictor.predict_one(rows[peak])
+    print(f"[app.py] /api/predict-hourly date={body.date} {body.start_hour:02d}~{body.end_hour:02d}시 "
+          f"사고_시간={[p['model_input_hour'] for p in points]} "
+          f"peak={points[peak]['hour']:02d}시 p_fatal={points[peak]['p_fatal']} 유형={accident_type['predicted_type']}")
+    return {
+        "severity": severities[peak],
+        "accident_type": accident_type,
+        "hourly": {
+            "date": body.date,
+            "start_hour": body.start_hour,
+            "end_hour": body.end_hour,
+            "peak_hour": points[peak]["hour"],
+            "peak_datetime": points[peak]["datetime"],
+            "tie_rule": "earliest",
+            "points": points,
+        },
     }
 
 

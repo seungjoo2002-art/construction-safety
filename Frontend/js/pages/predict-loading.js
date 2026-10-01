@@ -3,22 +3,27 @@
 // api.js 보다 나중에 로드되어야 합니다.
 //
 // 동작:
-//  1) predict-input.html에서 저장해둔 payload를 읽음 (없으면 되돌려보냄)
+//  1) predict-input.html에서 저장해둔 payload + 작업 시간(KST 날짜, 시작/종료 시각)을 읽음
+//     (없으면 되돌려보냄)
 //  2) 1,2단계는 정해진 시간 지나면 자동으로 체크 표시 (연출용)
-//  3) 3단계는 실제(지금은 목업) API 응답이 올 때까지 "진행 중" 상태 유지
-//  4) 응답 오면 3단계도 체크 표시 → 결과를 저장하고 predict-result.html로 이동
+//  3) 3단계: 시간대별 위험도(/api/predict-hourly) → p_fatal 최대 시각(동점이면 가장 이른
+//     시각) 선정 → 그 시각 입력값으로만 예방대책(/api/advise) 요청. 유사도(/api/analyze)는
+//     시각 변수를 쓰지 않아(app.py build_similarity_input) 처음부터 병렬로 요청한다.
+//  4) 전부 끝나면 3단계도 체크 표시 → 결과를 저장하고 predict-result.html로 이동
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
   const payloadRaw = sessionStorage.getItem("predict_input_payload");
+  const workHoursRaw = sessionStorage.getItem("predict_work_hours");
 
-  if (!payloadRaw) {
+  if (!payloadRaw || !workHoursRaw) {
     // 입력 데이터 없이 이 화면에 바로 들어온 경우 (새로고침 등) → 입력 화면으로 되돌림
     window.location.href = "predict-input.html";
     return;
   }
 
   const payload = JSON.parse(payloadRaw);
+  const workHours = JSON.parse(workHoursRaw); // { date: "YYYY-MM-DD"(KST), startHour, endHour }
 
   // ── 디버깅용: 백엔드로 보내는 입력 변수를 콘솔에 그대로 표시
   console.log("[predict-loading.js] 위험도 분석 입력 변수:", payload);
@@ -47,10 +52,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ── 연출용 지연 함수
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // ── 실제(목업) API 호출은 화면 연출과 동시에 백그라운드에서 진행
-  const apiPromise = predictRisk(payload);
-  const simPromise = getSimilarity(payload); // 유사도 분석(유사사례+산점도+재발방지대책)도 같이 요청
-  const advisePromise = getSafetyAdvice(payload); // KOSHA 근거사례 + AI 생성 안전수칙도 같이 요청
+  const hh = (h) => `${String(h).padStart(2, "0")}:00`;
+
+  // ── 실제 API 호출은 화면 연출과 동시에 백그라운드에서 진행
+  //    1단계: 시간대별 위험도만 예측 → 2단계: 최대 p_fatal 시각 선정(백엔드) →
+  //    3단계: 그 시각 입력값으로 예방대책 생성. 유사도는 시각과 무관해 바로 병렬 요청.
+  const hourlyPromise = predictHourlyRisk(payload, workHours);
+  const simPromise = getSimilarity(payload); // 유사도 분석(유사사례+산점도+재발방지대책)
+  hourlyPromise.catch(() => {}); // 실패는 아래 try에서 처리 (연출 대기 중 unhandled rejection 방지)
 
   markActive(step1);
   setProgress(10);
@@ -64,9 +73,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   setProgress(66);
 
   markActive(step3);
+  step3Desc.textContent = `시간대별 위험도 산출 중 (${hh(workHours.startHour)}~${hh(workHours.endHour)})...`;
 
   try {
-    const [result, simResult, adviseResult] = await Promise.all([apiPromise, simPromise, advisePromise]); // { severity, accident_type }, { similar_cases, mds_chart_image, prevention_guidelines }, { evidence, advice, verification, retrieval }|null
+    const result = await hourlyPromise; // { severity, accident_type, hourly } — severity/accident_type은 가장 위험한 시각 기준
+    const peakTime = hh(result.hourly.peak_hour);
+    console.log(
+      "[predict-loading.js] 시간대별 p_fatal:",
+      result.hourly.points.map((p) => `${hh(p.hour)} p_fatal=${p.p_fatal} (사고_시간=${p.model_input_hour})`)
+    );
+    console.log(`[predict-loading.js] 가장 위험한 시간대: ${peakTime} (${result.hourly.peak_datetime})`);
+
+    // 이후 화면/저장/예방대책은 전부 "가장 위험한 시각" 입력값 기준
+    const peakPayload = {
+      ...payload,
+      "발생일시": result.hourly.peak_datetime,
+      "사고일시_x": result.hourly.peak_datetime,
+    };
+    step3Desc.textContent = `가장 위험한 시간(${peakTime}) 기준 예방대책 생성 중...`;
+    const [simResult, adviseResult] = await Promise.all([simPromise, getSafetyAdvice(peakPayload)]); // { similar_cases, mds_chart_image, prevention_guidelines }, { evidence, advice, verification, retrieval }|null
     markDone(step3);
     setProgress(100);
 
@@ -75,23 +100,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("[predict-loading.js] 유사도 분석 결과 (similar_cases + mds_chart_image + prevention_guidelines):", simResult);
     console.log("[predict-loading.js] 해결방안 결과 (evidence + advice + verification):", adviseResult);
 
-    saveLastPredictResult(result, payload); // 대시보드가 읽어갈 "최근 분석" 갱신
+    saveLastPredictResult(result, peakPayload); // 대시보드가 읽어갈 "최근 분석" 갱신
     saveLastSimilarity(simResult); // 대시보드/유사사례가 읽어갈 "최근 유사도 분석" 갱신
-    saveAnalysisRecord(result, payload, simResult, adviseResult); // 알림·기록 화면에서 다시 열어볼 수 있도록 분석 이력에 자동 기록(예방대책 5개 포함)
+    saveAnalysisRecord(result, peakPayload, simResult, adviseResult); // 알림·기록 화면에서 다시 열어볼 수 있도록 분석 이력에 자동 기록(예방대책 5개 포함)
 
     // ── 위험/매우위험 등급이면 실제 브라우저 알림으로 즉시 안내
     const grade = result.severity.fatal_risk.grade;
     if (grade === "위험" || grade === "매우위험") {
       showRealNotification(
         "⚠️ 위험 감지",
-        `종합 위험도 ${Math.round(result.severity.fatal_risk.percentile)}점(${grade}) - 즉각적인 안전점검이 필요해요`,
+        `오늘 ${peakTime} 종합 위험도 ${Math.round(result.severity.fatal_risk.percentile)}점(${grade}) - 즉각적인 안전점검이 필요해요`,
         "risk-alert"
       );
     }
 
     // predict-result.html에서 읽을 수 있도록 결과 + 원본 입력값 저장
     sessionStorage.setItem("predict_result", JSON.stringify(result));
-    sessionStorage.setItem("predict_result_input", JSON.stringify(payload));
+    sessionStorage.setItem("predict_result_input", JSON.stringify(peakPayload));
     if (simResult) sessionStorage.setItem("similarity_result", JSON.stringify(simResult));
     else sessionStorage.removeItem("similarity_result");
     if (adviseResult) sessionStorage.setItem("advise_result", JSON.stringify(adviseResult));

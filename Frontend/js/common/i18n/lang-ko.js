@@ -80,6 +80,11 @@ window.I18N_DICT.ko = {
   "predictInput.windLabel": "풍속(m/s)",
   "predictInput.submitIncomplete": "모든 항목을 입력해주세요",
   "predictInput.submitBtn": "분석하기",
+  "predictInput.workHoursTitle": "⏰ 오늘 작업 시간",
+  "predictInput.workHoursDesc": "작업 시간 동안 1시간 간격으로 위험도를 분석해 가장 위험한 시간대를 찾아드려요",
+  "predictInput.workStart": "작업 시작",
+  "predictInput.workEnd": "작업 종료",
+  "predictInput.workHoursInvalid": "작업 종료 시간은 시작 시간보다 빠를 수 없어요.",
   "predictInput.searchSelectPlaceholder": "검색해서 선택하세요",
   "predictInput.searchSelectEmpty": "일치하는 항목이 없어요",
 

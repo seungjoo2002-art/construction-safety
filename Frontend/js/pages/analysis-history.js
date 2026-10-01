@@ -62,10 +62,13 @@ function buildHistoryItems() {
     .map((r) => {
       const ranked = (r.result?.accident_type?.ranked_types || []).slice(0, 3);
       const topHazards = ranked.map((t) => ACCIDENT_TYPE_SHORT_LABEL[t.type] || t.type);
+      const peakHour = r.result?.hourly?.peak_hour; // 시간대별 분석 이전 기록엔 없음
       return {
         type: "위험도 분석",
         time: r.savedAt,
-        summary: `종합 위험도 ${r.score}점 · ${r.grade}`,
+        summary:
+          `종합 위험도 ${r.score}점 · ${r.grade}` +
+          (peakHour != null ? ` · 최고위험 ${String(peakHour).padStart(2, "0")}:00` : ""),
         topHazards,
         href: `predict-result.html?resultId=${encodeURIComponent(r.id)}`,
       };

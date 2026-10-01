@@ -4,6 +4,25 @@
 // 나중에 로드되어야 합니다.
 // ============================================================
 
+// 한국 현지시간(Asia/Seoul) "YYYY-MM-DD HH:MM" — 발생일시/사고일시_x용.
+// toISOString()은 항상 UTC라 9시간 이전 값(00:00~08:59는 날짜까지 전날)이 들어가므로 쓰지 않는다.
+// 기기 시간대 설정과 무관하게 KST로 고정.
+function formatKstDateTime(date) {
+  const parts = {};
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .formatToParts(date)
+    .forEach((p) => (parts[p.type] = p.value));
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   wakeBackend(); // 입력하는 동안 잠든 백엔드(Render)를 미리 깨워 둔다
 
@@ -288,7 +307,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   submitBtn.addEventListener("click", () => {
     if (submitBtn.disabled) return;
 
-    const now = new Date().toISOString().slice(0, 16).replace("T", " "); // "YYYY-MM-DD HH:MM"
+    const now = formatKstDateTime(new Date()); // 분석 버튼 누른 시점의 KST "YYYY-MM-DD HH:MM"
 
     const payload = {
       ...(siteSetupData || {}),

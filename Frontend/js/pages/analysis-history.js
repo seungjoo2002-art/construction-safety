@@ -3,19 +3,25 @@
 // "과거에 실행했던 위험도 분석 및 사진 분석 결과"를 시간순으로 보여준다.
 // (알림 화면과 역할이 분리되어 있음: 알림 = 지금 확인/조치할 것, 분석 기록 = 과거 이력)
 //
-// 저장 로직(session-store.js: getSavedResults/getSavedPhotoResults)과 이 파일의
-// 화면 렌더링을 분리해 뒀다 — 나중에 localStorage 대신 실제 DB/서버 API로 바꿀 때
-// 이 파일은 그대로 두고 session-store.js의 함수 구현만 바꾸면 된다.
-// constants.js, session-store.js 보다 나중에 로드되어야 합니다.
+// 데이터는 session-store.js가 서버(/api/me/analyses, /api/me/photo-analyses)에서 가져온다 —
+// 서버가 로그인 사용자 소유 기록만 돌려주므로 다른 계정의 기록은 애초에 내려오지 않는다.
+// auth.js, constants.js, session-store.js 보다 나중에 로드되어야 합니다.
 // ============================================================
 
 const HISTORY_FILTER_TAGS = ["전체", "위험도 분석", "사진 분석"];
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const chipRow = document.getElementById("filter-chip-row");
   const listEl = document.getElementById("history-list");
 
-  const allItems = buildHistoryItems();
+  let allItems;
+  try {
+    allItems = await buildHistoryItems();
+  } catch (err) {
+    console.error("[analysis-history.js] 기록 조회 실패", err);
+    listEl.innerHTML = `<p style="text-align:center; color: var(--color-danger); padding: var(--space-lg) 0;">분석 기록을 불러오지 못했어요: ${err.message}</p>`;
+    return;
+  }
   let activeFilter = "전체";
 
   chipRow.innerHTML = HISTORY_FILTER_TAGS.map(
@@ -56,9 +62,9 @@ function formatHistoryDate(iso) {
 }
 
 // ── 위험도 분석 이력 + 사진 분석 이력을 같은 모양({type, time, id, ...})으로 합친다
-function buildHistoryItems() {
-  const predictItems = getSavedResults()
-    .filter((r) => r.id) // id 없는 옛 중복 저장 항목(수동 저장 버튼)은 상세 재진입이 안 되므로 기록에서는 제외
+async function buildHistoryItems() {
+  const [savedResults, savedPhotos] = await Promise.all([getSavedResults(), getSavedPhotoResults()]);
+  const predictItems = savedResults
     .map((r) => {
       const ranked = (r.result?.accident_type?.ranked_types || []).slice(0, 3);
       const topHazards = ranked.map((t) => ACCIDENT_TYPE_SHORT_LABEL[t.type] || t.type);
@@ -74,18 +80,18 @@ function buildHistoryItems() {
       };
     });
 
-  const photoItems = getSavedPhotoResults()
-    .filter((p) => p.id)
+  const photoItems = savedPhotos
     .map((p) => {
       const hazardCount = p.result?.hazards?.length ?? 0;
       const boxes = p.result?.boxes || [];
+      const noObjects = boxes.length === 0;
       const dangerLabels = boxes.filter((b) => b.color === "danger").map((b) => b.label);
       const otherLabels = boxes.filter((b) => b.color !== "danger").map((b) => b.label);
       const topHazards = [...new Set([...dangerLabels, ...otherLabels])].slice(0, 3);
       return {
         type: "사진 분석",
         time: p.savedAt,
-        summary: `발견 위험요소 ${hazardCount}건`,
+        summary: noObjects ? "탐지된 객체 없음 (판정 불가)" : `발견 위험요소 ${hazardCount}건 · 탐지 객체 ${boxes.length}개`,
         topHazards,
         href: `photo-result.html?resultId=${encodeURIComponent(p.id)}`,
       };

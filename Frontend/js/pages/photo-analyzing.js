@@ -76,9 +76,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     sessionStorage.setItem("photo_result", JSON.stringify(result));
 
-    // 분석 기록 화면에서 다시 열어볼 수 있도록 자동 기록 (원본 사진 대신 작은 썸네일만 저장)
+    // 내 사진 분석 기록(서버 DB, 로그인 사용자 소유)에 자동 저장 (원본 사진 대신 작은 썸네일만)
     const thumbnail = await makePhotoThumbnail(photoDataUrl);
-    savePhotoAnalysisRecord(result, thumbnail);
+    try {
+      sessionStorage.setItem("photo_result_id", await savePhotoAnalysisRecord(result, thumbnail));
+    } catch (saveErr) {
+      sessionStorage.removeItem("photo_result_id");
+      console.error("[photo-analyzing.js] 사진 분석 기록 저장 실패", saveErr);
+    }
 
     if (result.grade === "HIGH") {
       showRealNotification(

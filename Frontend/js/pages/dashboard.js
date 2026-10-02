@@ -11,7 +11,7 @@
 //  반복 호출 로직은 더 이상 쓰지 않는다.)
 //
 // 데이터 소스:
-//  - 종합위험도 / 사고유형             → getLastPredictResult() (실제 모델 응답, 없으면 빈 상태)
+//  - 종합위험도 / 사고유형 / 유사사례   → getLatestTodayAnalysis() (서버의 "내" 오늘 최신 분석, 없으면 빈 상태)
 //  - 유사사례 TOP3                    → MOCK_CASES (목업, 분석 전엔 빈 상태)
 //  - 헤더 알림 배지                    → notification-center.js (알림 화면과 동일한 데이터)
 //
@@ -22,15 +22,24 @@
 
 let _cachedResult = null;
 let _cachedSimilarity = null;
+let _cachedRecordId = null;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   renderHeaderWeatherMini();
   renderHeaderNotifBadge();
 
   if (typeof wakeBackend === "function") wakeBackend(); // 로그인 직후 첫 화면에서 백엔드를 미리 깨워 둔다
 
-  _cachedResult = getLastPredictResult();
-  _cachedSimilarity = getLastSimilarity();
+  try {
+    const latest = await getLatestTodayAnalysis();
+    if (latest) {
+      _cachedResult = latest.result;
+      _cachedSimilarity = latest.sim;
+      _cachedRecordId = latest.id;
+    }
+  } catch (err) {
+    console.error("[dashboard.js] 최근 분석 조회 실패", err);
+  }
 
   renderLocalizedParts();
 
@@ -113,11 +122,11 @@ async function renderHeaderWeatherMini() {
 
 // ── 헤더 알림 배지: notification-center.js가 알림 화면과 동일한 기준으로 계산
 //    (읽음 처리는 하지 않음 — 실제로 알림 화면을 열었을 때만 markNotificationsSeen() 호출)
-function renderHeaderNotifBadge() {
+async function renderHeaderNotifBadge() {
   const badgeEl = document.getElementById("header-notif-badge");
   try {
-    const items = buildNotificationItems();
-    const unread = getUnreadNotificationCount(items);
+    const { items, lastSeenAt } = await buildNotificationItems();
+    const unread = getUnreadNotificationCount(items, lastSeenAt);
     if (unread > 0) {
       badgeEl.textContent = unread > 9 ? "9+" : String(unread);
       badgeEl.style.display = "flex";
@@ -197,9 +206,8 @@ function renderFocus(accidentType) {
 
   // 방금 본 lastResult가 어느 이력(id)에 대응하는지 찾아서 상세 화면으로 바로 이동
   const btn = document.getElementById("dash-focus-btn");
-  const latestWithId = getSavedResults().find((r) => r.id);
-  if (latestWithId) {
-    btn.href = `predict-result.html?resultId=${encodeURIComponent(latestWithId.id)}`;
+  if (_cachedRecordId) {
+    btn.href = `predict-result.html?resultId=${encodeURIComponent(_cachedRecordId)}`;
   } else {
     btn.href = "predict-input.html";
   }

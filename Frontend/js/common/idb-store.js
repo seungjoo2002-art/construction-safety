@@ -1,5 +1,5 @@
 // ============================================================
-// idb-store.js — IndexedDB 저장소 (최근 검색 결과 + 즐겨찾기)
+// idb-store.js — IndexedDB 저장소 (공개 사례 DB 최근 검색 결과 캐시) + 즐겨찾기 서버 호출
 // 다른 js보다 먼저 로드되어야 합니다 (api.js, similar-cases.js, case-detail.js가 사용).
 // 외부 라이브러리 없이 순수 indexedDB API만 사용합니다.
 //
@@ -144,40 +144,21 @@ async function _pruneRecentSearches(kind) {
   }
 }
 
-// ── 즐겨찾기(사고 사례 북마크) ──────────────────────────────
-
+// ── 즐겨찾기(사고 사례 북마크) — 사용자 데이터라 IndexedDB(브라우저 공용)가 아니라
+//    서버 DB에 계정별로 저장한다(/api/me/favorites, auth.js 필요).
 async function addFavorite(caseData) {
-  const db = await openIdb();
-  const store = _tx(db, STORE_FAVORITES, "readwrite");
-  await _reqToPromise(store.put({ ...caseData, savedAt: Date.now() }));
+  await authRequest("PUT", `/api/me/favorites/${encodeURIComponent(caseData.id)}`, { data: caseData });
 }
 
 async function removeFavorite(id) {
-  const db = await openIdb();
-  const store = _tx(db, STORE_FAVORITES, "readwrite");
-  await _reqToPromise(store.delete(id));
+  await authRequest("DELETE", `/api/me/favorites/${encodeURIComponent(id)}`);
 }
 
 async function isFavorite(id) {
   try {
-    const db = await openIdb();
-    const store = _tx(db, STORE_FAVORITES, "readonly");
-    const row = await _reqToPromise(store.get(id));
-    return !!row;
+    return (await authRequest("GET", `/api/me/favorites/${encodeURIComponent(id)}`)).favorite;
   } catch (err) {
     console.warn("[idb-store.js] isFavorite 실패", err);
     return false;
-  }
-}
-
-async function listFavorites() {
-  try {
-    const db = await openIdb();
-    const store = _tx(db, STORE_FAVORITES, "readonly");
-    const rows = await _reqToPromise(store.getAll());
-    return rows.sort((a, b) => b.savedAt - a.savedAt);
-  } catch (err) {
-    console.warn("[idb-store.js] listFavorites 실패", err);
-    return [];
   }
 }

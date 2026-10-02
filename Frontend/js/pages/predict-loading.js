@@ -100,9 +100,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("[predict-loading.js] 유사도 분석 결과 (similar_cases + mds_chart_image + prevention_guidelines):", simResult);
     console.log("[predict-loading.js] 해결방안 결과 (evidence + advice + verification):", adviseResult);
 
-    saveLastPredictResult(result, peakPayload); // 대시보드가 읽어갈 "최근 분석" 갱신
-    saveLastSimilarity(simResult); // 대시보드/유사사례가 읽어갈 "최근 유사도 분석" 갱신
-    saveAnalysisRecord(result, peakPayload, simResult, adviseResult); // 알림·기록 화면에서 다시 열어볼 수 있도록 분석 이력에 자동 기록(예방대책 5개 포함)
+    // 내 분석 기록(서버 DB, 로그인 사용자 소유)에 자동 저장 — 대시보드·알림·분석기록이 모두 이 기록을 읽는다.
+    // 저장이 실패해도 방금 분석한 결과 화면은 보여주고, 결과 화면의 "저장" 버튼으로 다시 시도할 수 있다.
+    let recordId = null;
+    try {
+      recordId = await saveAnalysisRecord(result, peakPayload, simResult, adviseResult);
+    } catch (saveErr) {
+      console.error("[predict-loading.js] 분석 기록 저장 실패", saveErr);
+    }
 
     // ── 위험/매우위험 등급이면 실제 브라우저 알림으로 즉시 안내
     const grade = result.severity.fatal_risk.grade;
@@ -116,6 +121,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // predict-result.html에서 읽을 수 있도록 결과 + 원본 입력값 저장
     sessionStorage.setItem("predict_result", JSON.stringify(result));
+    if (recordId) sessionStorage.setItem("predict_result_id", recordId);
+    else sessionStorage.removeItem("predict_result_id");
     sessionStorage.setItem("predict_result_input", JSON.stringify(peakPayload));
     if (simResult) sessionStorage.setItem("similarity_result", JSON.stringify(simResult));
     else sessionStorage.removeItem("similarity_result");

@@ -30,7 +30,10 @@
 // v12: AI 챗봇 기능 제거(chatbot.html/js, /api/chat 및 관련 UI/i18n 정리).
 // v13: 앱 셸 Cache First → Network First(새 배포가 즉시 반영) + 예방대책 5개(items) 통일,
 //      사진분석/유사도 목업 폴백 제거(api.js, predict-result.js, scatter-detail.js, photo-*.js).
-const SHELL_CACHE = "ai-safety-shell-v13";
+// v14: 계정 데이터 서버 격리 — auth.js 신규, 분석기록/알림/현장정보/즐겨찾기를 localStorage가 아니라
+//      서버(/api/me/*, 로그인 사용자 소유)에서 읽도록 session-store.js 등 다수 수정. /api/ 요청은
+//      (사용자별 응답이므로) 서비스워커가 절대 캐시하지 않는다 — 아래 fetch 핸들러 참고.
+const SHELL_CACHE = "ai-safety-shell-v14";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 
@@ -70,6 +73,7 @@ const PRECACHE_URLS = [
   // JS 공통
   "js/common/accessibility.js",
   "js/common/api.js",
+  "js/common/auth.js",
   "js/common/common.js",
   "js/common/constants.js",
   "js/common/i18n.js",

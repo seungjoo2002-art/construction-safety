@@ -12,3 +12,5 @@ hf_dataset_export/
 
 .env
 *.env
+# 사용자 DB(SQLite) — 실제 사용자 계정/분석기록이 들어가므로 절대 커밋하지 않는다
+data/

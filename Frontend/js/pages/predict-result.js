@@ -1,19 +1,25 @@
 // ============================================================
 // predict-result.js — 분석 결과 화면
-// constants.js, session-store.js 보다 나중에 로드되어야 합니다.
+// auth.js, constants.js, session-store.js 보다 나중에 로드되어야 합니다.
 // URL에 ?resultId=...가 있으면 알림 화면 등에서 다시 열어본 지난 분석 이력을
 // 보여주고, 없으면 predict-loading.html에서 저장한 sessionStorage 값(방금 막
 // 끝난 분석)을 읽어 렌더링합니다.
 // ============================================================
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const resultId = new URLSearchParams(window.location.search).get("resultId");
 
   let result, input, sim, advise;
   let legacyRecord = false;
+  let recordId = resultId || sessionStorage.getItem("predict_result_id");
 
   if (resultId) {
-    const record = getSavedResultById(resultId);
+    let record = null;
+    try {
+      record = await getSavedResultById(resultId); // 서버가 내 기록이 아니면 404 → null
+    } catch (err) {
+      console.error("[predict-result.js] 분석 기록 조회 실패", err);
+    }
     if (!record) {
       // 이력을 못 찾은 경우(삭제됨 등) → 입력 화면으로 되돌림
       window.location.href = "predict-input.html";
@@ -74,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderPrevention(advise, legacyRecord);
 
   renderAnalysisMeta(input, result.hourly);
-  bindActions(result, input, sim, advise);
+  bindActions(result, input, sim, advise, recordId);
 });
 
 function toggleModeTag(id, sim) {
@@ -415,34 +421,34 @@ function renderAnalysisMeta(input, hourly) {
 }
 
 // ── 저장 / 공유 액션
-function bindActions(result, input, sim, advise) {
+function bindActions(result, input, sim, advise, recordId) {
   const saveBtn = document.getElementById("save-btn");
   const bookmarkBtn = document.getElementById("bookmark-btn");
   const shareBtn = document.getElementById("share-btn");
 
-  function saveResult() {
-    const saved = JSON.parse(localStorage.getItem("saved_results") || "[]");
-    saved.unshift({
-      savedAt: new Date().toISOString(),
-      score: Math.round(result.severity.fatal_risk.percentile),
-      grade: result.severity.fatal_risk.grade,
-      topType: result.accident_type.predicted_type,
-      result,
-      input,
-      sim: sim || null,
-      advise: compactAdvise(advise),
-    });
-    setListWithQuota("saved_results", saved.slice(0, 50)); // 최근 50건만 보관
+  // 분석이 끝나면 predict-loading.js가 이미 내 기록(서버)에 저장해 두므로, 기록 id가 있으면
+  // 중복 저장하지 않는다. 자동 저장이 실패했던 경우(id 없음)에만 여기서 저장한다.
+  async function saveResult() {
+    if (recordId) return true;
+    try {
+      recordId = await saveAnalysisRecord(result, input, sim, advise);
+      sessionStorage.setItem("predict_result_id", recordId);
+      return true;
+    } catch (err) {
+      console.error("[predict-result.js] 저장 실패", err);
+      alert(`저장하지 못했어요: ${err.message}`);
+      return false;
+    }
   }
 
-  saveBtn.addEventListener("click", () => {
-    saveResult();
-    saveBtn.textContent = "✓ 저장됨";
+  saveBtn.addEventListener("click", async () => {
+    if (!(await saveResult())) return;
+    saveBtn.textContent = "✓ 분석 보관소에 저장됨";
     setTimeout(() => (saveBtn.textContent = "💾 결과 저장하기"), 1500);
   });
 
-  bookmarkBtn.addEventListener("click", () => {
-    saveResult();
+  bookmarkBtn.addEventListener("click", async () => {
+    if (!(await saveResult())) return;
     bookmarkBtn.textContent = "✅";
     setTimeout(() => (bookmarkBtn.textContent = "🔖"), 1200);
   });

@@ -61,27 +61,34 @@ class Hazard:
                               "message": r["msg"], "ref": r["ref"]})
         return risks
 
+    # RAW 진단용 하한. 낮은 conf로 1번만 추론한 뒤 self.conf로 거른다 — NMS는 점수가 더 높은
+    # 박스가 낮은 박스를 지우는 방식이라, conf>=self.conf 결과는 처음부터 self.conf로 돌린 것과 동일하다.
+    RAW_CONF = 0.05
+
     def analyze(self, image, conf=None, draw=False):
         """image: 파일 경로 / PIL.Image / numpy 배열 모두 받는다."""
         t0 = time.perf_counter()
+        conf = self.conf if conf is None else conf
         r = self.model.predict(
             image,
             imgsz=self.imgsz,
-            conf=self.conf if conf is None else conf,
+            conf=min(conf, self.RAW_CONF),
             device=self.device,
             verbose=False,
         )[0]
 
-        objects = []
+        objects, below = [], []
         for b in r.boxes:
             full = self.names[int(b.cls)]
-            objects.append({
+            o = {
                 "cid": self.cid_of(full),
                 "name": full,
                 "conf": round(float(b.conf), 3),
                 "box": [round(float(v), 1) for v in b.xyxy[0].tolist()],   # x1,y1,x2,y2 픽셀
-            })
+            }
+            (objects if float(b.conf) >= conf else below).append(o)
         objects.sort(key=lambda o: -o["conf"])
+        below.sort(key=lambda o: -o["conf"])
 
         risks = self.judge({o["cid"] for o in objects})
         if any(x["level"] == "위험" for x in risks):
@@ -95,13 +102,15 @@ class Hazard:
             "verdict": verdict,
             "risks": risks,
             "objects": objects,
+            "below_threshold": below,   # 판정에 쓰지 않는 진단용 RAW 후보 (RAW_CONF <= conf < threshold)
+            "conf": conf,
             "image_size": [r.orig_shape[1], r.orig_shape[0]],   # w, h
             "elapsed_ms": round((time.perf_counter() - t0) * 1000),
         }
 
         if draw:
             import cv2
-            ok, buf = cv2.imencode(".jpg", r.plot())
+            ok, buf = cv2.imencode(".jpg", r[r.boxes.conf >= conf].plot())  # 판정에 쓴 박스만 그림
             if ok:
                 out["image_b64"] = base64.b64encode(buf.tobytes()).decode()
         return out

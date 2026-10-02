@@ -1,11 +1,41 @@
 // ============================================================
 // login.js — 로그인 화면 전용 로직
-// 서버 DB가 없어서 signup.js가 localStorage의 "registered_users"에
-// 저장해둔 계정 목록과 대조하는 방식으로 로그인을 검증합니다.
-// session-store.js, user-prefs.js, i18n.js 보다 나중에 로드되어야 합니다.
-// (REGISTERED_USERS_KEY / getRegisteredUsers()는 user-prefs.js에 정의되어 있습니다 —
-//  여기서 다시 선언하면 로그인 여부와 무관하게 계정 목록이 어긋날 수 있어 공유합니다.)
+// 서버(/api/auth/login)가 비밀번호를 검증하고 세션 토큰을 발급합니다(auth.js).
+// auth.js, user-prefs.js, i18n.js 보다 나중에 로드되어야 합니다.
+//
+// 예전 버전 계정 이전: 예전에는 계정이 이 브라우저 localStorage("registered_users")에만
+// 있었다. 서버에 없는 아이디인데 이 브라우저의 예전 계정 정보(아이디+비밀번호)와 정확히
+// 일치하면, 같은 아이디/비밀번호로 서버 계정을 만들고 그 계정 "전용" 키였던
+// site_setup_data__<아이디>만 옮긴다. 계정 구분 없이 저장돼 있던 분석기록
+// (saved_results / saved_photo_results)은 소유자를 확정할 수 없으므로 옮기지 않는다.
 // ============================================================
+
+function _readLegacyAccount(username, password) {
+  try {
+    const users = JSON.parse(localStorage.getItem("registered_users") || "[]");
+    return users.find((u) => u.username === username && u.password === password) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function _migrateLegacyAccount(legacy, password) {
+  await signupUser({
+    username: legacy.username,
+    password,
+    name: legacy.name || "",
+    birthdate: legacy.birthdate || "",
+    prefs: legacy.prefs || {},
+  });
+  await loginUser(legacy.username, password);
+  try {
+    const raw = localStorage.getItem(`site_setup_data__${legacy.username}`);
+    if (raw) await saveSiteSetup(JSON.parse(raw)); // 서버가 setupCompleted=true로 기록 + 캐시 갱신
+  } catch (err) {
+    console.warn("[login.js] 예전 현장정보 이전 실패(새로 입력하면 됩니다)", err);
+  }
+  return getCachedUser();
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("login-form");
@@ -16,6 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = document.getElementById("login-submit");
   const rememberCheckbox = document.getElementById("remember-id");
   const ssoBtn = document.getElementById("sso-btn");
+  const submitLabel = submitBtn.textContent;
+
+  if (typeof wakeBackend === "function") wakeBackend();
 
   // ── 아이디 저장 기능: 이전에 저장해둔 아이디가 있으면 채워넣기
   const savedId = localStorage.getItem("saved_username");
@@ -43,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ── 폼 제출
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     clearError();
 
@@ -58,19 +91,28 @@ document.addEventListener("DOMContentLoaded", () => {
     submitBtn.disabled = true;
     submitBtn.textContent = t("login.loggingIn");
 
-    const users = getRegisteredUsers();
-    const account = users.find((u) => u.username === username);
-
-    if (!account) {
-      alert(t("login.errorNoAccount"));
-      window.location.href = "signup.html";
-      return;
-    }
-
-    if (account.password !== password) {
-      alert(t("login.errorWrongPassword"));
-      window.location.href = "signup.html";
-      return;
+    let user;
+    try {
+      user = await loginUser(username, password);
+    } catch (err) {
+      const legacy = err.status === 401 ? _readLegacyAccount(username, password) : null;
+      if (legacy) {
+        try {
+          user = await _migrateLegacyAccount(legacy, password);
+        } catch (migErr) {
+          console.error("[login.js] 예전 계정 이전 실패", migErr);
+        }
+      }
+      if (!user) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitLabel;
+        showError(
+          err.status === 401
+            ? t("login.errorWrongPassword")
+            : `${err.message} (${err.kind === "timeout" ? "서버가 깨어나는 중일 수 있어요. 잠시 후 다시 시도해주세요." : "네트워크 상태를 확인해주세요."})`
+        );
+        return;
+      }
     }
 
     if (rememberCheckbox.checked) {
@@ -79,12 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.removeItem("saved_username");
     }
 
-    localStorage.setItem("logged_in_username", username);
-
-    // 로그인 성공 시: 이 계정이 이미 현장 설정(setupCompleted)을 마쳤으면 대시보드로,
-    // 아니면(신규 가입 직후 등) 현장 설정 화면으로 이동. getUserPrefs()는 계정 레코드에
-    // 귀속된 값이라 로그아웃해도 지워지지 않는다 — 이게 site-setup 반복 버그의 수정 지점.
-    window.location.href = getUserPrefs().setupCompleted ? "dashboard.html" : "site-setup.html";
+    // 로그인 성공 시: 이 계정이 이미 현장 설정을 마쳤으면 대시보드로, 아니면 현장 설정 화면으로.
+    window.location.href = user.prefs && user.prefs.setupCompleted ? "dashboard.html" : "site-setup.html";
   });
 
   ssoBtn.addEventListener("click", () => {

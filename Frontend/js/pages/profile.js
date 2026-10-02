@@ -1,6 +1,7 @@
 // ============================================================
 // profile.js — 내 정보 화면
-// session-store.js, user-prefs.js, i18n.js 보다 나중에 로드되어야 합니다.
+// auth.js, session-store.js, user-prefs.js, i18n.js 보다 나중에 로드되어야 합니다.
+// 이름·현장정보·통계는 전부 서버의 "내" 데이터(/api/me, /api/me/*)에서 가져온다.
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -20,15 +21,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ── 이름/현장/D-day: 로그인·현장설정에서 실제로 저장된 값 사용
-function renderIdentity() {
-  const loggedInUsername = localStorage.getItem("logged_in_username");
-  const registeredUsers = JSON.parse(localStorage.getItem("registered_users") || "[]");
-  const account = registeredUsers.find((u) => u.username === loggedInUsername);
+let _siteSetupPromise = null;
 
-  const displayName = account ? account.name : localStorage.getItem("saved_username");
-  document.getElementById("profile-name").textContent = displayName || t("profile.defaultName");
+async function renderIdentity() {
+  const user = getCachedUser();
+  document.getElementById("profile-name").textContent = (user && (user.name || user.username)) || t("profile.defaultName");
 
-  const siteSetup = hasSiteSetup() ? getSiteSetup() : null;
+  _siteSetupPromise = _siteSetupPromise || getSiteSetup().catch((err) => {
+    console.error("[profile.js] 현장정보 조회 실패", err);
+    return null;
+  });
+  const siteSetup = await _siteSetupPromise;
   const subEl = document.getElementById("profile-sub");
   const ddayEl = document.getElementById("profile-dday");
 
@@ -47,10 +50,19 @@ function renderIdentity() {
   }
 }
 
-// ── 통계: localStorage에 실제 저장된 분석기록 기반으로 계산
-function renderStats() {
-  const savedResults = JSON.parse(localStorage.getItem("saved_results") || "[]");
-  const savedPhotoResults = JSON.parse(localStorage.getItem("saved_photo_results") || "[]");
+// ── 통계: 서버에 저장된 "내" 분석기록 기반으로 계산
+let _statsPromise = null;
+
+async function renderStats() {
+  _statsPromise = _statsPromise || Promise.all([getSavedResults(), getSavedPhotoResults()]);
+  let savedResults, savedPhotoResults;
+  try {
+    [savedResults, savedPhotoResults] = await _statsPromise;
+  } catch (err) {
+    console.error("[profile.js] 통계 조회 실패", err);
+    _statsPromise = null;
+    return;
+  }
 
   const analysisCount = savedResults.length + savedPhotoResults.length;
 
@@ -131,9 +143,8 @@ function renderAccessibilityToggles() {
 
 // ── 알림 설정 (notif_prefs.push가 true면 notifications-realtime.js가 실제 브라우저 알림을 띄움)
 function renderNotificationToggles() {
-  const prefs = JSON.parse(
-    localStorage.getItem("notif_prefs") || '{"push":true,"alert":true}'
-  );
+  const userPrefs = getUserPrefs();
+  const prefs = { push: !!userPrefs.notifPush, alert: !!userPrefs.notifAlert };
 
   const map = {
     "toggle-notif-push": "push",
@@ -155,7 +166,7 @@ function renderNotificationToggles() {
       }
 
       prefs[key] = el.checked;
-      localStorage.setItem("notif_prefs", JSON.stringify(prefs));
+      setUserPrefs(key === "push" ? { notifPush: el.checked } : { notifAlert: el.checked });
     });
   });
 }
@@ -171,14 +182,12 @@ function bindPlaceholderLinks() {
 }
 
 // ── 로그아웃
-// ⚠️ 예전 구현은 여기서 clearSiteSetup()을 호출해 "현장 설정 완료 여부"까지 지워버렸고,
-// 그래서 같은 계정으로 재로그인해도 site-setup 마법사가 매번 다시 떴습니다.
-// 로그아웃은 "인증 세션(logged_in_username)"만 끝내야 하고, 계정에 귀속된 설정
-// (site-setup 데이터, 언어, 접근성)은 registered_users에 그대로 남아있어야 합니다.
+// 서버 세션 토큰을 폐기하고, 브라우저에 남은 계정 종속 데이터(토큰·사용자 캐시·
+// sessionStorage·사례 검색 캐시)를 지운다. 계정에 귀속된 설정/기록은 서버 DB에 그대로 남는다.
 function bindLogout() {
-  document.getElementById("logout-btn").addEventListener("click", () => {
+  document.getElementById("logout-btn").addEventListener("click", async () => {
     if (!confirm(t("profile.logoutConfirm"))) return;
-    localStorage.removeItem("logged_in_username");
+    await logoutUser();
     window.location.href = "login.html";
   });
 }

@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  nextBtn.addEventListener("click", () => {
+  nextBtn.addEventListener("click", async () => {
     if (nextBtn.disabled) return;
 
     if (currentStep < TOTAL_STEPS) {
@@ -175,10 +175,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ── 마지막 스텝: 저장 후 대시보드로 이동 (대시보드는 분석 여부에 따라 알아서 빈 상태/채워진 상태로 보여줌)
-    saveSiteSetup(answers);
-    // 계정 레코드에도 완료 표시 — 로그아웃해도 지워지지 않아서, 다음에 같은 계정으로
-    // 로그인하면 이 화면을 다시 보지 않는다(요구사항: site-setup은 계정당 최초 1회).
-    if (typeof setUserPrefs === "function") setUserPrefs({ setupCompleted: true });
+    // 서버 DB의 내 계정에 저장(PUT /api/me/site-setup) — 서버가 setupCompleted도 함께 기록하므로,
+    // 다음에 같은 계정으로 로그인하면 이 화면을 다시 보지 않는다(site-setup은 계정당 최초 1회).
+    nextBtn.disabled = true;
+    try {
+      await saveSiteSetup(answers);
+    } catch (err) {
+      nextBtn.disabled = false;
+      alert(`현장 정보를 저장하지 못했어요: ${err.message}`);
+      return;
+    }
     window.location.href = "dashboard.html";
   });
 

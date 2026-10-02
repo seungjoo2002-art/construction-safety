@@ -4,9 +4,6 @@
 // 필요해서 제외하고, Notification API로 포그라운드 알림만 지원합니다.
 // ============================================================
 
-const TRIGGERED_NOTIFICATIONS_KEY = "triggered_notifications";
-const TRIGGERED_NOTIFICATIONS_MAX = 50;
-
 /**
  * 브라우저 알림 권한 요청. 이미 허용/거부된 상태면 그대로 반환.
  * @returns {Promise<"granted"|"denied"|"default"|"unsupported">}
@@ -22,12 +19,11 @@ async function requestNotificationPermission() {
 }
 
 /**
- * 실제 브라우저 알림 표시. profile.html의 "푸시 알림" 토글(notif_prefs.push)이
+ * 실제 브라우저 알림 표시. profile.html의 "푸시 알림" 토글(prefs.notifPush)이
  * true이고, 알림 권한이 허용된 상태일 때만 동작합니다.
  */
 async function showRealNotification(title, body, tag) {
-  const prefs = JSON.parse(localStorage.getItem("notif_prefs") || '{"push":true,"alert":true}');
-  if (!prefs.push) return;
+  if (!getUserPrefs().notifPush) return; // 계정별 설정(서버 users.prefs)
 
   if (!("Notification" in window) || Notification.permission !== "granted") return;
 
@@ -43,16 +39,4 @@ async function showRealNotification(title, body, tag) {
   } else {
     new Notification(title, options);
   }
-
-  recordTriggeredNotification(title, body, tag);
-}
-
-/** notifications.html에서 실제 알림 이력으로 보여줄 용도로 최근 50개까지 저장 */
-function recordTriggeredNotification(title, body, tag) {
-  const history = JSON.parse(localStorage.getItem(TRIGGERED_NOTIFICATIONS_KEY) || "[]");
-  history.unshift({ title, body, tag, time: new Date().toISOString() });
-  localStorage.setItem(
-    TRIGGERED_NOTIFICATIONS_KEY,
-    JSON.stringify(history.slice(0, TRIGGERED_NOTIFICATIONS_MAX))
-  );
 }

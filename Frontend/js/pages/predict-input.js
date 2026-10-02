@@ -40,7 +40,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const submitBtn = document.getElementById("submit-btn");
 
   // ── 0. 현장 정보(site-setup) 확인
-  const siteSetupData = getSiteSetup();
+  let siteSetupData = null;
+  try {
+    siteSetupData = await getSiteSetup(); // 서버에 저장된 "내" 현장정보
+  } catch (err) {
+    console.error("[predict-input.js] 현장정보 조회 실패", err);
+  }
   if (!siteSetupData) {
     document.getElementById("site-setup-warning").style.display = "block";
   }

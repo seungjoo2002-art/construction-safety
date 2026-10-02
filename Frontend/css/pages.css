@@ -1081,19 +1081,29 @@
 /* ============================================================
    [photo-result.html]
    ============================================================ */
+/* 박스 좌표(%)가 이미지 기준이므로, 이미지를 자르지 않고(no cover/crop) 원래 비율 그대로
+   frame에 넣고 박스도 같은 frame 기준으로 겹친다. 세로 사진은 높이를 제한하고 가운데 정렬. */
 .photo-result-image {
   position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: #0B1B3C;
-  aspect-ratio: 4 / 3;
   margin-bottom: var(--space-md);
+  display: flex;
+  justify-content: center;
 }
-.photo-result-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.photo-result-image__frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.photo-result-image__frame img {
   display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  width: auto;
+  height: auto;
 }
 .photo-result-image__done-tag {
   position: absolute;
@@ -1120,6 +1130,11 @@
   padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap;
+  line-height: 1.4;
+}
+.photo-box__label--inside {
+  top: 2px;
+  left: 2px;
 }
 
 .photo-score-card {
@@ -1132,6 +1147,10 @@
   padding: var(--space-md);
   margin-bottom: var(--space-md);
 }
+/* 등급별 색 — 예전엔 항상 빨강이라 LOW/판정불가 결과도 위험처럼 보였다 */
+.photo-score-card--medium { background: linear-gradient(135deg, #E65100, var(--color-caution)); }
+.photo-score-card--low { background: linear-gradient(135deg, #2E7D32, var(--color-safe)); }
+.photo-score-card--unknown { background: linear-gradient(135deg, #455A64, #78909C); }
 .photo-score-card__number { font-size: var(--fs-3xl); font-weight: 800; }
 .photo-score-card__badge {
   display: inline-block;

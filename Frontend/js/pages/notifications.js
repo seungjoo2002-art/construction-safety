@@ -3,14 +3,21 @@
 // 목적: "지금 무엇을 확인/조치해야 하는가"를 2~3초 안에 알 수 있게 보여준다.
 // 대시보드와 중복되는 통계(전체 위험지수 게이지, 유형별 분포 등)는 보여주지 않고,
 // 데이터 가공은 notification-center.js(공유 데이터 계층)에 위임한다.
-// constants.js, session-store.js, notification-center.js 보다 나중에 로드되어야 합니다.
+// auth.js, constants.js, session-store.js, notification-center.js 보다 나중에 로드되어야 합니다.
 // ============================================================
 
-document.addEventListener("DOMContentLoaded", () => {
-  const items = buildNotificationItems();
-  const unreadCount = getUnreadNotificationCount(items);
-
-  document.getElementById("notif-need-count").textContent = unreadCount;
+document.addEventListener("DOMContentLoaded", async () => {
+  let data;
+  try {
+    data = await buildNotificationItems();
+  } catch (err) {
+    console.error("[notifications.js] 알림 조회 실패", err);
+    document.getElementById("notif-list").innerHTML =
+      `<p style="text-align:center; color: var(--color-danger); padding: var(--space-lg) 0;">알림을 불러오지 못했어요: ${err.message}</p>`;
+    return;
+  }
+  const { items, lastSeenAt } = data;
+  document.getElementById("notif-need-count").textContent = getUnreadNotificationCount(items, lastSeenAt);
 
   renderList(items);
   markNotificationsSeen(); // 이 화면을 봤으니 다음 방문부터는 새 항목만 미확인으로 집계

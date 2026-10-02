@@ -9,8 +9,6 @@
 // 알림/DB로 바꿀 때 이 파일만 교체하면 되게 한다.
 // ============================================================
 
-const NOTIF_LAST_SEEN_KEY = "notifications_last_seen";
-
 // ── 위험도 분석 1건 → 알림 항목
 function _predictToNotifItem(r) {
   const shortLabel = (ACCIDENT_TYPE_SHORT_LABEL && ACCIDENT_TYPE_SHORT_LABEL[r.topType]) || r.topType || "위험";
@@ -49,60 +47,46 @@ function _photoToNotifItem(p) {
     title: topHazard ? topHazard.title : "사진 분석 완료",
     situation: hazards.length > 0
       ? `현장 사진 분석에서 위험요소 ${hazards.length}건이 탐지됐어요.${dangerLabels.length ? ` (${dangerLabels.slice(0, 3).join(", ")})` : ""}`
-      : "현장 사진 분석이 완료됐어요. 탐지된 위험요소가 없습니다.",
+      : boxes.length === 0
+        ? "현장 사진에서 탐지된 객체가 없어 위험 여부를 판정하지 못했어요."
+        : `현장 사진에서 객체 ${boxes.length}개를 탐지했고, 룰 기준 위험요소는 없었어요.`,
     action: hazards.length > 0
       ? "사진에 표시된 위험요소 위치를 확인하고 필요한 안전조치를 시행하세요."
-      : "특별한 조치 없이 정기 점검을 유지하세요.",
+      : boxes.length === 0
+        ? "현장을 직접 확인하거나, 위험요소가 잘 보이도록 다시 촬영해 분석하세요."
+        : "AI가 놓친 위험요소가 없는지 현장을 직접 점검하세요.",
     time: p.savedAt,
     source: "사진 분석",
     href: p.id ? `photo-result.html?resultId=${encodeURIComponent(p.id)}` : null,
   };
 }
 
-// ⚠️ 아래 2개는 실제 트리거(기상특보 API 연동, 교육일정 DB)가 아직 없어 고정 예시입니다.
-function _placeholderItems() {
-  const now = Date.now();
-  return [
-    {
-      importance: "caution",
-      icon: "🟠",
-      title: "강우 위험 대비 필요",
-      situation: "내일 오전 강수량 52mm가 예보되었습니다.",
-      action: "고소작업 및 야외작업 안전에 각별히 주의하세요.",
-      time: new Date(now - 18 * 60 * 60 * 1000).toISOString(),
-      source: "기상 정보",
-      href: null,
-    },
-    {
-      importance: "info",
-      icon: "🔵",
-      title: "안전교육 일정 안내",
-      situation: "이번 주 목요일 오전 8시 추락·낙하 예방 교육이 예정되어 있습니다.",
-      action: "참석 대상자는 일정을 미리 확인하세요.",
-      time: new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      source: "교육 안내",
-      href: null,
-    },
-  ];
-}
-
-/** 저장된 위험도 분석/사진 분석 이력 + 고정 안내 항목을 최신순으로 합친 알림 목록. */
-function buildNotificationItems() {
-  const predictItems = getSavedResults().map(_predictToNotifItem);
-  const photoItems = getSavedPhotoResults().map(_photoToNotifItem);
-  return [...predictItems, ...photoItems, ..._placeholderItems()].sort(
-    (a, b) => new Date(b.time) - new Date(a.time)
+/**
+ * 내 위험도 분석/사진 분석 기록으로 만든 알림 목록(최신순) + 마지막 확인 시각.
+ * 서버(/api/me/notifications)가 토큰 사용자 소유 기록만 내려준다. 실제 트리거가 없는
+ * 고정 예시 알림(기상특보·교육일정)은 모든 신규 계정에 똑같이 보여 "남의 알림"처럼
+ * 보였으므로 제거했다.
+ * @returns {Promise<{items: object[], lastSeenAt: string|null}>}
+ */
+async function buildNotificationItems() {
+  const data = await authRequest("GET", "/api/me/notifications");
+  const predictItems = data.analyses.map((r) =>
+    _predictToNotifItem({ id: r.id, savedAt: r.created_at, score: r.score, grade: r.grade, topType: r.top_type, result: r.result })
   );
+  const photoItems = data.photos.map((p) => _photoToNotifItem({ id: p.id, savedAt: p.created_at, result: p.result }));
+  const items = [...predictItems, ...photoItems].sort((a, b) => new Date(b.time) - new Date(a.time));
+  return { items, lastSeenAt: data.last_seen_at };
 }
 
-/** 마지막으로 알림 화면을 본 시점 이후의 항목 수 (읽음 처리는 하지 않음 — 대시보드 배지용으로도 재사용). */
-function getUnreadNotificationCount(items) {
-  const lastSeen = localStorage.getItem(NOTIF_LAST_SEEN_KEY);
-  const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
+/** 마지막으로 알림 화면을 본 시점 이후의 항목 수 (대시보드 배지용으로도 재사용). */
+function getUnreadNotificationCount(items, lastSeenAt) {
+  const lastSeenTime = lastSeenAt ? new Date(lastSeenAt).getTime() : 0;
   return items.filter((n) => new Date(n.time).getTime() > lastSeenTime).length;
 }
 
 /** 알림 화면을 실제로 봤을 때만 호출 — 다음 방문부터는 새 항목만 미확인으로 집계. */
 function markNotificationsSeen() {
-  localStorage.setItem(NOTIF_LAST_SEEN_KEY, new Date().toISOString());
+  return authRequest("POST", "/api/me/notifications/seen").catch((err) =>
+    console.warn("[notification-center.js] 읽음 처리 실패", err)
+  );
 }

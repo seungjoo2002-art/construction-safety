@@ -65,6 +65,7 @@ from predict_severity import SeverityPredictor
 from predict_accident_type import AccidentTypePredictor
 from similarity_service import SimilarityWebService
 from download_assets import ensure_large_assets
+from user_api import router as user_router, get_store as get_user_store
 
 from pathlib import Path
 
@@ -98,6 +99,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── 계정/사용자별 데이터 API (/api/auth/*, /api/me/*) — user_api.py, user_store.py
+#    현재 사용자는 Authorization: Bearer 토큰으로만 식별하고, 모든 조회/수정/삭제는
+#    DB 단계에서 user_id 조건으로 제한된다(프런트 필터링에 의존하지 않음).
+app.include_router(user_router)
+get_user_store()  # 기동 시 스키마 생성 + 어떤 DB를 쓰는지 로그로 남김
 
 # ── 모델은 서버가 켜질 때 딱 1번만 로드합니다 (요청마다 새로 로드하면 매우 느려짐)
 severity_predictor = SeverityPredictor()
@@ -451,7 +458,14 @@ def _photo_transform(raw: Dict[str, Any]) -> Dict[str, Any]:
     objects = raw["objects"]
     img_w, img_h = raw["image_size"]
 
-    grade, grade_label = _PHOTO_GRADE_BY_VERDICT.get(verdict, ("LOW", "안전 상태 양호"))
+    # 탐지 객체가 0개면 "안전"이 아니라 "판정 불가"다 — 위험요소 없음(정상) 판정과 구분한다.
+    if not objects:
+        status, grade, grade_label = "no_objects", "UNKNOWN", "탐지된 객체 없음 — 위험 여부 판정 불가"
+    elif not risks:
+        status, grade, grade_label = "no_hazard", "LOW", "룰 기준 위험요소 없음"
+    else:
+        status = "hazard"
+        grade, grade_label = _PHOTO_GRADE_BY_VERDICT.get(verdict, ("MEDIUM", "주의 관찰 필요"))
 
     # 이번 판정에 실제로 관여한 cid만 모아서, 박스 색을 danger/safe로 구분
     highlight_cids: set = set()
@@ -483,7 +497,8 @@ def _photo_transform(raw: Dict[str, Any]) -> Dict[str, Any]:
     ]
 
     return {
-        "score": _photo_score(verdict, risks),
+        "status": status,
+        "score": _photo_score(verdict, risks) if objects else None,
         "grade": grade,
         "grade_label": grade_label,
         "boxes": boxes,
@@ -525,11 +540,16 @@ def analyze_photo(body: PhotoAnalyzeIn):
 
     out = _photo_transform(raw)
     # 탐지 객체 → 적용 룰 → 최종 판정이 서로 맞는지 운영 로그로 검증할 수 있게 한 줄로 남긴다
+    # 단계별 추적: RAW(conf>=raw_conf) → threshold 필터 → 룰 → 응답. 어느 단계에서 객체가 빠지는지 로그로 구분한다.
     print(f"[app.py] /api/analyze-photo {img.size[0]}x{img.size[1]} {raw['elapsed_ms']}ms "
-          f"objects={[(o['cid'], o['conf']) for o in raw['objects']]} "
-          f"rules={[r['ref'] for r in raw['risks']]} verdict={raw['verdict']} score={out['score']}")
+          f"raw={len(raw['objects']) + len(raw['below_threshold'])} "
+          f"below_conf{raw['conf']}={[(o['name'], o['conf']) for o in raw['below_threshold']]} "
+          f"kept={[(o['name'], o['conf']) for o in raw['objects']]} "
+          f"rules={[r['ref'] for r in raw['risks']]} verdict={raw['verdict']} status={out['status']} score={out['score']}")
     out["verdict"] = raw["verdict"]
-    out["detections"] = [{"cid": o["cid"], "name": o["name"], "conf": o["conf"]} for o in raw["objects"]]
+    out["detections"] = [{"cid": o["cid"], "name": o["name"], "conf": o["conf"], "box": o["box"]} for o in raw["objects"]]
+    # threshold 미만 후보 — 판정(룰)에는 쓰지 않고 진단용으로만 내려준다
+    out["below_threshold"] = [{"name": o["name"], "conf": o["conf"], "box": o["box"]} for o in raw["below_threshold"]]
     out["applied_rules"] = [{"ref": r["ref"], "level": r["level"], "message": r["message"]} for r in raw["risks"]]
     out["engine"] = dict(_hazard_engine, elapsed_ms=raw["elapsed_ms"], image_size=raw["image_size"])
     return out

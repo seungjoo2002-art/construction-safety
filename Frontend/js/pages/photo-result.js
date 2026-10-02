@@ -6,13 +6,19 @@
 // 읽어 렌더링합니다. session-store.js 보다 나중에 로드되어야 합니다.
 // ============================================================
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const resultId = new URLSearchParams(window.location.search).get("resultId");
 
   let result, photoDataUrl;
+  const recordId = resultId || sessionStorage.getItem("photo_result_id");
 
   if (resultId) {
-    const record = getSavedPhotoResultById(resultId);
+    let record = null;
+    try {
+      record = await getSavedPhotoResultById(resultId); // 서버가 내 기록이 아니면 404 → null
+    } catch (err) {
+      console.error("[photo-result.js] 사진 분석 기록 조회 실패", err);
+    }
     if (!record) {
       window.location.href = "photo-capture.html";
       return;
@@ -35,8 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderImageWithBoxes(photoDataUrl, result.boxes);
   renderScore(result);
-  renderHazardList(result.hazards);
-  bindActions(result, photoDataUrl);
+  renderHazardList(result.hazards, result.boxes);
+  bindActions(result, photoDataUrl, recordId);
 });
 
 const BOX_COLOR = {
@@ -54,36 +60,58 @@ function renderImageWithBoxes(photoDataUrl, boxes) {
     return;
   }
 
+  // 박스 좌표는 "원본 이미지 기준 %"이므로, 이미지와 정확히 같은 크기의 frame 안에 겹쳐야 한다.
+  // (예전엔 4:3로 고정된 컨테이너에 object-fit: cover로 이미지를 잘라 넣고 박스는 컨테이너 기준 %로
+  //  그려서, 4:3이 아닌 사진(16:9, 세로 3:4 등)은 박스 위치가 어긋나고 가장자리 객체가 잘려 안 보였다.)
   const boxesHtml = boxes
     .map((b) => {
       const color = BOX_COLOR[b.color] || BOX_COLOR.caution;
+      const labelInside = b.top < 8 ? " photo-box__label--inside" : ""; // 위쪽 끝 박스의 라벨이 잘리지 않게
       return `
         <div class="photo-box" style="
           top:${b.top}%; left:${b.left}%; width:${b.width}%; height:${b.height}%;
           border-color:${color};
         ">
-          <span class="photo-box__label" style="background:${color};">${b.label} ${b.pct}%</span>
+          <span class="photo-box__label${labelInside}" style="background:${color};">${b.label} ${b.pct}%</span>
         </div>
       `;
     })
     .join("");
 
   container.innerHTML = `
-    <img src="${photoDataUrl}" alt="촬영한 현장 사진">
-    ${boxesHtml}
+    <div class="photo-result-image__frame">
+      <img src="${photoDataUrl}" alt="촬영한 현장 사진">
+      ${boxesHtml}
+    </div>
     <span class="photo-result-image__done-tag">AI 분석 완료</span>
   `;
 }
 
 function renderScore(result) {
-  document.getElementById("score-number").textContent = `${result.score}/100`;
+  const noObjects = (result.boxes || []).length === 0;
+  document.getElementById("score-number").textContent =
+    result.score === null || result.score === undefined ? "판정 불가" : `${result.score}/100`;
+  const card = document.querySelector(".photo-score-card");
+  const mod = noObjects ? "unknown" : { MEDIUM: "medium", LOW: "low" }[result.grade];
+  if (card && mod) card.classList.add(`photo-score-card--${mod}`);
   const badgeEl = document.getElementById("score-badge");
-  badgeEl.textContent = `${result.grade} · ${result.grade_label}`;
+  // 탐지 객체 0개는 "안전"이 아니다 — "위험요소 없음 판정"과 구분해서 보여준다
+  badgeEl.textContent = noObjects
+    ? "탐지된 객체 없음 · 위험 여부 판정 불가"
+    : `${result.grade} · ${result.grade_label}`;
   document.getElementById("hazard-count").textContent = result.hazards.length;
 }
 
-function renderHazardList(hazards) {
+function renderHazardList(hazards, boxes) {
   const listEl = document.getElementById("hazard-list");
+  if (hazards.length === 0) {
+    listEl.innerHTML = `<p style="text-align:center; padding: var(--space-md) 0; color: var(--color-text-secondary);">${
+      (boxes || []).length === 0
+        ? "사진에서 탐지된 객체가 없어요. 위험요소가 없다는 뜻이 아니니, 대상이 잘 보이도록 다시 촬영하거나 현장을 직접 확인하세요."
+        : `객체 ${boxes.length}개를 탐지했고, 룰 기준으로 판정된 위험요소는 없어요. AI가 학습하지 않은 위험(예: 안전모 미착용)은 판정하지 않으니 현장 점검은 계속하세요.`
+    }</p>`;
+    return;
+  }
   const severityBadge = (s) => (s === "위험" ? "badge--danger" : s === "주의" ? "badge--caution" : "badge--safe");
 
   listEl.innerHTML = hazards
@@ -103,16 +131,23 @@ function renderHazardList(hazards) {
     .join("");
 }
 
-function bindActions(result, photoDataUrl) {
+function bindActions(result, photoDataUrl, recordId) {
   const saveBtn = document.getElementById("save-btn");
   const downloadBtn = document.getElementById("download-btn");
   const shareBtn = document.getElementById("share-btn");
 
-  saveBtn.addEventListener("click", () => {
-    const saved = JSON.parse(localStorage.getItem("saved_photo_results") || "[]");
-    saved.unshift({ savedAt: new Date().toISOString(), result });
-    localStorage.setItem("saved_photo_results", JSON.stringify(saved.slice(0, 50)));
-    saveBtn.textContent = "✓ 저장됨";
+  // 분석 직후 photo-analyzing.js가 이미 내 기록(서버)에 저장했으면 중복 저장하지 않는다.
+  saveBtn.addEventListener("click", async () => {
+    if (!recordId) {
+      try {
+        recordId = await savePhotoAnalysisRecord(result, photoDataUrl ? await _thumb(photoDataUrl) : null);
+        sessionStorage.setItem("photo_result_id", recordId);
+      } catch (err) {
+        alert(`저장하지 못했어요: ${err.message}`);
+        return;
+      }
+    }
+    saveBtn.textContent = "✓ 분석 보관소에 저장됨";
     setTimeout(() => (saveBtn.textContent = "💾 결과 저장하기"), 1500);
   });
 
@@ -138,5 +173,21 @@ function bindActions(result, photoDataUrl) {
     } else {
       alert("이 브라우저는 공유 기능을 지원하지 않아요. 아래 내용을 복사해서 사용해주세요:\n\n" + shareText);
     }
+  });
+}
+/** 저장용 썸네일(긴 변 320px) — photo-analyzing.js의 makePhotoThumbnail과 동일 규칙 */
+function _thumb(dataUrl, maxSize = 320) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/jpeg", 0.6));
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
   });
 }

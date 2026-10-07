@@ -2,15 +2,8 @@
 app.py — FastAPI 서버: 위험도(severity) + 사고유형(accident_type) 예측 API
 ==========================================================================
 같은 폴더 안에 다음이 전부 있어야 합니다.
-  config.py
-  preprocessing.py
-  predict_severity.py
-  predict_accident_type.py
-  artifacts/  (아래 10개 파일)
-    severity_model_rus4.joblib, fatal_distribution.json,
-    fatal_dist_reference.npy, fatal_dist_reference.csv, test_metrics_rus4.json,
-    accident_type_stacking.joblib, type_distribution.json,
-    type_dist_reference.npy, type_dist_reference.csv, test_metrics_type.json
+  config.py, risk_service.py
+  risk_model/  (건설사고예측 배포패키지 31피처 — predict.py, models/ 13개, artifacts/)
 
 실행 방법:
   ⚠️ requirements.txt는 Python 3.12 기준입니다. 컴퓨터에 여러 Python 버전이 설치되어
@@ -48,7 +41,6 @@ import os
 import re
 import sys
 import threading
-import pandas as pd
 import requests
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -60,9 +52,7 @@ try:
 except Exception:
     pass
 
-import preprocessing as P
-from predict_severity import SeverityPredictor
-from predict_accident_type import AccidentTypePredictor
+from risk_service import RiskService
 from similarity_service import SimilarityWebService
 from download_assets import ensure_large_assets
 from user_api import router as user_router, get_store as get_user_store
@@ -107,8 +97,7 @@ app.include_router(user_router)
 get_user_store()  # 기동 시 스키마 생성 + 어떤 DB를 쓰는지 로그로 남김
 
 # ── 모델은 서버가 켜질 때 딱 1번만 로드합니다 (요청마다 새로 로드하면 매우 느려짐)
-severity_predictor = SeverityPredictor()
-accident_type_predictor = AccidentTypePredictor()
+risk_service = RiskService()   # 위험도(심각도 3분류) + 사고유형(5분류) — risk_model/ 패키지
 
 # ── 유사도 서비스 (similarity_service.py)
 #    OPENAI_API_KEY가 있으면 텍스트 임베딩 기반 정밀 유사도를 쓰고,
@@ -140,7 +129,7 @@ def get_sim_service() -> Optional[SimilarityWebService]:
 
 # ── 사진 분석 서비스 (safety_yolo_pkg/hazard.py — YOLO 객체탐지 + 룰 기반 위험 판정)
 #    ⚠️ Render 무료 Web Service(512MB) 대응 — Hazard()는 ultralytics/torch를 로드하는데
-#    실측 결과 그것만으로 +238MB가 듭니다. 위험도·사고유형 모델(+222MB)과 similarity_service
+#    실측 결과 그것만으로 +238MB가 듭니다. 위험도·사고유형 모델(측정 당시 구 모형 +222MB)과 similarity_service
 #    import(+48MB, matplotlib 등)까지 서버 기동 시점에 전부 합쳐지면 요청 1건도 받기 전에
 #    이미 500MB 근처(측정: 약 508MB)라 컨테이너가 기동 자체에 실패(OOM)할 수 있습니다.
 #    그래서 sim_service와 동일한 지연 초기화 패턴으로 바꿨습니다 — /api/analyze-photo가
@@ -195,16 +184,14 @@ def get_hazard_service():
 
 
 class PredictIn(BaseModel):
-    data: Dict[str, Any]  # 프론트가 보내는 31개 필드 (config.RAW_INPUT_COLS)
+    data: Dict[str, Any]  # 프론트 payload (현장설정 + 오늘 입력 + 날씨 + 발생일시) — risk_service.to_model_input이 31피처로 변환
 
 
 @app.post("/api/predict")
 def predict(body: PredictIn):
     """프론트의 predict-input.html에서 조립한 payload를 그대로 받아 두 모델 결과를 함께 반환."""
-    return {
-        "severity": severity_predictor.predict_one(body.data),
-        "accident_type": accident_type_predictor.predict_one(body.data),
-    }
+    r = risk_service.predict_one(body.data)
+    return {"severity": r["severity"], "accident_type": r["accident_type"]}
 
 
 class PredictHourlyIn(BaseModel):
@@ -216,10 +203,11 @@ class PredictHourlyIn(BaseModel):
 
 @app.post("/api/predict-hourly")
 def predict_hourly(body: PredictHourlyIn):
-    """작업 시작~종료 시각을 1시간 간격으로 위험도만 배치 예측 → p_fatal 최대 시각을 대표로 선정.
-    사고유형은 대표 시각 1건에 대해서만 계산한다(모든 시각에 대해 돌리지 않음).
-    현장·기상 조건은 모든 시각에 동일하고 발생일시/사고일시_x의 시각만 바뀐다.
-    동점(p_fatal 소수 6자리 기준 동일)이면 가장 이른 시각을 대표로 쓴다."""
+    """작업 시작~종료 시각을 1시간 간격으로 배치 예측 → p_fatal 최대 시각을 대표로 선정.
+    현장·기상·연령 조건은 모든 시각에 동일하고, 시각에 따라 사고_시간과 근무형태
+    (정규 근무시간 밖이면 연장근무, 주말·공휴일이면 휴일근무)가 바뀐다.
+    동점(p_fatal 소수 4자리 기준 동일)이면 가장 이른 시각을 대표로 쓴다.
+    화면에는 p_fatal이 아니라 percentile/grade를 보여준다(확률이 실제 발생률과 어긋나 있음)."""
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", body.date or ""):
         raise HTTPException(status_code=400, detail="date는 YYYY-MM-DD 형식이어야 합니다")
     if not (0 <= body.start_hour <= 23 and 0 <= body.end_hour <= 23):
@@ -233,30 +221,30 @@ def predict_hourly(body: PredictHourlyIn):
         dt = f"{body.date} {h:02d}:00"
         rows.append({**body.data, "발생일시": dt, "사고일시_x": dt})
 
-    severities = severity_predictor.predict(rows)
-    # 실제 모델에 들어간 사고_시간(전처리 후 값) — 검증/로그용
-    model_hours = P.prepare(pd.DataFrame(rows), severity_predictor.meta)[0]["사고_시간"].tolist()
+    results = risk_service.predict(rows)  # 시각 수만큼 배치 1회 (심각도 + 사고유형)
 
     points = [
         {
             "hour": h,
             "datetime": rows[i]["발생일시"],
-            "model_input_hour": int(model_hours[i]),
-            "p_fatal": s["fatal_risk"]["p_fatal"],
-            "percentile": s["fatal_risk"]["percentile"],
-            "grade": s["fatal_risk"]["grade"],
+            "model_input_hour": r["model_input"].get("사고_시간"),  # 실제 모델에 들어간 값 — 검증/로그용
+            "shift_type": r["model_input"].get("근무형태"),
+            "p_fatal": r["severity"]["fatal_risk"]["p_fatal"],
+            "percentile": r["severity"]["fatal_risk"]["percentile"],
+            "grade": r["severity"]["fatal_risk"]["grade"],
         }
-        for i, (h, s) in enumerate(zip(hours, severities))
+        for i, (h, r) in enumerate(zip(hours, results))
     ]
     # max()는 동점일 때 처음 나온(=가장 이른) 원소를 돌려준다
     peak = max(range(len(points)), key=lambda i: points[i]["p_fatal"])
 
-    accident_type = accident_type_predictor.predict_one(rows[peak])
+    accident_type = results[peak]["accident_type"]
     print(f"[app.py] /api/predict-hourly date={body.date} {body.start_hour:02d}~{body.end_hour:02d}시 "
-          f"사고_시간={[p['model_input_hour'] for p in points]} "
-          f"peak={points[peak]['hour']:02d}시 p_fatal={points[peak]['p_fatal']} 유형={accident_type['predicted_type']}")
+          f"사고_시간={[p['model_input_hour'] for p in points]} 근무형태={[p['shift_type'] for p in points]} "
+          f"peak={points[peak]['hour']:02d}시 p_fatal={points[peak]['p_fatal']} "
+          f"백분위={points[peak]['percentile']} 유형={accident_type['predicted_type']}")
     return {
-        "severity": severities[peak],
+        "severity": results[peak]["severity"],
         "accident_type": accident_type,
         "hourly": {
             "date": body.date,
@@ -311,21 +299,20 @@ def _warm_up_advisor():
 
 
 class AdviseIn(BaseModel):
-    data: Dict[str, Any]        # /api/predict 와 동일한 31개 필드
+    data: Dict[str, Any]        # /api/predict 와 동일한 payload
     상황: Optional[str] = None  # 자유 서술 (없으면 예측 결과로 자동 생성)
 
 
 @app.post("/api/advise")
 def advise(body: AdviseIn):
     """예측(위험도·사고유형) → KOSHA 유사사례 검색 → Gemini 안전수칙 생성을 한 번에 반환.
-    예측 모형은 /api/predict와 동일한 severity_predictor/accident_type_predictor를 재사용한다
-    (모형을 중복 로드하지 않음)."""
+    예측 모형은 /api/predict와 동일한 risk_service를 재사용한다(모형을 중복 로드하지 않음)."""
     service = get_advisor_service()
     if service is None:
         raise HTTPException(status_code=503, detail="해결방안 서비스를 초기화하지 못했습니다 (kosha_sif 자산 확인 필요)")
 
-    severity = severity_predictor.predict_one(body.data)
-    accident_type = accident_type_predictor.predict_one(body.data)
+    pred = risk_service.predict_one(body.data)
+    severity, accident_type = pred["severity"], pred["accident_type"]
     risk = {
         "injury_top": accident_type["predicted_type"],
         "relative_risk_percentile": severity["fatal_risk"]["percentile"],
@@ -346,11 +333,8 @@ def advise(body: AdviseIn):
 
 @app.get("/api/distributions")
 def distributions():
-    """참조분포 요약 — 나중에 통계/차트 화면에서 쓸 수 있음."""
-    return {
-        "severity": severity_predictor.distribution_summary(),
-        "accident_type": accident_type_predictor.distribution_summary(),
-    }
+    """상대 위험도 기준분포 요약·등급 구간·등급별 실제 치명률 — 나중에 통계/차트 화면에서 쓸 수 있음."""
+    return risk_service.summary()
 
 
 # ============================================================
@@ -381,7 +365,7 @@ WORKER_BUCKET_TO_COUNT = {
 
 
 def build_similarity_input(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """프론트가 보내는 RAW_INPUT_COLS 형태 payload → similarity_service.analyze()가 원하는 형태로 변환."""
+    """프론트 payload(/api/predict와 동일) → similarity_service.analyze()가 원하는 형태로 변환."""
     return {
         "facility_text": payload.get("시설물 종류 - 중분류") or payload.get("시설물 종류 - 대분류", ""),
         "construction_text": payload.get("공종 - 중분류", ""),

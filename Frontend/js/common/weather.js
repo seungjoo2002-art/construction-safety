@@ -119,7 +119,7 @@ function estimateTodayRainfall(hourlyList) {
 }
 
 /**
- * 백엔드 config.RAW_INPUT_COLS 필드명에 맞춰 변환.
+ * 백엔드 입력 필드명(Backend/risk_service.py to_model_input)에 맞춰 변환.
  * 기온_D1~D3 / 강수_D1~D3 / 풍속_D1~D3(최근 3일)은
  * 무료 API로 조회 불가 → 의도적으로 비워서 백엔드가 결측 처리하게 둡니다.
  */

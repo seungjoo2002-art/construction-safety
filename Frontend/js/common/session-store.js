@@ -13,7 +13,7 @@
 // ============================================================
 
 // ── 현장 정보 ───────────────────────────────────────────────
-/** 현장 설정값 저장(현재 로그인 계정). data는 RAW_INPUT_COLS 필드명을 key로 쓰는 객체. */
+/** 현장 설정값 저장(현재 로그인 계정). data는 백엔드 입력 필드명을 key로 쓰는 객체. */
 async function saveSiteSetup(data) {
   await authRequest("PUT", "/api/me/site-setup", { data });
   const user = getCachedUser();

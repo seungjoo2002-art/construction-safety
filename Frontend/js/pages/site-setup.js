@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const TOTAL_STEPS = 4;
   let currentStep = 1;
 
-  // 최종적으로 백엔드 RAW_INPUT_COLS 필드명을 key로 쌓이는 답변 저장소
+  // 최종적으로 백엔드 입력 필드명(risk_service.py to_model_input 기준)을 key로 쌓이는 답변 저장소
   const answers = {};
 
   const stepEls = document.querySelectorAll(".wizard-step");

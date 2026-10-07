@@ -32,17 +32,19 @@ from pathlib import Path
 
 import pandas as pd
 
-import config as CFG
-
 BASE_DIR = Path(__file__).parent
 CSV_PATH = BASE_DIR / "assets" / "df_db.csv"
 OUT_DIR = BASE_DIR / "hf_dataset_export"
 
 SEARCH_COLS = ["사고명", "사고경위", "시도", "군구", "공종 - 중분류"]
 
-_INJURY_LEVEL_TO_TAG = {}
-for _injury, _level in CFG.LEVEL_MAP.items():
-    _INJURY_LEVEL_TO_TAG[_injury] = "치명" if _level == 4 else ("중상" if _level == 3 else "경상")
+# 추출된_부상유형 → 심각도 태그 (학습 시 쓰던 LEVEL_MAP 4단계: 4=치명, 3=중상, 2·1=경상)
+_INJURY_LEVEL_TO_TAG = {
+    "사망": "치명", "의식불명/뇌손상": "치명",
+    "절단/관통": "중상", "절단(경미)": "중상",
+    "골절": "경상", "손상/파열": "경상",
+    "베임/찢어짐": "경상", "타박/염좌": "경상",
+}
 
 
 def _hazard_tag(raw) -> str:

@@ -67,7 +67,7 @@ async function renderStats() {
   const analysisCount = savedResults.length + savedPhotoResults.length;
 
   const severityHazardCount = savedResults.filter((r) =>
-    ["위험", "매우위험"].includes(r.grade)
+    ["매우 높음", "위험", "매우위험"].includes(r.grade) // 매우 높음: 현재 모형 / 위험·매우위험: 예전 기록
   ).length;
   const photoHazardCount = savedPhotoResults.reduce(
     (sum, p) => sum + (p.result?.hazards?.length || 0),

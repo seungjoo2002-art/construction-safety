@@ -1,0 +1,102 @@
+{
+  "version": "2.0.0",
+  "data_unit": "피해자 단위 (연령대별 사망자·부상자로 재구성), 평가 분할은 사고 단위 그룹",
+  "severity": {
+    "classes": [
+      "경+중등도",
+      "중상",
+      "치명"
+    ],
+    "n_features": 31,
+    "rus_ratio": 3,
+    "structure": "RandomUnderSampler(다수:치명=3:1) + XGBoost/LightGBM/CatBoost 소프트보팅",
+    "n_train_rows": 27907,
+    "holdout_performance_notebook": {
+      "accuracy": 0.6747,
+      "gmean": 0.599,
+      "mauc": 0.793,
+      "fatal_auc": 0.7997,
+      "recall": [
+        0.6946,
+        0.543,
+        0.57
+      ]
+    },
+    "oof_5fold_performance_notebook": {
+      "accuracy": 0.6699,
+      "gmean": 0.5905,
+      "mauc": 0.7852,
+      "fatal_auc": 0.7934,
+      "recall": [
+        0.6909,
+        0.5359,
+        0.5561
+      ]
+    },
+    "oof_5fold_fatal_auc_package": 0.7941
+  },
+  "injury": {
+    "classes": [
+      "끼임",
+      "절단·베임·찔림",
+      "추락·압착",
+      "물체에 맞음",
+      "전도·충돌"
+    ],
+    "n_features": 31,
+    "structure": "Stacking — base 3종(XGB·LGBM·CatBoost) 3-fold OOF → 메타러너 XGBoost",
+    "n_train_rows": 29117,
+    "holdout_performance_notebook": {
+      "accuracy": 0.437,
+      "macro_recall": 0.4461,
+      "macro_f1": 0.4243,
+      "gmean": 0.439,
+      "mauc": 0.751
+    }
+  },
+  "relative_risk": {
+    "source": "배포 파이프라인과 동일한 인코딩으로 계산한 심각도 5-fold OOF의 P(치명) 분포 (사고 단위 그룹, RUS 1:3)",
+    "n_reference": 27907,
+    "percentiles": {
+      "10": 0.04157659488530424,
+      "25": 0.08929710820559106,
+      "50": 0.1799893898579643,
+      "75": 0.34096527625397843,
+      "90": 0.5428496830717758,
+      "95": 0.6787606803261229,
+      "99": 0.8667640926814373
+    },
+    "grades": [
+      {
+        "label": "낮음",
+        "min": 0,
+        "max": 50
+      },
+      {
+        "label": "보통",
+        "min": 50,
+        "max": 75
+      },
+      {
+        "label": "높음",
+        "min": 75,
+        "max": 90
+      },
+      {
+        "label": "매우 높음",
+        "min": 90,
+        "max": 100
+      }
+    ]
+  },
+  "random_state": 42,
+  "package_versions": {
+    "xgboost": "3.0.0",
+    "lightgbm": "4.6.0",
+    "catboost": "1.2.10",
+    "scikit-learn": "1.6.1",
+    "numpy": "2.2.2",
+    "pandas": "2.2.3",
+    "python": "3.12.8"
+  }
+}

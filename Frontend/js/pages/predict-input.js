@@ -29,7 +29,7 @@ const DEFAULT_WORK_END_HOUR = 18;
 document.addEventListener("DOMContentLoaded", async () => {
   wakeBackend(); // 입력하는 동안 잠든 백엔드(Render)를 미리 깨워 둔다
 
-  // 이 화면에서 채워지는 "동적" 답변들 (RAW_INPUT_COLS 필드명을 key로 사용)
+  // 이 화면에서 채워지는 "동적" 답변들 (백엔드 입력 필드명을 key로 사용)
   const answers = {};
   let weatherFields = null; // 백엔드로 보낼 날씨 필드 (숫자만)
   let weatherDescription = null; // 분석정보 카드 표시용 (백엔드로는 안 보냄)

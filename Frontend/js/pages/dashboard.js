@@ -138,21 +138,26 @@ async function renderHeaderNotifBadge() {
   }
 }
 
+// 게이지 색 — 등급 구간(높음 75~90 / 매우 높음 90~)과 같은 경계를 쓴다
 function riskColor(pct) {
-  if (pct >= 80) return "var(--color-danger)";
-  if (pct >= 50) return "var(--color-caution)";
+  if (pct >= 90) return "var(--color-danger)";
+  if (pct >= 75) return "var(--color-caution)";
   return "var(--color-safe)";
 }
 
 function gradeToBadgeClass(grade) {
-  if (grade === "매우위험" || grade === "위험") return "badge--danger";
-  if (grade === "주의") return "badge--caution";
-  return "badge--safe";
+  return `badge--${riskGradeLevel(grade)}`;
+}
+
+// 평균 대비 배수 — 현재 모형은 등급별 실제 치명률/전체 평균(lift_vs_base, 검증값),
+// 예전 모형으로 저장된 기록은 lift_vs_median만 있다.
+function liftOf(fr) {
+  return fr.lift_vs_base ?? fr.lift_vs_median;
 }
 
 // ── ① 오늘의 현장 안전 상태 (종합 위험도 히어로 카드)
-// 실제 predict_severity.py fatal_risk 응답을 그대로 사용
-// ⚠️ i18n 주의: fr.grade("매우위험" 등)는 화면에 보여줄 때만 tStatus()로 번역한다.
+// 백엔드 risk_service.py의 fatal_risk 응답을 그대로 사용
+// ⚠️ i18n 주의: fr.grade("매우 높음" 등)는 화면에 보여줄 때만 tStatus()로 번역한다.
 // gradeToBadgeClass() 같은 로직 비교, className 조립에는 항상 원래 한국어 값을 쓴다.
 function renderHero(result) {
   const fr = result.severity.fatal_risk;
@@ -174,7 +179,7 @@ function renderHero(result) {
   badgeEl.className = `badge ${gradeToBadgeClass(fr.grade)}`;
 
   document.getElementById("dash-hero-meta").innerHTML =
-    `${t("dashboard.riskMeta")} · ${t("dashboard.liftDelta")} <b>${fr.lift_vs_median}${t("dashboard.timesUnit")}</b>`;
+    `${t("dashboard.riskMeta")} · ${t("dashboard.liftDelta")} <b>${liftOf(fr)}${t("dashboard.timesUnit")}</b>`;
 
   // "현재 가장 주의가 필요한 위험: 끼임 (27%)" — 문장 형태로도 한 번 더 확인 가능하게
   const topType = result.accident_type.predicted_type;
@@ -217,8 +222,8 @@ function renderFocus(accidentType) {
 function renderStats(result) {
   const fr = result.severity.fatal_risk;
 
-  document.getElementById("value-lift").textContent = `${fr.lift_vs_median}${t("dashboard.timesUnit")}`;
-  document.getElementById("bar-prob").style.width = `${Math.min(fr.lift_vs_median * 20, 100)}%`;
+  document.getElementById("value-lift").textContent = `${liftOf(fr)}${t("dashboard.timesUnit")}`;
+  document.getElementById("bar-prob").style.width = `${Math.min(liftOf(fr) * 20, 100)}%`;
 
   document.getElementById("value-severity-class").textContent = tStatus(result.severity.predicted_class);
   const severityBarPct = { "경+중등도": 20, "중상": 60, "치명": 100 }[result.severity.predicted_class] || 20;

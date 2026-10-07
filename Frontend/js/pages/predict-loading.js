@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const hh = (h) => `${String(h).padStart(2, "0")}:00`;
 
   // ── 실제 API 호출은 화면 연출과 동시에 백그라운드에서 진행
-  //    1단계: 시간대별 위험도만 예측 → 2단계: 최대 p_fatal 시각 선정(백엔드) →
+  //    1단계: 시간대별 위험도 예측 → 2단계: 최대 p_fatal 시각 선정(백엔드) →
   //    3단계: 그 시각 입력값으로 예방대책 생성. 유사도는 시각과 무관해 바로 병렬 요청.
   const hourlyPromise = predictHourlyRisk(payload, workHours);
   const simPromise = getSimilarity(payload); // 유사도 분석(유사사례+산점도+재발방지대책)
@@ -79,8 +79,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const result = await hourlyPromise; // { severity, accident_type, hourly } — severity/accident_type은 가장 위험한 시각 기준
     const peakTime = hh(result.hourly.peak_hour);
     console.log(
-      "[predict-loading.js] 시간대별 p_fatal:",
-      result.hourly.points.map((p) => `${hh(p.hour)} p_fatal=${p.p_fatal} (사고_시간=${p.model_input_hour})`)
+      "[predict-loading.js] 시간대별 위험도:",
+      result.hourly.points.map(
+        (p) => `${hh(p.hour)} 백분위=${p.percentile} p_fatal=${p.p_fatal} (사고_시간=${p.model_input_hour}, 근무형태=${p.shift_type})`
+      )
     );
     console.log(`[predict-loading.js] 가장 위험한 시간대: ${peakTime} (${result.hourly.peak_datetime})`);
 
@@ -109,9 +111,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("[predict-loading.js] 분석 기록 저장 실패", saveErr);
     }
 
-    // ── 위험/매우위험 등급이면 실제 브라우저 알림으로 즉시 안내
+    // ── "매우 높음" 등급(치명 위험 상위 10%)이면 실제 브라우저 알림으로 즉시 안내
     const grade = result.severity.fatal_risk.grade;
-    if (grade === "위험" || grade === "매우위험") {
+    if (grade === "매우 높음") {
       showRealNotification(
         "⚠️ 위험 감지",
         `오늘 ${peakTime} 종합 위험도 ${Math.round(result.severity.fatal_risk.percentile)}점(${grade}) - 즉각적인 안전점검이 필요해요`,

@@ -11,7 +11,7 @@ const API_BASE_URL = (
 
 /**
  * 위험도(심각도) + 사고유형 예측 요청.
- * payload: predict-input.js에서 조립한 RAW_INPUT_COLS 형태의 객체
+ * payload: predict-input.js에서 조립한 payload 객체 (현장설정 + 오늘 입력 + 날씨)
  * @returns { severity, accident_type }
  *
  * 동작: 실제 백엔드(app.py)로 요청하고, 실패하면 목업으로 조용히 대체하지 않고
@@ -34,7 +34,7 @@ async function predictRisk(payload) {
  * 시간대별 위험도 예측 (작업 시작~종료 시각, 1시간 간격).
  * 백엔드가 시각마다 위험도만 배치 예측하고, p_fatal 최대 시각(동점이면 가장 이른 시각)의
  * 위험도 + 사고유형을 대표 결과로 돌려준다.
- * @param {object} payload predict-input.js에서 조립한 RAW_INPUT_COLS 형태(발생일시/사고일시_x 제외)
+ * @param {object} payload predict-input.js에서 조립한 payload(발생일시/사고일시_x 제외)
  * @param {{date: string, startHour: number, endHour: number}} workHours date는 KST "YYYY-MM-DD"
  * @returns { severity, accident_type, hourly } — severity/accident_type은 /api/predict와 같은 형태
  */
@@ -114,7 +114,7 @@ async function analyzePhoto(photoDataUrl) {
 // 유사도 분석 (similarity_service.py 연동 — 유사사례 + MDS 산점도)
 // ============================================================
 /**
- * @param {object} payload predict-input.js에서 조립한 것과 동일한 RAW_INPUT_COLS 형태 객체
+ * @param {object} payload predict-input.js에서 조립한 것과 동일한 payload 객체
  * @returns {Promise<{similar_cases, mds_chart_image, is_approximate}|null>} 실패 시 null
  *          (목업으로 대체하지 않는다 — 결과 화면이 "불러오지 못했어요"를 보여준다)
  */
@@ -132,7 +132,7 @@ async function getSimilarity(payload) {
 // 해결방안 (advisor.py 연동 — KOSHA 유사사례 검색 + Gemini 안전수칙 생성)
 // ============================================================
 /**
- * @param {object} payload predict-input.js에서 조립한 것과 동일한 RAW_INPUT_COLS 형태 객체
+ * @param {object} payload predict-input.js에서 조립한 것과 동일한 payload 객체
  * @param {string} [상황] 자유 서술(예: "슬래브 콘크리트 타설 중 거푸집 붕괴 위험"). 없으면 서버가 예측 결과로 자동 생성.
  * @returns {Promise<{items, intro, evidence, advice, verification, retrieval}|null>} 실패 시 null
  *          (AI 생성문이라 목업으로 대체하면 실제처럼 보여 부적절 — 실패하면 그냥 섹션을 숨긴다)

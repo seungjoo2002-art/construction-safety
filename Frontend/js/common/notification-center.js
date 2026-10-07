@@ -12,8 +12,9 @@
 // ── 위험도 분석 1건 → 알림 항목
 function _predictToNotifItem(r) {
   const shortLabel = (ACCIDENT_TYPE_SHORT_LABEL && ACCIDENT_TYPE_SHORT_LABEL[r.topType]) || r.topType || "위험";
-  const isUrgent = r.grade === "매우위험" || r.grade === "위험";
-  const isCaution = r.grade === "주의";
+  const level = riskGradeLevel(r.grade); // 매우 높음→urgent, 높음→caution (예전 기록 등급도 처리)
+  const isUrgent = level === "danger";
+  const isCaution = level === "caution";
   const tip = (ACCIDENT_TYPE_TIPS && ACCIDENT_TYPE_TIPS[r.topType] && ACCIDENT_TYPE_TIPS[r.topType][0]) || null;
   const topProb = r.result?.accident_type?.confidence;
 

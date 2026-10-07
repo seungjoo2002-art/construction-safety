@@ -33,7 +33,9 @@
 // v14: 계정 데이터 서버 격리 — auth.js 신규, 분석기록/알림/현장정보/즐겨찾기를 localStorage가 아니라
 //      서버(/api/me/*, 로그인 사용자 소유)에서 읽도록 session-store.js 등 다수 수정. /api/ 요청은
 //      (사용자별 응답이므로) 서비스워커가 절대 캐시하지 않는다 — 아래 fetch 핸들러 참고.
-const SHELL_CACHE = "ai-safety-shell-v14";
+// v15: 예측 모형 31피처(연령 포함) 패키지로 교체 — 위험도 등급 낮음/보통/높음/매우 높음,
+//      결과 화면은 p_fatal 대신 백분위 점수 표시(constants.js, predict-result.js, dashboard.js 등).
+const SHELL_CACHE = "ai-safety-shell-v15";
 const API_CACHE = "ai-safety-api-v1";
 const CURRENT_CACHES = [SHELL_CACHE, API_CACHE];
 

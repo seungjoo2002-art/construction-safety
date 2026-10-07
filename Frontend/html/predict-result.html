@@ -58,7 +58,7 @@
           <span class="peak-hour__stat-value"><span class="badge" id="peak-hour-grade">--</span></span>
         </div>
         <div class="peak-hour__stat">
-          <span class="peak-hour__stat-label">치명 위험도</span>
+          <span class="peak-hour__stat-label">치명 위험 순위</span>
           <span class="peak-hour__stat-value" id="peak-hour-pfatal">--</span>
         </div>
         <div class="peak-hour__stat peak-hour__stat--wide">
@@ -67,17 +67,17 @@
         </div>
       </div>
 
-      <h2 class="card-section-title" style="margin: var(--space-lg) 0 0;">시간대별 치명 위험도</h2>
+      <h2 class="card-section-title" style="margin: var(--space-lg) 0 0;">시간대별 위험도 점수</h2>
       <p style="font-size: 11px; color: var(--color-text-secondary);" id="hourly-chart-caption"></p>
       <div class="hourly-chart" id="hourly-chart"></div>
       <details>
         <summary style="cursor:pointer; font-size: var(--fs-xs); color: var(--color-text-secondary); margin-top: var(--space-sm);">📋 시간대별 값 표로 보기</summary>
         <table class="hourly-table" id="hourly-table"></table>
       </details>
-      <p class="peak-hour__note">아래 위험도·유사사례·예방대책은 모두 가장 위험한 시간대 기준 결과예요. 기상값은 모든 시간대에 같은 값을 사용했어요.</p>
+      <p class="peak-hour__note">아래 위험도·유사사례·예방대책은 모두 가장 위험한 시간대 기준 결과예요. 기상값은 모든 시간대에 같은 값을 사용했고, 근무형태는 시간대별로 정규(08~18시)·연장·휴일(주말·공휴일)을 자동 판정했어요.</p>
     </section>
 
-    <!-- ── 종합 위험도 (predict_severity.py의 fatal_risk 기반) -->
+    <!-- ── 종합 위험도 (risk_service.py의 fatal_risk — 사고 발생 시 치명 위험의 백분위 점수) -->
     <section class="card" style="margin-bottom: var(--space-md);">
       <div class="result-score">
         <span class="result-score__label">종합 위험도</span>

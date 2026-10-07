@@ -1,8 +1,8 @@
-# 건설사고 예측 모델 — 서빙용 (위험도 / 사고유형)
+# 건설사고 예측 모델 — 서빙용 (위험도 / 사고유형, risk_model/ 31피처 패키지)
 # ============================================================
-# 학습 환경: Windows, conda, Python 3.12
-# ※ 버전을 고정합니다. 다른 버전에서는 joblib 로딩이 실패하거나
-#   예측값이 미묘하게 달라질 수 있습니다.
+# 학습 환경: Windows, Python 3.12 (risk_model/artifacts/metadata.json의 package_versions)
+# ※ 버전을 고정합니다. 메이저 버전이 다르면 모형 파일(.json/.txt/.cbm) 로드가
+#   실패하거나 예측값이 달라질 수 있습니다.
 # ============================================================
 numpy==2.2.2
 pandas==2.2.3
@@ -10,7 +10,9 @@ scikit-learn==1.6.1
 xgboost==3.0.0
 lightgbm==4.6.0
 catboost==1.2.10
-joblib==1.4.2
+
+# 근무형태 자동 판정(risk_service.py)에서 대한민국 공휴일·대체공휴일 판별
+holidays
 
 # ============================================================
 # app.py 서버 실행 + similarity_service.py(유사도 분석) 구동에 필요한 패키지.
@@ -53,5 +55,5 @@ psycopg[binary]
 # 설치
 #   pip install -r requirements.txt
 #
-# joblib.load()에서 오류가 나면 conda로 설치해 보세요
+# 모형 로드에서 오류가 나면 conda로 설치해 보세요
 #   conda install -c conda-forge scikit-learn=1.6.1 xgboost=3.0.0 lightgbm=4.6.0 catboost=1.2.10

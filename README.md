@@ -20,7 +20,7 @@
 
 | 엔드포인트 | 이유 |
 |---|---|
-| `POST /api/predict` | 학습된 ML 모델(joblib) 실시간 추론 |
+| `POST /api/predict` | 학습된 ML 모델(`Backend/risk_model/` 31피처 패키지) 실시간 추론 |
 | `POST /api/analyze` | 임베딩 기반 코사인 유사도 계산 + MDS 산점도 렌더링 + 재발방지대책 생성 |
 | `POST /api/analyze-photo` | YOLO 객체탐지 모델 추론 |
 
@@ -108,6 +108,10 @@ peak **719MB**, idle 기동 시점도 이미 **~508MB** 추정), 두 군데를 �
 여유)로 낮췄습니다.** `mmap_mode='r'`이 "그냥 안전하다"고 가정하지 않고, 실제
 `Backend/assets/db_v_*.npy`(각 137MB, 총 411MB)와 실제 joblib 모델을 그대로
 로드해 `psutil`로 RSS를 직접 측정하며 검증했습니다.
+
+> **모형 교체 후 (31피처 패키지, `Backend/risk_model/`)**: 같은 방식으로 다시 재면 `import app`
+> 직후 RSS가 **약 313MB**로 예전(286MB)보다 약 27MB 늘었습니다. 위 `/api/analyze` 피크에 그대로
+> 더하면 **약 480~500MB**로 512MB 여유가 거의 없으니, 배포 후 Render 메모리 그래프를 꼭 확인하세요.
 
 **문제 1 — 임베딩 3개를 서비스 생애주기 내내 들고 있었음.**
 `similarity_service.py`가 `__init__`에서 `db_v_fac/con/wrk.npy`를 `mmap_mode='r'`로

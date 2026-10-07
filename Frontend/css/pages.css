@@ -1151,7 +1151,7 @@
 .photo-score-card--medium { background: linear-gradient(135deg, #E65100, var(--color-caution)); }
 .photo-score-card--low { background: linear-gradient(135deg, #2E7D32, var(--color-safe)); }
 .photo-score-card--unknown { background: linear-gradient(135deg, #455A64, #78909C); }
-.photo-score-card__number { font-size: var(--fs-3xl); font-weight: 800; }
+.photo-score-card__verdict { font-size: var(--fs-xl); font-weight: 800; margin: 2px 0 4px; }
 .photo-score-card__badge {
   display: inline-block;
   background: rgba(255,255,255,0.2);

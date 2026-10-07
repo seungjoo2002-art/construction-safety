@@ -89,16 +89,13 @@ function renderImageWithBoxes(photoDataUrl, boxes) {
 
 function renderScore(result) {
   const noObjects = (result.boxes || []).length === 0;
-  document.getElementById("score-number").textContent =
-    result.score === null || result.score === undefined ? "판정 불가" : `${result.score}/100`;
+  document.getElementById("score-verdict").textContent = noObjects ? "판정 불가" : result.grade_label;
   const card = document.querySelector(".photo-score-card");
   const mod = noObjects ? "unknown" : { MEDIUM: "medium", LOW: "low" }[result.grade];
   if (card && mod) card.classList.add(`photo-score-card--${mod}`);
   const badgeEl = document.getElementById("score-badge");
   // 탐지 객체 0개는 "안전"이 아니다 — "위험요소 없음 판정"과 구분해서 보여준다
-  badgeEl.textContent = noObjects
-    ? "탐지된 객체 없음 · 위험 여부 판정 불가"
-    : `${result.grade} · ${result.grade_label}`;
+  badgeEl.textContent = noObjects ? "탐지된 객체 없음" : result.grade;
   document.getElementById("hazard-count").textContent = result.hazards.length;
 }
 
@@ -163,7 +160,7 @@ function bindActions(result, photoDataUrl, recordId) {
   });
 
   shareBtn.addEventListener("click", async () => {
-    const shareText = `[AI 건설현장 안전관리] 사진 위험도 점수 ${result.score}/100 (${result.grade}), 탐지된 위험요소 ${result.hazards.length}건`;
+    const shareText = `[AI 건설현장 안전관리] 사진 판정: ${result.grade_label} (${result.grade}), 탐지된 위험요소 ${result.hazards.length}건`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "사진 분석 결과", text: shareText });

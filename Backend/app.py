@@ -415,7 +415,7 @@ def health():
 # 사진 분석 (safety_yolo_pkg/hazard.py 연동 — YOLO 객체탐지 + 룰 기반 위험 판정)
 # ============================================================
 # safety_yolo_pkg는 { verdict, risks[], objects[], image_size, elapsed_ms } 형태로 응답하는데,
-# 프론트(photo-result.js)는 이미 { score, grade, grade_label, boxes[], hazards[] } 형태를 기대하고
+# 프론트(photo-result.js)는 이미 { grade, grade_label, boxes[], hazards[] } 형태를 기대하고
 # 있으므로(원래 목업 형태), 여기서 서버 쪽에서 변환해 프론트 코드는 건드리지 않습니다.
 _PHOTO_GRADE_BY_VERDICT = {
     "위험": ("HIGH", "즉각 조치 필요"),
@@ -423,17 +423,6 @@ _PHOTO_GRADE_BY_VERDICT = {
     "정상": ("LOW", "안전 상태 양호"),
 }
 _PHOTO_ICON_BY_LEVEL = {"위험": "🚨", "주의": "⚠️"}
-
-
-def _photo_score(verdict: str, risks: List[Dict[str, Any]]) -> int:
-    """모델은 숫자 점수를 안 주고 verdict/risks만 주므로, 프론트의 0~100 점수 UI에 맞춰 근사 환산."""
-    danger_count = sum(1 for r in risks if r.get("level") == "위험")
-    caution_count = sum(1 for r in risks if r.get("level") == "주의")
-    if verdict == "위험":
-        return min(97, 70 + danger_count * 6 + caution_count * 2)
-    if verdict == "주의":
-        return min(69, 40 + caution_count * 6)
-    return 8
 
 
 def _photo_transform(raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -482,7 +471,6 @@ def _photo_transform(raw: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "status": status,
-        "score": _photo_score(verdict, risks) if objects else None,
         "grade": grade,
         "grade_label": grade_label,
         "boxes": boxes,
@@ -529,7 +517,7 @@ def analyze_photo(body: PhotoAnalyzeIn):
           f"raw={len(raw['objects']) + len(raw['below_threshold'])} "
           f"below_conf{raw['conf']}={[(o['name'], o['conf']) for o in raw['below_threshold']]} "
           f"kept={[(o['name'], o['conf']) for o in raw['objects']]} "
-          f"rules={[r['ref'] for r in raw['risks']]} verdict={raw['verdict']} status={out['status']} score={out['score']}")
+          f"rules={[r['ref'] for r in raw['risks']]} verdict={raw['verdict']} status={out['status']}")
     out["verdict"] = raw["verdict"]
     out["detections"] = [{"cid": o["cid"], "name": o["name"], "conf": o["conf"], "box": o["box"]} for o in raw["objects"]]
     # threshold 미만 후보 — 판정(룰)에는 쓰지 않고 진단용으로만 내려준다
